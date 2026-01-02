@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  role      String   @default("VIEWER") // ADMIN, EDITOR, VIEWER
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submittedRequests ChangeRequest[] @relation("SubmittedBy")
+  reviewedRequests  ChangeRequest[] @relation("ReviewedBy")
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  codePrefix  String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       Item[]
+
+  // Relations for ChangeRequests targeting this project (new root items)
+  newRootItemRequests ChangeRequest[] @relation("TargetProject")
+}
+
+model Item {
+  id          Int      @id @default(autoincrement())
+  fullId      String   @unique // e.g. "SI-1-1"
+  title       String
+  content     String?
+  attachments String?  // JSON array: [{ name, path, size, type, uploadedAt }]
+  publishedAt DateTime?
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Hierarchy
+  parentId    Int?
+  parent      Item?    @relation("ItemHierarchy", fields: [parentId], references: [id])
+  children    Item[]   @relation("ItemHierarchy")
+
+  // Project
+  projectId   Int
+  project     Project  @relation(fields: [projectId], references: [id])
+
+  // ChangeRequests for this existing item (UPDATE/DELETE)
+  changeRequests ChangeRequest[] @relation("TargetItem")
+  
+  // ChangeRequests for creating NEW children under this item
+  newChildRequests ChangeRequest[] @relation("TargetParent")
+
+  // Related Items (Many-to-Many Self Relation)
+  relatedItems    Item[] @relation("ItemRelations")
+  relatedToItems  Item[] @relation("ItemRelations")
+}
+
+model ChangeRequest {
+  id          Int          @id @default(autoincrement())
+  type        String       // CREATE, UPDATE, DELETE
+  status      String       @default("PENDING") // PENDING, APPROVED, REJECTED
+  data        String       // JSON content
+  
+  // 1. Target Existing Item (UPDATE / DELETE)
+  itemId      Int?
+  item        Item?        @relation("TargetItem", fields: [itemId], references: [id])
+  
+  // 2. Target for CREATE (New Item)
+  // If creating root item: need targetProjectId
+  targetProjectId Int?
+  targetProject   Project? @relation("TargetProject", fields: [targetProjectId], references: [id])
+  
+  // If creating child item: need targetParentId
+  targetParentId  Int?
+  targetParent    Item?    @relation("TargetParent", fields: [targetParentId], references: [id])
+
+  submittedById String
+  submittedBy   User   @relation("SubmittedBy", fields: [submittedById], references: [id])
+  
+  reviewedById  String?
+  reviewedBy    User?  @relation("ReviewedBy", fields: [reviewedById], references: [id])
+
+  reviewNote    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

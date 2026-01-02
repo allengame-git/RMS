@@ -1,0 +1,40 @@
+/* Theme Toggle Styles */
+
+/* Dark theme overrides - using !important to ensure they apply */
+html[data-theme="dark"] {
+    --color-bg-base: hsl(220, 20%, 5%) !important;
+    --color-bg-surface: hsl(220, 20%, 10%) !important;
+    --color-bg-secondary: hsl(220, 20%, 12%) !important;
+    --color-text: hsl(220, 10%, 95%) !important;
+    --color-text-main: hsl(220, 10%, 95%) !important;
+    --color-text-muted: hsl(220, 10%, 65%) !important;
+    --color-border: hsl(220, 15%, 20%) !important;
+
+    --color-primary: hsl(220, 90%, 60%) !important;
+    --color-primary-dark: hsl(220, 90%, 50%) !important;
+    --color-primary-soft: hsl(220, 90%, 15%) !important;
+    --color-primary-fg: #ffffff !important;
+
+    --color-success: hsl(150, 70%, 50%) !important;
+    --color-warning: hsl(40, 90%, 60%) !important;
+    --color-danger: hsl(350, 80%, 60%) !important;
+}
+
+html[data-theme="dark"] body {
+    background-color: hsl(220, 20%, 5%) !important;
+    color: hsl(220, 10%, 95%) !important;
+}
+
+html[data-theme="dark"] .glass {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Smooth transition for theme changes */
+:root,
+body,
+.glass {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

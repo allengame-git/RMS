@@ -1,42 +1,214 @@
+/* Modern Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand Colors - Intelligent Blue */
+  --primary-hue: 220;
+  --primary-sat: 90%;
+  --primary-light: 50%;
+  --color-primary: hsl(var(--primary-hue), var(--primary-sat), var(--primary-light));
+  --color-primary-dark: hsl(var(--primary-hue), var(--primary-sat), 40%);
+  --color-primary-fg: #ffffff;
+  --color-primary-soft: hsl(var(--primary-hue), var(--primary-sat), 96%);
+
+  /* Neutrals */
+  --neutral-hue: 220;
+  --color-bg-base: hsl(var(--neutral-hue), 15%, 97%);
+  --color-bg-surface: #ffffff;
+  --color-text-main: hsl(var(--neutral-hue), 20%, 12%);
+  --color-text-muted: hsl(var(--neutral-hue), 10%, 45%);
+  --color-border: hsl(var(--neutral-hue), 15%, 88%);
+  
+  /* Functional */
+  --color-success: hsl(150, 70%, 40%);
+  --color-warning: hsl(40, 90%, 50%);
+  --color-danger: hsl(350, 80%, 55%);
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 3rem;
+
+  /* Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.5rem;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-bg-base: hsl(var(--neutral-hue), 20%, 5%);
+    --color-bg-surface: hsl(var(--neutral-hue), 20%, 10%);
+    --color-text-main: hsl(var(--neutral-hue), 10%, 95%);
+    --color-text-muted: hsl(var(--neutral-hue), 10%, 65%);
+    --color-border: hsl(var(--neutral-hue), 15%, 20%);
+    
+    --color-primary: hsl(var(--primary-hue), var(--primary-sat), 60%);
+    --color-primary-dark: hsl(var(--primary-hue), var(--primary-sat), 50%);
+    --color-primary-soft: hsl(var(--primary-hue), var(--primary-sat), 15%);
   }
 }
 
-html,
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg-base);
+  color: var(--color-text-main);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+/* Base Utilities */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
 }
 
-a {
-  color: inherit;
+/* Button Component */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  gap: var(--space-sm);
   text-decoration: none;
 }
 
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-fg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+.btn-outline:hover {
+  border-color: var(--color-text-muted);
+  background-color: var(--color-bg-base);
+}
+
+/* Layout Utilities */
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-md { gap: var(--space-md); }
+.gap-sm { gap: var(--space-sm); }
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+h1 { font-size: 2.5rem; letter-spacing: -0.02em; }
+h2 { font-size: 2rem; letter-spacing: -0.01em; }
+h3 { font-size: 1.5rem; }
+
+/* Effects */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
 @media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+  .glass {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
+}
+
+/* Item Link Styles */
+.item-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--color-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.item-link:hover {
+  background-color: var(--color-primary-soft);
+  text-decoration: none;
+}
+
+.item-link.invalid {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+  border-bottom: none;
+  opacity: 0.7;
+}
+
+.item-id-candidate {
+  border-bottom: 2px solid var(--color-warning);
+  cursor: pointer;
+  background-color: rgba(255, 235, 59, 0.1);
+}
+
+/* Item Detail Rich Text Content */
+.rich-text-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+.rich-text-content td,
+.rich-text-content th {
+  border: 1px solid var(--color-border);
+  padding: 0.5rem;
+}
+.rich-text-content th {
+  background-color: rgba(0,0,0,0.02);
+  font-weight: bold;
+  text-align: left;
+}
+.rich-text-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.rich-text-content blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 1rem;
+  margin-left: 0;
+  font-style: italic;
+}
+.rich-text-content a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* Attachment Link Styles */
+.attachment-link:hover {
+  background-color: rgba(var(--color-primary-rgb), 0.05); /* Fallback or calculate if var exists */
+  background-color: var(--color-primary-soft);
+  border-color: var(--color-primary) !important;
 }

@@ -1,95 +1,53 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import Link from "next/link";
 
-export default function Home() {
+export default async function Home() {
+  const session = await getServerSession(authOptions);
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="container" style={{ paddingTop: '4rem', paddingBottom: '4rem' }}>
+      <main className="flex-col gap-md">
+        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h1 style={{ marginBottom: '1rem' }}>Project RMS</h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '1.25rem' }}>
+            Robust Project Information Management System
+          </p>
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+          {session?.user ? (
+            <div style={{ marginTop: '1rem', padding: '1rem', border: '1px solid var(--color-success)', borderRadius: 'var(--radius-md)', color: 'var(--color-success)' }}>
+              Welcome back, <strong>{session.user.username}</strong> ({session.user.role})
+            </div>
+          ) : (
+            <div style={{ marginTop: '1rem' }}>
+              <Link href="/auth/login" className="btn btn-primary">Login Now</Link>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+          {/* Card 1 */}
+          <div className="glass" style={{ padding: '2rem', borderRadius: 'var(--radius-lg)' }}>
+            <h3>Documentation</h3>
+            <p style={{ marginTop: '0.5rem', color: 'var(--color-text-muted)' }}>
+              Manage hierarchical project items with full history tracking.
+            </p>
+          </div>
+
+          {/* Card 2 */}
+          <div className="glass" style={{ padding: '2rem', borderRadius: 'var(--radius-lg)' }}>
+            <h3>Approval Workflow</h3>
+            <p style={{ marginTop: '0.5rem', color: 'var(--color-text-muted)' }}>
+              Strict change request system for data integrity.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex-center" style={{ marginTop: '3rem', gap: '1rem' }}>
+          <button className="btn btn-primary">Get Started</button>
+          <button className="btn btn-outline">Learn More</button>
         </div>
       </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
