@@ -54,6 +54,13 @@ export default function Navbar() {
                                 Projects
                             </Link>
                             <Link
+                                href="/datafiles"
+                                className={`btn btn-outline ${isActive("/datafiles") ? "active-link" : ""}`}
+                                style={{ border: "none", padding: "0.5rem 1rem" }}
+                            >
+                                Files
+                            </Link>
+                            <Link
                                 href="/admin/history"
                                 className={`btn btn-outline ${isActive("/admin/history") ? "active-link" : ""}`}
                                 style={{ border: "none", padding: "0.5rem 1rem" }}

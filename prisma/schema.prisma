@@ -14,7 +14,7 @@ model User {
   id        String   @id @default(uuid())
   username  String   @unique
   password  String
-  role      String   @default("VIEWER") // ADMIN, EDITOR, VIEWER
+  role      String   @default("VIEWER") // ADMIN, EDITOR, VIEWER, INSPECTOR
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -23,6 +23,12 @@ model User {
   
   submittedHistories ItemHistory[] @relation("HistorySubmitter")
   reviewedHistories  ItemHistory[] @relation("HistoryReviewer")
+  
+  // DataFile relations
+  submittedFileRequests DataFileChangeRequest[] @relation("FileSubmittedBy")
+  reviewedFileRequests  DataFileChangeRequest[] @relation("FileReviewedBy")
+  submittedFileHistories DataFileHistory[] @relation("FileHistorySubmitter")
+  reviewedFileHistories  DataFileHistory[] @relation("FileHistoryReviewer")
 }
 
 model Project {
@@ -139,4 +145,98 @@ model ItemHistory {
   
   @@index([itemId, version])
   @@index([itemId, createdAt])
+}
+
+// ============================================
+// DataFile Management Models
+// ============================================
+
+model DataFile {
+  id          Int      @id @default(autoincrement())
+  
+  // Metadata
+  dataYear    Int                    // 資料年份
+  dataName    String                 // 資料名稱
+  dataCode    String   @unique       // 資料編碼 (唯一)
+  author      String                 // 作者
+  description String                 // 內容簡介
+  
+  // File Info
+  fileName    String                 // 原始檔名
+  filePath    String                 // 儲存路徑
+  fileSize    Int                    // 檔案大小 (bytes)
+  mimeType    String                 // MIME 類型
+  
+  // Status
+  isDeleted   Boolean  @default(false)
+  currentVersion Int   @default(1)
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  changeRequests DataFileChangeRequest[]
+  history        DataFileHistory[]
+  
+  @@index([dataYear])
+  @@index([dataCode])
+}
+
+model DataFileChangeRequest {
+  id          Int      @id @default(autoincrement())
+  type        String   // FILE_CREATE, FILE_UPDATE, FILE_DELETE
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  data        String   // JSON content
+  
+  // Target file (for UPDATE/DELETE)
+  fileId      Int?
+  file        DataFile? @relation(fields: [fileId], references: [id])
+  
+  // Submitter
+  submittedById String
+  submittedBy   User   @relation("FileSubmittedBy", fields: [submittedById], references: [id])
+  
+  // Reviewer
+  reviewedById  String?
+  reviewedBy    User?  @relation("FileReviewedBy", fields: [reviewedById], references: [id])
+  
+  reviewNote    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model DataFileHistory {
+  id          Int      @id @default(autoincrement())
+  
+  // Optional relation to DataFile (can be null if deleted)
+  fileId      Int?
+  file        DataFile? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  
+  version     Int
+  changeType  String   // CREATE, UPDATE, DELETE
+  snapshot    String   // JSON
+  diff        String?  // JSON
+  
+  // Submitter
+  submittedById String
+  submittedBy   User   @relation("FileHistorySubmitter", fields: [submittedById], references: [id])
+  
+  // Reviewer
+  reviewedById  String?
+  reviewedBy    User?  @relation("FileHistoryReviewer", fields: [reviewedById], references: [id])
+  
+  reviewStatus  String   // APPROVED, REJECTED
+  reviewNote    String?
+  
+  // Redundant fields for deleted files
+  dataCode      String
+  dataName      String
+  dataYear      Int
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([fileId, version])
+  @@index([fileId, createdAt])
+  @@index([dataYear])
 }

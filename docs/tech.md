@@ -393,6 +393,241 @@ const handleApproveClick = (e, id) => {
 - 內容: 友善的錯誤訊息
 - 只有「確定」按鈕關閉
 
+```
+
+---
+
+## Phase 5: 檔案管理系統 (v0.8.0)
+
+### 5.1 Database Schema
+
+**新增模型**:
+
+```prisma
+model DataFile {
+  id          Int      @id @default(autoincrement())
+  
+  // Metadata
+  dataYear    Int                    // 資料年份
+  dataName    String                 // 資料名稱
+  dataCode    String   @unique       // 資料編碼 (唯一)
+  author      String                 // 作者
+  description String                 // 內容簡介
+  
+  // File Info
+  fileName    String                 // 原始檔名
+  filePath    String                 // 儲存路徑
+  fileSize    Int                    // 檔案大小 (bytes)
+  mimeType    String                 // MIME 類型
+  
+  // Status
+  isDeleted   Boolean  @default(false)
+  currentVersion Int   @default(1)
+  
+  // Relations
+  changeRequests DataFileChangeRequest[]
+  history        DataFileHistory[]
+  
+  @@index([dataYear])
+  @@index([dataCode])
+}
+
+model DataFileChangeRequest {
+  id          Int      @id @default(autoincrement())
+  type        String   // FILE_CREATE, FILE_UPDATE, FILE_DELETE
+  status      String   @default("PENDING")
+  data        String   // JSON content
+  
+  fileId      Int?
+  file        DataFile? @relation(fields: [fileId], references: [id])
+  
+  submittedById String
+  submittedBy   User   @relation("FileSubmittedBy", fields: [submittedById], references: [id])
+  
+  reviewedById  String?
+  reviewedBy    User?  @relation("FileReviewedBy", fields: [reviewedById], references: [id])
+  
+  reviewNote    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model DataFileHistory {
+  id          Int      @id @default(autoincrement())
+  
+  fileId      Int?
+  file        DataFile? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  
+  version     Int
+  changeType  String   // CREATE, UPDATE, DELETE
+  snapshot    String   // JSON
+  diff        String?  // JSON
+  
+  submittedById String
+  submittedBy   User   @relation("FileHistorySubmitter", fields: [submittedById], references: [id])
+  
+  reviewedById  String?
+  reviewedBy    User?  @relation("FileHistoryReviewer", fields: [reviewedById], references: [id])
+  
+  reviewStatus  String
+  reviewNote    String?
+  
+  // Redundant fields for deleted files
+  dataCode      String
+  dataName      String
+  dataYear      Int
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([fileId, version])
+  @@index([fileId, createdAt])
+  @@index([dataYear])
+}
+```
+
+### 5.2 File Upload API
+
+**Endpoint**: `POST /api/datafiles/upload`
+
+**Features**:
+
+- 100MB 檔案大小限制
+- 年份目錄結構: `/public/uploads/datafiles/{year}/`
+- 唯一檔名生成: `{dataCode}_{timestamp}_{originalName}`
+- 驗證與權限檢查 (EDITOR+)
+
+**Implementation**:
+
+```typescript
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role === 'VIEWER') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const formData = await request.formData();
+  const file = formData.get('file') as File;
+  const dataCode = formData.get('dataCode') as string;
+  const dataYear = formData.get('dataYear') as string;
+
+  // Create year directory
+  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'datafiles', dataYear);
+  await fs.mkdir(uploadDir, { recursive: true });
+
+  // Generate unique filename
+  const timestamp = Date.now();
+  const ext = path.extname(file.name);
+  const uniqueFilename = `${dataCode}_${timestamp}${ext}`;
+  const filePath = path.join(uploadDir, uniqueFilename);
+
+  // Save file
+  const bytes = await file.arrayBuffer();
+  await fs.writeFile(filePath, Buffer.from(bytes));
+
+  return NextResponse.json({
+    filePath: `/uploads/datafiles/${dataYear}/${uniqueFilename}`,
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type
+  });
+}
+```
+
+### 5.3 Server Actions
+
+**Query Actions** (`src/actions/data-files.ts`):
+
+- `getDataFiles(year?)`: 取得檔案列表，包含待審核狀態
+- `getDataFile(id)`: 取得單一檔案詳情
+- `searchDataFiles(query, year?)`: 搜尋檔案
+- `getDataFileYears()`: 取得可用年份列表
+
+**Request Actions**:
+
+- `submitCreateDataFileRequest(data)`: 提交新增申請
+- `submitUpdateDataFileRequest(fileId, data)`: 提交編輯申請
+- `submitDeleteDataFileRequest(fileId)`: 提交刪除申請
+
+**Approval Actions**:
+
+- `getPendingDataFileRequests()`: 取得待審核申請
+- `approveDataFileRequest(requestId)`: 批准申請
+- `rejectDataFileRequest(requestId, note?)`: 拒絕申請
+
+**Key Logic**:
+
+```typescript
+// Include pending request status
+export async function getDataFiles(year?: number) {
+  const files = await prisma.dataFile.findMany({
+    where: { isDeleted: false, ...(year ? { dataYear: year } : {}) },
+    include: {
+      changeRequests: {
+        where: { status: 'PENDING' },
+        select: { id: true, type: true }
+      }
+    }
+  });
+
+  return files.map(file => ({
+    ...file,
+    hasPendingRequest: file.changeRequests.length > 0,
+    pendingRequestType: file.changeRequests[0]?.type || null
+  }));
+}
+```
+
+### 5.4 Frontend Components
+
+**DataFileList** (`src/components/datafile/DataFileList.tsx`):
+
+- **雙視圖模式**: 卡片 (grid) / 清單 (table)
+- **排序功能**: 6 個欄位 (名稱、編碼、年份、作者、大小、時間)
+- **狀態標籤**: 顯示「⏳ 審核中」badge
+
+**DataFileApprovalList** (`src/components/datafile/DataFileApprovalList.tsx`):
+
+- **前後比較**: 類似 Item 審核的 diff 顯示
+- **修改欄位提示**: 顯示「⚡ 修改欄位：名稱、作者...」
+- **ADMIN 例外**: ADMIN 可審核自己的申請
+
+**CompareField Helper**:
+
+```typescript
+function CompareField({ label, current, proposed, isUpdate, mono, multiline }) {
+  const hasChange = isUpdate && current !== proposed && proposed !== undefined;
+  
+  return (
+    <div>
+      <strong>{label} {hasChange && <span>• 已修改</span>}</strong>
+      <div style={{ display: 'flex', gap: '1rem' }}>
+        {isUpdate && <div>修改前: {current}</div>}
+        <div style={{ 
+          backgroundColor: hasChange ? 'rgba(34, 197, 94, 0.1)' : 'rgba(0,0,0,0.03)',
+          border: hasChange ? '1px solid var(--color-success)' : '1px solid var(--color-border)'
+        }}>
+          修改後: {proposed}
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+### 5.5 權限設計
+
+| 角色 | 上傳 | 編輯申請 | 刪除申請 | 審核 |
+|------|:----:|:--------:|:--------:|:----:|
+| VIEWER | ❌ | ❌ | ❌ | ❌ |
+| EDITOR | ✅ | ✅ | ✅ | ❌ |
+| INSPECTOR | ✅ | ✅ | ✅ | ✅ |
+| ADMIN | ✅ | ✅ | ✅ | ✅ (含自審) |
+
+**特殊規則**:
+
+- EDITOR/INSPECTOR 可提交刪除申請（需審核）
+- ADMIN 可審核自己提交的檔案申請（例外處理）
+
 ---
 
 ## 問題解決記錄

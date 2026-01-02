@@ -9,7 +9,8 @@
 | Phase 1 | 專案初始化與基礎建設 | ✅ 完成 |
 | Phase 2 | 核心功能開發 | ✅ 完成 |
 | Phase 3 | 進階內容功能 | ✅ 完成 |
-| Phase 4 | UI 優化與測試 | 🔄 進行中 |
+| Phase 4 | UI 優化與測試 | ✅ 完成 |
+| Phase 5 | 檔案管理系統 | ✅ 完成 |
 
 ---
 
@@ -142,8 +143,66 @@
 - [x] **Self-Approval Prevention Logic**
   - [x] 點擊 Approve/Reject 自己的申請時顯示錯誤對話框
   - [x] 錯誤對話框顯示「權限受限」警告
-  - [x] 防止自我審核操作
+  - [x] 防止自我審核操作 (ADMIN 例外)
 - [x] **[檢核]** 對話框 UI 統一，自我審核防止機制正常 ✅
+
+---
+
+## Phase 5: 檔案管理系統 (v0.8.0) ✅
+
+### Phase 5.1: Database Schema & Backend ✅
+
+- [x] **Database Models**
+  - [x] 建立 `DataFile` 模型 (metadata + file info)
+  - [x] 建立 `DataFileChangeRequest` 模型 (審核流程)
+  - [x] 建立 `DataFileHistory` 模型 (版本歷史)
+  - [x] 更新 `User` 關聯
+- [x] **Server Actions**
+  - [x] Query: `getDataFiles`, `getDataFile`, `searchDataFiles`, `getDataFileYears`
+  - [x] Request: `submitCreateDataFileRequest`, `submitUpdateDataFileRequest`, `submitDeleteDataFileRequest`
+  - [x] Approval: `getPendingDataFileRequests`, `approveDataFileRequest`, `rejectDataFileRequest`
+- [x] **File Upload API**
+  - [x] 建立 `/api/datafiles/upload` endpoint
+  - [x] 100MB 檔案大小限制
+  - [x] 年份目錄結構 (`/public/uploads/datafiles/{year}`)
+  - [x] 唯一檔名生成
+
+### Phase 5.2: Frontend Pages & Components ✅
+
+- [x] **Pages**
+  - [x] `/datafiles` - 檔案列表頁 (年份篩選、搜尋)
+  - [x] `/datafiles/upload` - 檔案上傳頁
+  - [x] `/datafiles/[id]` - 檔案詳情頁
+  - [x] `/datafiles/search` - 搜尋結果頁
+- [x] **Components**
+  - [x] `DataFileList` - 檔案列表元件 (卡片/清單雙視圖、排序)
+  - [x] `UploadDataFileForm` - 上傳表單 (5 個 metadata 欄位)
+  - [x] `EditDataFileButton` - 編輯按鈕與 Modal
+  - [x] `DeleteDataFileButton` - 刪除按鈕與確認對話框
+  - [x] `DataFileApprovalList` - 審核列表 (前後比較)
+
+### Phase 5.3: Features & Enhancements ✅
+
+- [x] **View Toggle & Sorting**
+  - [x] 卡片/清單雙視圖切換
+  - [x] 多欄位排序 (名稱、編碼、年份、作者、大小、時間)
+  - [x] 升序/降序切換
+- [x] **Pending Review Badge**
+  - [x] 卡片視圖顯示「⏳ 審核中」標籤
+  - [x] 清單視圖新增「狀態」欄位
+  - [x] 區分申請類型 (新增/編輯/刪除)
+- [x] **Approval Workflow**
+  - [x] 整合至 `/admin/approval` 頁面
+  - [x] 前後比較功能 (類似 Item 審核)
+  - [x] 修改欄位提示與高亮
+  - [x] ADMIN 自我審核例外處理
+- [x] **Navigation Integration**
+  - [x] Navbar 新增「Files」連結
+- [x] **[檢核]** 檔案管理完整功能正常 ✅
+
+---
+
+## 下一步
 
 - [ ] 進行全系統整合測試
 - [ ] 優化前端介面 (Rich Aesthetics)

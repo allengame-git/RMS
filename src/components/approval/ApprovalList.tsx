@@ -91,7 +91,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
     };
 
     if (requests.length === 0) {
-        return <p style={{ color: "var(--color-text-muted)" }}>No pending requests.</p>;
+        return <p style={{ color: "var(--color-text-muted)" }}>目前沒有待審核申請。</p>;
     }
 
     return (
@@ -142,22 +142,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                         fontWeight: "bold",
                                         color: "var(--color-primary)"
                                     }}>
-                                        {req.type}
-                                    </span>
-                                    <span style={{
-                                        fontSize: "0.85rem",
-                                        padding: "0.25rem 0.5rem",
-                                        borderRadius: "4px",
-                                        backgroundColor: req.type === "CREATE" ? "var(--color-success-soft)" :
-                                            req.type === "UPDATE" ? "var(--color-warning-soft)" :
-                                                (req.type === "PROJECT_UPDATE" || req.type === "PROJECT_DELETE") ? "var(--color-info-soft, rgba(59, 130, 246, 0.1))" :
-                                                    "var(--color-danger-soft)",
-                                        color: req.type === "CREATE" ? "var(--color-success)" :
-                                            req.type === "UPDATE" ? "var(--color-warning)" :
-                                                (req.type === "PROJECT_UPDATE" || req.type === "PROJECT_DELETE") ? "var(--color-info, #3b82f6)" :
-                                                    "var(--color-danger)"
-                                    }}>
-                                        {(req.type === "PROJECT_UPDATE" || req.type === "PROJECT_DELETE") ? "Project" : req.targetParent ? "Child Item" : "Root Item"}
+                                        {req.type === 'CREATE' ? '新增' : req.type === 'UPDATE' ? '編輯' : req.type === 'DELETE' ? '刪除' : req.type === 'PROJECT_UPDATE' ? '專案編輯' : req.type === 'PROJECT_DELETE' ? '專案刪除' : req.type}
                                     </span>
                                 </div>
                                 <div style={{
@@ -203,7 +188,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                             }}>
                                 <span>編輯者：{req.submittedBy.username}</span>
                                 <span>
-                                    {new Date(req.createdAt).toLocaleDateString('en-US', {
+                                    {new Date(req.createdAt).toLocaleDateString('zh-TW', {
                                         month: 'short',
                                         day: 'numeric'
                                     })}
@@ -217,7 +202,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                 fontSize: "0.85rem",
                                 color: "var(--color-primary)"
                             }}>
-                                {isExpanded ? "▲ Click to collapse" : "▼ Click to expand"}
+                                {isExpanded ? "▲ 點擊收合" : "▼ 點擊展開"}
                             </div>
                         </div>
                     );
@@ -249,16 +234,10 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                         }}>
                             <div>
                                 <h2 style={{ margin: 0, marginBottom: "0.5rem" }}>
-                                    {req.type} Request Details
+                                    {req.type === 'CREATE' ? '新增' : req.type === 'UPDATE' ? '編輯' : req.type === 'DELETE' ? '刪除' : req.type === 'PROJECT_UPDATE' ? '專案編輯' : req.type === 'PROJECT_DELETE' ? '專案刪除' : req.type} 申請詳情
                                 </h2>
                                 <div style={{ fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                                    {new Date(req.createdAt).toLocaleString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                    })}
+                                    {new Date(req.createdAt).toLocaleString('zh-TW')}
                                 </div>
                             </div>
                             <button
@@ -272,7 +251,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                     color: "var(--color-text-main)"
                                 }}
                             >
-                                ✕ Close
+                                ✕ 關閉
                             </button>
                         </div>
 
@@ -288,18 +267,18 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                     marginBottom: "1.5rem",
                                     fontSize: "0.9rem"
                                 }}>
-                                    ⚡ <strong>Modified Fields:</strong>{" "}
+                                    ⚡ <strong>修改欄位：</strong>{" "}
                                     {(() => {
                                         const modified: string[] = [];
-                                        if (req.item?.title !== data.title) modified.push("Title");
-                                        if (req.item?.content !== data.content) modified.push("Content");
+                                        if (req.item?.title !== data.title) modified.push("標題");
+                                        if (req.item?.content !== data.content) modified.push("內容");
                                         const currentAttachments = req.item?.attachments ? JSON.parse(req.item.attachments) : [];
                                         const proposedAttachments = data.attachments || [];
-                                        if (JSON.stringify(currentAttachments) !== JSON.stringify(proposedAttachments)) modified.push("Attachments");
+                                        if (JSON.stringify(currentAttachments) !== JSON.stringify(proposedAttachments)) modified.push("附件");
                                         const currentRelated = req.item?.relatedItems?.map((r: RelatedItem) => r.id).sort() || [];
                                         const proposedRelated = (data.relatedItems || []).map((r: RelatedItem) => r.id).sort();
-                                        if (JSON.stringify(currentRelated) !== JSON.stringify(proposedRelated)) modified.push("Related Items");
-                                        return modified.length > 0 ? modified.join(", ") : "No changes detected";
+                                        if (JSON.stringify(currentRelated) !== JSON.stringify(proposedRelated)) modified.push("關聯項目");
+                                        return modified.length > 0 ? modified.join("、") : "無變更";
                                     })()}
                                 </div>
                             )}
@@ -310,19 +289,19 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                 gap: "0.75rem",
                                 marginBottom: "1.5rem"
                             }}>
-                                <strong>Project:</strong>
+                                <strong>專案：</strong>
                                 <span>{req.targetProject?.title}</span>
 
                                 {req.targetParent && (
                                     <>
-                                        <strong>Parent Item:</strong>
+                                        <strong>父項目：</strong>
                                         <span>{req.targetParent.fullId}</span>
                                     </>
                                 )}
 
                                 {req.type === "UPDATE" && req.item && (
                                     <>
-                                        <strong>Item Number:</strong>
+                                        <strong>項目編號：</strong>
                                         <span>{req.item.fullId}</span>
                                     </>
                                 )}
@@ -334,8 +313,8 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                             {/* Title Comparison */}
                             <div style={{ marginBottom: "1.5rem" }}>
                                 <strong style={{ display: "block", marginBottom: "0.5rem" }}>
-                                    Title {req.type === "UPDATE" && req.item?.title !== data.title && (
-                                        <span style={{ color: "var(--color-warning)", fontSize: "0.85rem" }}>• Modified</span>
+                                    標題 {req.type === "UPDATE" && req.item?.title !== data.title && (
+                                        <span style={{ color: "var(--color-warning)", fontSize: "0.85rem" }}>• 已修改</span>
                                     )}
                                 </strong>
                                 <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
@@ -348,7 +327,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                             borderRadius: "var(--radius-sm)",
                                             border: "1px solid var(--color-border)"
                                         }}>
-                                            <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.25rem" }}>Current</div>
+                                            <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.25rem" }}>修改前</div>
                                             {req.item.title}
                                         </div>
                                     )}
@@ -365,7 +344,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                             : "1px solid var(--color-border)"
                                     }}>
                                         <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.25rem" }}>
-                                            {req.type === "UPDATE" ? "Proposed" : "Value"}
+                                            {req.type === "UPDATE" ? "修改後" : "值"}
                                         </div>
                                         <strong>{data.title}</strong>
                                     </div>
@@ -376,23 +355,45 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                             {(data.content || (req.type === "UPDATE" && req.item?.content)) && (
                                 <div style={{ marginBottom: "1.5rem" }}>
                                     <strong style={{ display: "block", marginBottom: "0.5rem" }}>
-                                        Content {req.type === "UPDATE" && req.item?.content !== data.content && (
-                                            <span style={{ color: "var(--color-warning)", fontSize: "0.85rem" }}>• Modified</span>
+                                        內容 {req.type === "UPDATE" && req.item?.content !== data.content && (
+                                            <span style={{ color: "var(--color-warning)", fontSize: "0.85rem" }}>• 已修改</span>
                                         )}
                                     </strong>
-                                    <div style={{
-                                        padding: "1rem",
-                                        backgroundColor: req.type === "UPDATE" && req.item?.content !== data.content
-                                            ? "rgba(34, 197, 94, 0.05)"
-                                            : "var(--color-bg-base)",
-                                        borderRadius: "var(--radius-md)",
-                                        border: req.type === "UPDATE" && req.item?.content !== data.content
-                                            ? "1px solid var(--color-success)"
-                                            : "1px solid var(--color-border)",
-                                        maxHeight: "400px",
-                                        overflowY: "auto"
-                                    }}>
-                                        <div dangerouslySetInnerHTML={{ __html: data.content || "<em>No content</em>" }} />
+                                    <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                                        {req.type === "UPDATE" && req.item && (
+                                            <div style={{
+                                                flex: 1,
+                                                minWidth: "200px",
+                                                padding: "1rem",
+                                                backgroundColor: "rgba(0,0,0,0.03)",
+                                                borderRadius: "var(--radius-md)",
+                                                border: "1px solid var(--color-border)",
+                                                maxHeight: "300px",
+                                                overflowY: "auto"
+                                            }}>
+                                                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.5rem" }}>修改前</div>
+                                                <div dangerouslySetInnerHTML={{ __html: req.item.content || "<em>無內容</em>" }} />
+                                            </div>
+                                        )}
+                                        <div style={{
+                                            flex: 1,
+                                            minWidth: "200px",
+                                            padding: "1rem",
+                                            backgroundColor: req.type === "UPDATE" && req.item?.content !== data.content
+                                                ? "rgba(34, 197, 94, 0.05)"
+                                                : "var(--color-bg-base)",
+                                            borderRadius: "var(--radius-md)",
+                                            border: req.type === "UPDATE" && req.item?.content !== data.content
+                                                ? "1px solid var(--color-success)"
+                                                : "1px solid var(--color-border)",
+                                            maxHeight: "300px",
+                                            overflowY: "auto"
+                                        }}>
+                                            <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.5rem" }}>
+                                                {req.type === "UPDATE" ? "修改後" : "值"}
+                                            </div>
+                                            <div dangerouslySetInnerHTML={{ __html: data.content || "<em>無內容</em>" }} />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -401,11 +402,11 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                             {(data.attachments?.length > 0 || (req.type === "UPDATE" && req.item?.attachments)) && (
                                 <div style={{ marginBottom: "1.5rem" }}>
                                     <strong style={{ display: "block", marginBottom: "0.5rem" }}>
-                                        Attachments {req.type === "UPDATE" && (() => {
+                                        附件 {req.type === "UPDATE" && (() => {
                                             const curr = req.item?.attachments ? JSON.parse(req.item.attachments) : [];
                                             return JSON.stringify(curr) !== JSON.stringify(data.attachments || []);
                                         })() && (
-                                                <span style={{ color: "var(--color-warning)", fontSize: "0.85rem" }}>• Modified</span>
+                                                <span style={{ color: "var(--color-warning)", fontSize: "0.85rem" }}>• 已修改</span>
                                             )}
                                     </strong>
                                     <div style={{
@@ -421,7 +422,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                                 ))}
                                             </ul>
                                         ) : (
-                                            <em style={{ color: "var(--color-text-muted)" }}>No attachments</em>
+                                            <em style={{ color: "var(--color-text-muted)" }}>無附件</em>
                                         )}
                                     </div>
                                 </div>
@@ -431,12 +432,12 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                             {((data.relatedItems?.length ?? 0) > 0 || (req.type === "UPDATE" && (req.item?.relatedItems?.length ?? 0) > 0)) && (
                                 <div style={{ marginBottom: "1.5rem" }}>
                                     <strong style={{ display: "block", marginBottom: "0.5rem" }}>
-                                        Related Items {req.type === "UPDATE" && (() => {
+                                        關聯項目 {req.type === "UPDATE" && (() => {
                                             const currIds = (req.item?.relatedItems || []).map((r: RelatedItem) => r.id).sort();
                                             const propIds = (data.relatedItems || []).map((r: RelatedItem) => r.id).sort();
                                             return JSON.stringify(currIds) !== JSON.stringify(propIds);
                                         })() && (
-                                                <span style={{ color: "var(--color-warning)", fontSize: "0.85rem" }}>• Modified</span>
+                                                <span style={{ color: "var(--color-warning)", fontSize: "0.85rem" }}>• 已修改</span>
                                             )}
                                     </strong>
                                     <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
@@ -449,7 +450,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                                 borderRadius: "var(--radius-sm)",
                                                 border: "1px solid var(--color-border)"
                                             }}>
-                                                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.5rem" }}>Current ({req.item.relatedItems.length})</div>
+                                                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.5rem" }}>修改前 ({req.item.relatedItems.length})</div>
                                                 {req.item.relatedItems.map((ri: RelatedItem) => (
                                                     <div key={ri.id} style={{ fontSize: "0.9rem", marginBottom: "0.25rem" }}>
                                                         <span style={{ fontFamily: "var(--font-geist-mono)", color: "var(--color-primary)" }}>{ri.fullId}</span> {ri.title}
@@ -476,7 +477,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                             })()
                                         }}>
                                             <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.5rem" }}>
-                                                {req.type === "UPDATE" ? `Proposed (${(data.relatedItems || []).length})` : `Count: ${(data.relatedItems || []).length}`}
+                                                {req.type === "UPDATE" ? `修改後 (${(data.relatedItems || []).length})` : `數量：${(data.relatedItems || []).length}`}
                                             </div>
                                             {(data.relatedItems || []).length > 0 ? (
                                                 (data.relatedItems || []).map((ri: RelatedItem) => (
@@ -485,7 +486,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                                     </div>
                                                 ))
                                             ) : (
-                                                <em style={{ color: "var(--color-text-muted)" }}>No related items</em>
+                                                <em style={{ color: "var(--color-text-muted)" }}>無關聯項目</em>
                                             )}
                                         </div>
                                     </div>
@@ -511,7 +512,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                     padding: "0.75rem 2rem"
                                 }}
                             >
-                                {loading === req.id ? 'Rejecting...' : 'Reject'}
+                                {loading === req.id ? '處理中...' : '拒絕'}
                             </button>
                             <button
                                 onClick={(e) => handleApproveClick(e, req.id)}
@@ -523,7 +524,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                     padding: "0.75rem 2rem"
                                 }}
                             >
-                                {loading === req.id ? 'Approving...' : 'Approve'}
+                                {loading === req.id ? '處理中...' : '批准'}
                             </button>
                         </div>
                     </div>
@@ -551,19 +552,19 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                         width: '90%'
                     }}>
                         <h3 style={{ marginBottom: '1rem' }}>
-                            {confirmDialog.action === 'approve' ? 'Approve Request?' : 'Reject Request?'}
+                            {confirmDialog.action === 'approve' ? '確認批准？' : '確認拒絕？'}
                         </h3>
                         <p style={{ marginBottom: '2rem', color: 'var(--color-text-muted)' }}>
                             {confirmDialog.action === 'approve'
-                                ? 'This will create/update the item and mark the request as approved.'
-                                : 'This will reject the request and it cannot be undone.'}
+                                ? '此操作將建立/更新項目並將申請標記為已批准。'
+                                : '此操作將拒絕申請且無法復原。'}
                         </p>
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                             <button
                                 onClick={handleCancel}
                                 className="btn btn-outline"
                             >
-                                Cancel
+                                取消
                             </button>
                             <button
                                 onClick={handleConfirm}
@@ -573,7 +574,7 @@ export default function ApprovalList({ requests, currentUsername }: { requests: 
                                     border: 'none'
                                 }}
                             >
-                                {confirmDialog.action === 'approve' ? 'Approve' : 'Reject'}
+                                {confirmDialog.action === 'approve' ? '批准' : '拒絕'}
                             </button>
                         </div>
                     </div>

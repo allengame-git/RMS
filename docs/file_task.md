@@ -6,13 +6,13 @@
 
 | Phase | 說明 | 狀態 |
 |-------|------|------|
-| Phase 1 | 資料庫設計 | ⏳ 待開始 |
-| Phase 2 | 後端 Server Actions | ⏳ 待開始 |
-| Phase 3 | 檔案上傳 API | ⏳ 待開始 |
-| Phase 4 | 前端頁面 | ⏳ 待開始 |
-| Phase 5 | 前端元件 | ⏳ 待開始 |
-| Phase 6 | 審核流程整合 | ⏳ 待開始 |
-| Phase 7 | 導覽整合與測試 | ⏳ 待開始 |
+| Phase 1 | 資料庫設計 | ✅ 完成 |
+| Phase 2 | 後端 Server Actions | ✅ 完成 |
+| Phase 3 | 檔案上傳 API | ✅ 完成 |
+| Phase 4 | 前端頁面 | ✅ 完成 |
+| Phase 5 | 前端元件 | ✅ 完成 |
+| Phase 6 | 審核流程整合 | ✅ 完成 |
+| Phase 7 | 導覽整合與測試 | ✅ 完成 |
 
 ---
 
