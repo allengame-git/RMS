@@ -55,7 +55,7 @@ export default function UploadDataFileForm() {
             const author = formData.get('author') as string;
             const description = formData.get('description') as string;
 
-            // Validate - 只有資料年份、資料名稱、作者是必填
+            // Validate - 資料年份、資料名稱、作者是必填
             if (!dataYear || !dataName || !author) {
                 throw new Error('請填寫所有必填欄位');
             }

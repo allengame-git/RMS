@@ -1,4 +1,24 @@
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: rms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rms_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rms_secure_password}
+      POSTGRES_DB: rms_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - rms-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U rms_user -d rms_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RMS Application
   rms-app:
     build: .
     container_name: rms-application
@@ -6,14 +26,17 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=file:/app/data/rms.db
+      - DATABASE_URL=postgresql://rms_user:${POSTGRES_PASSWORD:-rms_secure_password}@postgres:5432/rms_db?schema=public
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
     volumes:
-      # 資料庫持久化
-      - rms-data:/app/data
       # 上傳檔案持久化
       - rms-uploads:/app/public/uploads
+      # ISO 文件持久化
+      - rms-iso-docs:/app/public/iso_doc
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - rms-network
     healthcheck:
@@ -22,6 +45,7 @@ services:
       timeout: 10s
       retries: 3
 
+  # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
     container_name: rms-nginx
@@ -39,9 +63,11 @@ services:
       - rms-network
 
 volumes:
-  rms-data:
+  postgres-data:
     driver: local
   rms-uploads:
+    driver: local
+  rms-iso-docs:
     driver: local
 
 networks:

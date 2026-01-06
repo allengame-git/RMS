@@ -116,7 +116,7 @@ export async function searchDataFiles(query: string, year?: number) {
 export async function submitCreateDataFileRequest(data: {
     dataYear: number;
     dataName: string;
-    dataCode: string;
+    dataCode?: string; // Now optional
     author: string;
     description: string;
     fileName: string;
@@ -128,9 +128,16 @@ export async function submitCreateDataFileRequest(data: {
     if (!session) throw new Error('Unauthorized');
     if (session.user.role === 'VIEWER') throw new Error('Permission denied');
 
+    // Auto-generate dataCode if not provided
+    let finalDataCode = data.dataCode?.trim();
+    if (!finalDataCode) {
+        // Generate unique code: DOC-{year}-{timestamp}
+        finalDataCode = `DOC-${data.dataYear}-${Date.now().toString(36).toUpperCase()}`;
+    }
+
     // Check if dataCode already exists
     const existing = await prisma.dataFile.findUnique({
-        where: { dataCode: data.dataCode }
+        where: { dataCode: finalDataCode }
     });
     if (existing) throw new Error('資料編碼已存在');
 
@@ -139,7 +146,7 @@ export async function submitCreateDataFileRequest(data: {
         where: {
             type: 'FILE_CREATE',
             status: 'PENDING',
-            data: { contains: data.dataCode }
+            data: { contains: finalDataCode }
         }
     });
     if (pendingRequest) throw new Error('已有相同資料編碼的申請待審核中');
@@ -148,7 +155,7 @@ export async function submitCreateDataFileRequest(data: {
         data: {
             type: 'FILE_CREATE',
             status: 'PENDING',
-            data: JSON.stringify(data),
+            data: JSON.stringify({ ...data, dataCode: finalDataCode }),
             submittedById: session.user.id
         }
     });
