@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buildItemTree } from "@/lib/tree-utils";
-import ItemTree from "@/components/item/ItemTree";
+import SidebarNav from "@/components/item/SidebarNav";
 import EditItemButton from "@/components/item/EditItemButton";
 import DeleteItemButton from "@/components/item/DeleteItemButton";
 
@@ -105,7 +105,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                     borderRight: '1px solid var(--color-border)'
                 }}>
                     <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', color: 'var(--color-text-muted)' }}>導覽</h3>
-                    <ItemTree nodes={rootNodes} projectId={item.projectId} canEdit={canEdit} currentItemId={itemId} />
+                    <SidebarNav nodes={rootNodes} currentItemId={itemId} />
                 </div>
 
                 {/* Main Content */}

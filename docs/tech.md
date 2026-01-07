@@ -494,7 +494,7 @@ model DataFileHistory {
 
 - 100MB 檔案大小限制
 - 年份目錄結構: `/public/uploads/datafiles/{year}/`
-- 唯一檔名生成: `{dataCode}_{timestamp}_{originalName}`
+- 唯一檔名生成: `{dataCode}__{timestamp}__{originalName}` (若無 dataCode 則自動生成)
 - 驗證與權限檢查 (EDITOR+)
 
 **Implementation**:
@@ -508,7 +508,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get('file') as File;
-  const dataCode = formData.get('dataCode') as string;
+  const dataCode = formData.get('dataCode') as string | null;  // Optional
   const dataYear = formData.get('dataYear') as string;
 
   // Create year directory
@@ -518,7 +518,10 @@ export async function POST(request: Request) {
   // Generate unique filename
   const timestamp = Date.now();
   const ext = path.extname(file.name);
-  const uniqueFilename = `${dataCode}_${timestamp}${ext}`;
+  const safePrefix = dataCode?.trim() 
+    ? dataCode.replace(/[^a-zA-Z0-9-_]/g, '_') 
+    : `file_${timestamp.toString(36)}`;
+  const uniqueFilename = `${safePrefix}_${timestamp}${ext}`;
   const filePath = path.join(uploadDir, uniqueFilename);
 
   // Save file

@@ -17,15 +17,27 @@ export default function ItemTree({ nodes, level = 0, canEdit = false, projectId,
     if (!nodes || nodes.length === 0) return null;
 
     return (
-        <div style={{ paddingLeft: level > 0 ? '1.5rem' : '0', borderLeft: level > 0 ? '1px solid var(--color-border)' : 'none' }}>
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: level === 0 ? '0.75rem' : '0.5rem',
+            paddingLeft: level > 0 ? '1.5rem' : '0'
+        }}>
             {nodes.map(node => (
-                <ItemTreeNode key={node.id} node={node} level={level} canEdit={canEdit} projectId={projectId} currentItemId={currentItemId} />
+                <AccordionItem
+                    key={node.id}
+                    node={node}
+                    level={level}
+                    canEdit={canEdit}
+                    projectId={projectId}
+                    currentItemId={currentItemId}
+                />
             ))}
         </div>
     );
 }
 
-interface ItemTreeNodeProps {
+interface AccordionItemProps {
     node: ItemNode;
     level: number;
     canEdit: boolean;
@@ -33,117 +45,209 @@ interface ItemTreeNodeProps {
     currentItemId?: number;
 }
 
-function ItemTreeNode({ node, level, canEdit, projectId, currentItemId }: ItemTreeNodeProps) {
+function AccordionItem({ node, level, canEdit, projectId, currentItemId }: AccordionItemProps) {
     const hasChildren = node.children && node.children.length > 0;
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(level === 0);
     const isCurrentItem = currentItemId === node.id;
+    const isRootLevel = level === 0;
 
     return (
-        <div style={{ marginBottom: '0.5rem', position: 'relative' }}>
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.25rem 0.5rem',
-                borderRadius: '4px',
-                transition: 'background-color 0.2s',
-                backgroundColor: isCurrentItem ? 'var(--color-primary-soft)' : 'transparent',
-                borderLeft: isCurrentItem ? '3px solid var(--color-primary)' : '3px solid transparent',
+        <div
+            className="accordion-panel"
+            style={{
+                borderRadius: isRootLevel ? 'var(--radius-md)' : 'var(--radius-sm)',
+                border: isRootLevel
+                    ? '1px solid var(--color-border)'
+                    : '1px solid transparent',
+                backgroundColor: isRootLevel
+                    ? 'var(--color-bg-surface)'
+                    : 'transparent',
+                boxShadow: isRootLevel
+                    ? '0 1px 3px rgba(0,0,0,0.05)'
+                    : 'none',
+                overflow: 'hidden',
+                transition: 'all 0.2s ease',
             }}
-                className="item-tree-node"
+        >
+            {/* Accordion Header */}
+            <div
+                className={`accordion-header ${isCurrentItem ? 'current' : ''}`}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: isRootLevel ? '1rem 1.25rem' : '0.6rem 0.75rem',
+                    cursor: hasChildren ? 'pointer' : 'default',
+                    backgroundColor: isCurrentItem
+                        ? 'var(--color-primary-soft)'
+                        : 'transparent',
+                    borderLeft: isCurrentItem
+                        ? '4px solid var(--color-primary)'
+                        : '4px solid transparent',
+                    transition: 'all 0.15s ease',
+                }}
+                onClick={() => hasChildren && setIsExpanded(!isExpanded)}
             >
-                {/* Collapse/Expand Toggle */}
-                {hasChildren ? (
-                    <button
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: '0',
-                            width: '16px',
-                            height: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--color-text-muted)',
-                            transition: 'transform 0.2s',
-                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
-                        }}
-                        title={isExpanded ? '折疊' : '展開'}
-                    >
-                        ▶
-                    </button>
-                ) : (
-                    <span style={{ width: '16px', display: 'inline-block' }}></span>
+                {/* Expand/Collapse Icon */}
+                <span
+                    style={{
+                        width: '24px',
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: hasChildren
+                            ? 'var(--color-bg-elevated)'
+                            : 'transparent',
+                        color: hasChildren
+                            ? 'var(--color-text-muted)'
+                            : 'transparent',
+                        transition: 'transform 0.2s ease, background-color 0.15s',
+                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                        flexShrink: 0,
+                        fontSize: '0.75rem',
+                    }}
+                >
+                    {hasChildren ? '▶' : ''}
+                </span>
+
+                {/* Item ID Badge */}
+                <Link
+                    href={`/items/${node.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                        fontFamily: 'var(--font-geist-mono)',
+                        fontWeight: 600,
+                        fontSize: isRootLevel ? '0.9rem' : '0.85rem',
+                        color: 'white',
+                        backgroundColor: 'var(--color-primary)',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: 'var(--radius-sm)',
+                        textDecoration: 'none',
+                        transition: 'opacity 0.15s',
+                        flexShrink: 0,
+                    }}
+                    className="item-id-badge"
+                >
+                    {node.fullId}
+                </Link>
+
+                {/* Title */}
+                <Link
+                    href={`/items/${node.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                        flex: 1,
+                        fontWeight: isRootLevel ? 600 : 500,
+                        fontSize: isRootLevel ? '1rem' : '0.95rem',
+                        color: 'var(--color-text)',
+                        textDecoration: 'none',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                    }}
+                    className="item-title-link"
+                >
+                    {node.title}
+                </Link>
+
+                {/* Child Count Badge */}
+                {hasChildren && (
+                    <span style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--color-text-muted)',
+                        backgroundColor: 'var(--color-bg-elevated)',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '999px',
+                        flexShrink: 0,
+                    }}>
+                        {node.children.length} 個子項目
+                    </span>
                 )}
 
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Link
-                        href={`/items/${node.id}`}
-                        style={{
-                            textDecoration: 'none',
-                            color: 'inherit',
-                            display: 'flex',
-                            gap: '8px',
-                            alignItems: 'baseline'
-                        }}
-                    >
-                        <span style={{
-                            fontFamily: 'var(--font-geist-mono)',
-                            fontWeight: 'bold',
-                            color: 'var(--color-primary)',
-                            fontSize: '0.9rem'
-                        }}>
-                            {node.fullId}
-                        </span>
-                        <span style={{ fontWeight: 500 }}>{node.title}</span>
-                    </Link>
-
-                    {/* Add Child Button */}
-                    {canEdit && projectId && (
+                {/* Add Child Button */}
+                {canEdit && projectId && (
+                    <div onClick={(e) => e.stopPropagation()}>
                         <CreateItemForm
                             projectId={projectId}
                             parentId={node.id}
                             modal={true}
                             trigger={
                                 <button
-                                    title="Add Child Item"
+                                    title="新增子項目"
+                                    className="add-child-btn"
                                     style={{
-                                        width: '20px',
-                                        height: '20px',
+                                        width: '28px',
+                                        height: '28px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        borderRadius: '50%',
+                                        borderRadius: 'var(--radius-sm)',
                                         border: '1px solid var(--color-border)',
-                                        background: 'transparent',
+                                        background: 'var(--color-bg-surface)',
                                         cursor: 'pointer',
                                         color: 'var(--color-text-muted)',
-                                        fontSize: '12px',
-                                        lineHeight: 1
+                                        fontSize: '1rem',
+                                        transition: 'all 0.15s ease',
+                                        flexShrink: 0,
                                     }}
-                                    className="add-child-btn"
                                 >
                                     +
                                 </button>
                             }
                         />
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
-            {/* Recursion - Only render if expanded */}
-            {hasChildren && isExpanded && (
-                <ItemTree nodes={node.children} level={level + 1} canEdit={canEdit} projectId={projectId} currentItemId={currentItemId} />
-            )}
+            {/* Accordion Content (Children) */}
+            <div
+                className="accordion-content"
+                style={{
+                    maxHeight: isExpanded ? '2000px' : '0',
+                    opacity: isExpanded ? 1 : 0,
+                    overflow: 'hidden',
+                    transition: 'max-height 0.3s ease, opacity 0.2s ease',
+                    borderTop: hasChildren && isExpanded
+                        ? '1px solid var(--color-border)'
+                        : 'none',
+                    backgroundColor: isRootLevel
+                        ? 'rgba(0,0,0,0.02)'
+                        : 'transparent',
+                }}
+            >
+                {hasChildren && isExpanded && (
+                    <div style={{ padding: isRootLevel ? '1rem' : '0.5rem 0 0.5rem 0' }}>
+                        <ItemTree
+                            nodes={node.children}
+                            level={level + 1}
+                            canEdit={canEdit}
+                            projectId={projectId}
+                            currentItemId={currentItemId}
+                        />
+                    </div>
+                )}
+            </div>
 
             <style jsx>{`
-                .item-tree-node:hover {
-                    background-color: rgba(0,0,0,0.03);
+                .accordion-panel:hover {
+                    border-color: var(--color-border-hover, var(--color-border));
+                }
+                .accordion-header:hover {
+                    background-color: rgba(0,0,0,0.02);
+                }
+                .accordion-header.current:hover {
+                    background-color: var(--color-primary-soft);
+                }
+                .item-id-badge:hover {
+                    opacity: 0.85;
+                }
+                .item-title-link:hover {
+                    color: var(--color-primary);
                 }
                 .add-child-btn:hover {
-                    background-color: var(--color-primary);
+                    background-color: var(--color-primary) !important;
                     color: white !important;
                     border-color: var(--color-primary) !important;
                 }

@@ -1,8 +1,8 @@
 # RMS 系統 Windows 部署規劃文件
 
-> **版本**: 1.0  
-> **日期**: 2026-01-04  
-> **專案技術棧**: Next.js 14 + Prisma + SQLite + NextAuth.js
+> **版本**: 1.1  
+> **日期**: 2026-01-07  
+> **專案技術棧**: Next.js 14 + Prisma + PostgreSQL + NextAuth.js
 
 ---
 
@@ -27,7 +27,7 @@
 |------|------|------|
 | 前端 | Next.js 14 (App Router) | React 框架，SSR/SSG 支援 |
 | 後端 | Next.js API Routes + Server Actions | 統一處理 API 請求 |
-| 資料庫 | SQLite + Prisma ORM | 輕量級關聯式資料庫 |
+| 資料庫 | PostgreSQL + Prisma ORM | 強大且穩定的關聯式資料庫 |
 | 認證 | NextAuth.js | 內建認證機制 |
 | 富文編輯 | Tiptap | 文件內容編輯器 |
 
@@ -36,10 +36,10 @@
 ```
 RMS/
 ├── prisma/
-│   ├── schema.prisma    # 資料庫結構定義
-│   └── dev.db           # SQLite 資料庫檔案
+│   └── schema.prisma    # 資料庫結構定義
 ├── public/
-│   └── uploads/         # 上傳檔案目錄
+│   ├── uploads/         # 上傳檔案目錄
+│   └── iso_doc/         # ISO 文件目錄
 ├── src/
 │   ├── app/             # Next.js App Router
 │   ├── actions/         # Server Actions
@@ -61,7 +61,7 @@ RMS/
 
 ## 2. Docker 容器化部署
 
-> **注意**: 此專案為 Next.js，非 Django。Docker 配置針對 Node.js 環境。
+> **注意**: 此專案為 Next.js，搭配 PostgreSQL 資料庫。
 
 ### 2.1 Dockerfile
 
@@ -108,8 +108,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Create directories for data persistence
-RUN mkdir -p /app/data /app/public/uploads
-RUN chown -R nextjs:nodejs /app/data /app/public/uploads
+# (Not needed for DB anymore, but good for uploads)
+RUN mkdir -p /app/public/uploads /app/public/iso_doc
+RUN chown -R nextjs:nodejs /app/public/uploads /app/public/iso_doc
 
 USER nextjs
 
@@ -127,6 +128,26 @@ CMD ["node", "server.js"]
 
 ```yaml
 services:
+  # PostgreSQL 資料庫服務
+  postgres:
+    image: postgres:16-alpine
+    container_name: rms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rms_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rms_secure_password}
+      POSTGRES_DB: rms_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - rms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rms_user -d rms_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Next.js 應用程式
   rms-app:
     build: .
     container_name: rms-application
@@ -134,14 +155,18 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=file:/app/data/rms.db
+      # 連接到 postgres 服務
+      - DATABASE_URL=postgresql://rms_user:${POSTGRES_PASSWORD:-rms_secure_password}@postgres:5432/rms_db?schema=public
       - NEXTAUTH_URL=https://your-domain.com
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
     volumes:
-      # 資料庫持久化
-      - rms-data:/app/data
       # 上傳檔案持久化
       - rms-uploads:/app/public/uploads
+      # ISO 文件持久化
+      - rms-iso-docs:/app/public/iso_doc
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - rms-network
     healthcheck:
@@ -150,6 +175,7 @@ services:
       timeout: 10s
       retries: 3
 
+  # Nginx 反向代理
   nginx:
     image: nginx:alpine
     container_name: rms-nginx
@@ -167,9 +193,11 @@ services:
       - rms-network
 
 volumes:
-  rms-data:
+  postgres-data:
     driver: local
   rms-uploads:
+    driver: local
+  rms-iso-docs:
     driver: local
 
 networks:
@@ -327,10 +355,11 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 `
 
 ### 4.1 備份項目
 
-| 項目 | 路徑 | 備份頻率 | 說明 |
+| 項目 | 來源 | 備份頻率 | 說明 |
 |------|------|----------|------|
-| 資料庫 | `/app/data/rms.db` | 每日 | SQLite 主資料庫 |
+| 資料庫 | `rms-postgres` 容器 | 每日 | PostgreSQL 資料匯出 (SQL) |
 | 上傳檔案 | `/app/public/uploads/` | 每週 | 使用者上傳檔案 |
+| ISO 文件 | `/app/public/iso_doc/` | 每週 | 產生的 PDF 文件 |
 | 環境設定 | `.env` | 變更時 | 敏感配置 |
 | Docker 設定 | `docker-compose.yml` | 變更時 | 部署配置 |
 
@@ -340,7 +369,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 `
 
 ```powershell
 #!/usr/bin/env pwsh
-# RMS 系統自動備份腳本
+# RMS 系統自動備份腳本 (PostgreSQL 版本)
 
 param(
     [string]$BackupDir = "C:\RMS-Backups",
@@ -355,27 +384,53 @@ New-Item -ItemType Directory -Force -Path $BackupPath | Out-Null
 
 Write-Host "🔄 開始備份 RMS 系統..." -ForegroundColor Cyan
 
-# 1. 備份 SQLite 資料庫
+# 1. 備份 PostgreSQL 資料庫
 Write-Host "📦 備份資料庫..."
-docker cp rms-application:/app/data/rms.db "$BackupPath\rms.db"
+docker exec rms-postgres pg_dump -U rms_user -d rms_db > "$BackupPath\rms_db.sql"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ 資料庫備份失敗" -ForegroundColor Red
+    exit 1
+}
+Write-Host "  ✓ 資料庫備份完成"
 
 # 2. 備份上傳檔案
 Write-Host "📁 備份上傳檔案..."
-docker cp rms-application:/app/public/uploads "$BackupPath\uploads"
+docker cp rms-application:/app/public/uploads "$BackupPath\uploads" 2>$null
+if (Test-Path "$BackupPath\uploads") {
+    Write-Host "  ✓ 上傳檔案備份完成"
+} else {
+    Write-Host "  - 無上傳檔案需要備份"
+    New-Item -ItemType Directory -Force -Path "$BackupPath\uploads" | Out-Null
+}
 
-# 3. 壓縮備份
+# 3. 備份 ISO 文件
+Write-Host "📄 備份 ISO 文件..."
+docker cp rms-application:/app/public/iso_doc "$BackupPath\iso_doc" 2>$null
+if (Test-Path "$BackupPath\iso_doc") {
+    Write-Host "  ✓ ISO 文件備份完成"
+} else {
+    Write-Host "  - 無 ISO 文件需要備份"
+    New-Item -ItemType Directory -Force -Path "$BackupPath\iso_doc" | Out-Null
+}
+
+# 4. 壓縮備份
 Write-Host "🗜️ 壓縮備份檔案..."
 $ZipPath = "$BackupPath.zip"
 Compress-Archive -Path $BackupPath -DestinationPath $ZipPath
 Remove-Item -Recurse -Force $BackupPath
 
-# 4. 清理過期備份
+# 5. 清理過期備份
 Write-Host "🧹 清理過期備份..."
-Get-ChildItem -Path $BackupDir -Filter "*.zip" | 
-    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-$RetentionDays) } |
-    Remove-Item -Force
+$Removed = Get-ChildItem -Path $BackupDir -Filter "*.zip" | 
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-$RetentionDays) }
+if ($Removed) {
+    $Removed | Remove-Item -Force
+    Write-Host "  ✓ 已清理 $($Removed.Count) 個過期備份"
+} else {
+    Write-Host "  - 無過期備份需要清理"
+}
 
-# 5. 記錄備份完成
+# 6. 記錄備份完成
 $BackupSize = (Get-Item $ZipPath).Length / 1MB
 Write-Host "✅ 備份完成: $ZipPath ($([math]::Round($BackupSize, 2)) MB)" -ForegroundColor Green
 
@@ -384,6 +439,7 @@ Write-Host "✅ 備份完成: $ZipPath ($([math]::Round($BackupSize, 2)) MB)" -F
     Timestamp = $Timestamp
     Path = $ZipPath
     SizeMB = [math]::Round($BackupSize, 2)
+    Database = "PostgreSQL"
 } | ConvertTo-Json | Out-File "$BackupDir\latest_backup.json"
 ```
 
@@ -413,8 +469,9 @@ docker compose down
 # 2. 完整備份
 .\scripts\backup.ps1 -BackupDir "C:\RMS-Migration"
 
-# 3. 匯出 Docker 映像
+# 3. 匯出 Docker 映像 (選擇性)
 docker save rms-application:latest -o rms-image.tar
+docker save postgres:16-alpine -o postgres-image.tar
 ```
 
 ### 5.2 遷移步驟
@@ -425,36 +482,29 @@ docker save rms-application:latest -o rms-image.tar
 # 1. 安裝 Docker Desktop
 # 下載: https://www.docker.com/products/docker-desktop
 
-# 2. 複製專案檔案
-# 將整個 RMS 目錄複製到新伺服器
+# 2. 複製專案檔案 (RMS 目錄)
+# 確保 docker-compose.yml 存在
 
 # 3. 載入 Docker 映像 (如果有匯出)
 docker load -i rms-image.tar
+docker load -i postgres-image.tar
 
-# 4. 還原備份
-Expand-Archive -Path "C:\RMS-Migration\*.zip" -DestinationPath "C:\RMS-Migration\restore"
+# 4. 啟動服務 (建立空資料庫)
+docker compose up -d postgres
+Start-Sleep -Seconds 10
+docker compose up -d rms-app nginx
 
-# 5. 複製資料到 volumes
-docker volume create rms-data
-docker volume create rms-uploads
-
-# 使用臨時容器複製資料
-docker run --rm -v rms-data:/data -v C:\RMS-Migration\restore:/backup alpine `
-    cp /backup/rms.db /data/
-
-docker run --rm -v rms-uploads:/uploads -v C:\RMS-Migration\restore\uploads:/backup alpine `
-    cp -r /backup/* /uploads/
-
-# 6. 啟動服務
-docker compose up -d
+# 5. 還原備份
+.\scripts\restore.ps1 -BackupFile "C:\RMS-Migration\2026xxxx_xxxxxx.zip"
 ```
 
 ### 5.3 遷移驗證清單
 
 - [ ] 網站可正常存取
 - [ ] 使用者可登入
-- [ ] 資料完整顯示
-- [ ] 上傳檔案可下載
+- [ ] 資料庫連線正常
+- [ ] 資料完整顯示 (專案、項目)
+- [ ] 檔案上傳/下載正常
 - [ ] HTTPS 憑證正常
 - [ ] 備份任務已設置
 
@@ -476,12 +526,17 @@ docker compose up -d
 
 ```powershell
 #!/usr/bin/env pwsh
-# RMS 系統還原腳本
+# RMS 系統還原腳本 (PostgreSQL 版本)
 
 param(
     [Parameter(Mandatory=$true)]
     [string]$BackupFile
 )
+
+if (-not (Test-Path $BackupFile)) {
+    Write-Host "❌ 備份檔案不存在: $BackupFile" -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "⚠️ 即將從備份還原系統，當前資料將被覆蓋！" -ForegroundColor Yellow
 $Confirm = Read-Host "確定要繼續嗎？(輸入 'YES' 確認)"
@@ -491,41 +546,73 @@ if ($Confirm -ne "YES") {
     exit
 }
 
-# 1. 停止服務
-Write-Host "🛑 停止服務..."
-docker compose down
-
-# 2. 解壓備份
+# 1. 解壓備份
 $RestoreDir = "C:\RMS-Restore-$(Get-Date -Format 'yyyyMMdd_HHmmss')"
 Write-Host "📦 解壓備份至 $RestoreDir..."
 Expand-Archive -Path $BackupFile -DestinationPath $RestoreDir
 
-# 3. 還原資料庫
+# 找到實際的備份子目錄
+$SubDirs = Get-ChildItem -Path $RestoreDir -Directory
+if ($SubDirs.Count -eq 1) {
+    $RestoreDir = $SubDirs[0].FullName
+}
+
+# 2. 驗證備份檔案
+if (-not (Test-Path "$RestoreDir\rms_db.sql")) {
+    Write-Host "❌ 無效的備份檔案: 找不到 rms_db.sql" -ForegroundColor Red
+    exit 1
+}
+
+# 3. 還原 PostgreSQL 資料庫
 Write-Host "🔄 還原資料庫..."
-docker run --rm -v rms-data:/data -v "${RestoreDir}:/backup" alpine `
-    sh -c "rm -f /data/rms.db && cp /backup/rms.db /data/"
+# 清空現有資料並重新匯入
+Get-Content "$RestoreDir\rms_db.sql" | docker exec -i rms-postgres psql -U rms_user -d rms_db
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ 資料庫還原失敗" -ForegroundColor Red
+} else {
+    Write-Host "  ✓ 資料庫還原完成"
+}
 
 # 4. 還原上傳檔案
-Write-Host "📁 還原上傳檔案..."
-docker run --rm -v rms-uploads:/uploads -v "${RestoreDir}/uploads:/backup" alpine `
-    sh -c "rm -rf /uploads/* && cp -r /backup/* /uploads/"
+if (Test-Path "$RestoreDir\uploads") {
+    Write-Host "📁 還原上傳檔案..."
+    docker cp "$RestoreDir\uploads\." rms-application:/app/public/uploads/
+    Write-Host "  ✓ 上傳檔案還原完成"
+}
 
-# 5. 重新啟動服務
-Write-Host "🚀 啟動服務..."
-docker compose up -d
+# 5. 還原 ISO 文件
+if (Test-Path "$RestoreDir\iso_doc") {
+    Write-Host "📄 還原 ISO 文件..."
+    docker cp "$RestoreDir\iso_doc\." rms-application:/app/public/iso_doc/
+    Write-Host "  ✓ ISO 文件還原完成"
+}
 
-# 6. 健康檢查
+# 6. 重新啟動應用程式
+Write-Host "🔄 重新啟動應用程式..."
+docker restart rms-application
 Start-Sleep -Seconds 10
-$Health = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -ErrorAction SilentlyContinue
-if ($Health.status -eq "ok") {
-    Write-Host "✅ 系統還原成功！" -ForegroundColor Green
-} else {
+
+# 7. 健康檢查
+try {
+    $Health = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -ErrorAction Stop
+    if ($Health.status -eq "ok") {
+        Write-Host "✅ 系統還原成功！" -ForegroundColor Green
+    } else {
+        throw "Health check failed"
+    }
+} catch {
     Write-Host "❌ 系統啟動異常，請檢查日誌" -ForegroundColor Red
     docker logs rms-application --tail 50
 }
 
 # 清理
-Remove-Item -Recurse -Force $RestoreDir
+$ParentDir = Split-Path $RestoreDir -Parent
+if ($ParentDir -like "*RMS-Restore*") {
+    Remove-Item -Recurse -Force $ParentDir
+} else {
+    Remove-Item -Recurse -Force $RestoreDir
+}
+Write-Host "🧹 已清理暫存檔案"
 ```
 
 ### 6.3 健康檢查 API

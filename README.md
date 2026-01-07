@@ -34,13 +34,19 @@ RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提供階�
 |------|------|
 | 框架 | Next.js 14 (App Router) |
 | 語言 | TypeScript |
-| 資料庫 | Prisma + SQLite |
+| 資料庫 | Prisma + PostgreSQL (Original: SQLite) |
 | 認證 | NextAuth.js |
 | 編輯器 | Tiptap (ProseMirror) |
 | PDF 生成 | pdf-lib + @pdf-lib/fontkit |
 | 內容截圖 | Puppeteer |
 | 樣式 | Vanilla CSS + CSS Variables |
 | 部署 | Docker + Nginx |
+
+## 資料庫遷移 (2026/01)
+
+本專案已從 SQLite 遷移至 **PostgreSQL** 以提升效能與擴展性。詳細遷移流程請參考 [docs/postgresql_migration_plan.md](docs/postgresql_migration_plan.md)。
+
+> 💡 **開發環境**: 若需切換回 SQLite（僅限本地測試），請參考 `prisma/schema.prisma` 中的註解並切換 provider。
 
 ---
 

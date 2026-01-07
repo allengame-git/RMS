@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# RMS 系統自動檢驗腳本
+# RMS 系統自動檢驗腳本 (PostgreSQL 版本)
 
 Write-Host "===========================================" -ForegroundColor Cyan
 Write-Host "  RMS 系統自動檢驗" -ForegroundColor Cyan
@@ -13,8 +13,8 @@ Write-Host "`n[1/5] Docker 狀態檢驗..." -ForegroundColor Yellow
 try {
     $containers = docker compose ps --format json | ConvertFrom-Json
     foreach ($c in $containers) {
-        if ($c.State -eq "running") {
-            Write-Host "  ✓ $($c.Name): Running" -ForegroundColor Green
+        if ($c.State -eq "running" -or $c.State -eq "Up") {
+            Write-Host "  ✓ $($c.Name): Distributed" -ForegroundColor Green
         } else {
             Write-Host "  ✗ $($c.Name): $($c.State)" -ForegroundColor Red
             $errors += "$($c.Name) 狀態異常: $($c.State)"

@@ -55,4 +55,10 @@ next-env.d.ts
 /public
 
 # Agent folder
-/.agent
+.agent
+
+# Migration Data
+migration-data/
+*.sql
+.env.postgres
+rms_db_dump.sql

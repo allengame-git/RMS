@@ -1,7 +1,7 @@
 # RMS 系統部署檢驗作業規劃
 
-> **文件版本**: 1.0  
-> **最後更新**: 2026-01-04
+> **文件版本**: 1.1  
+> **最後更新**: 2026-01-07
 
 ---
 
@@ -33,6 +33,7 @@
 | Port 80 未佔用 | `netstat -an \| findstr :80` | 空白或無 LISTENING | ☐ |
 | Port 443 未佔用 | `netstat -an \| findstr :443` | 空白或無 LISTENING | ☐ |
 | Port 3000 未佔用 | `netstat -an \| findstr :3000` | 空白或無 LISTENING | ☐ |
+| Port 5432 未佔用 | `netstat -an \| findstr :5432` | 空白或無 LISTENING | ☐ |
 
 ### 2.2 檔案檢驗
 
@@ -42,7 +43,7 @@
 | Dockerfile 存在 | `Test-Path C:\RMS\Dockerfile` | True | ☐ |
 | docker-compose.yml 存在 | `Test-Path C:\RMS\docker-compose.yml` | True | ☐ |
 | .env 檔案存在 | `Test-Path C:\RMS\.env` | True | ☐ |
-| 資料庫檔案存在 | `Test-Path C:\RMS\prisma\dev.db` | True | ☐ |
+| 資料庫備份存在 | `Test-Path C:\RMS\rms_db_dump.sql` | True (如適用) | ☐ |
 | SSL 憑證存在 | `Test-Path C:\RMS\nginx\ssl\fullchain.pem` | True | ☐ |
 | SSL 私鑰存在 | `Test-Path C:\RMS\nginx\ssl\privkey.pem` | True | ☐ |
 
@@ -55,7 +56,8 @@ Get-Content C:\RMS\.env
 
 | 檢驗項目 | 通過標準 | ✓ |
 |----------|----------|---|
-| DATABASE_URL 已設定 | 包含有效路徑 | ☐ |
+| DATABASE_URL 已設定 | 格式: postgresql://... | ☐ |
+| POSTGRES_PASSWORD 設定 | 與 DATABASE_URL 一致 | ☐ |
 | NEXTAUTH_URL 已設定 | 格式正確 (https://...) | ☐ |
 | NEXTAUTH_SECRET 已設定 | 至少 32 字元 | ☐ |
 
@@ -72,6 +74,7 @@ docker compose ps
 
 | 容器名稱 | 預期狀態 | 預期埠口 | ✓ |
 |----------|----------|----------|---|
+| rms-postgres | Up (healthy) | 5432 | ☐ |
 | rms-application | Up (healthy) | 3000 | ☐ |
 | rms-nginx | Up | 80, 443 | ☐ |
 
@@ -129,13 +132,13 @@ docker logs rms-application --tail 20
 |----------|----------|----------|---|
 | TC-PROJ-01 | 檢視專案列表 | 顯示所有專案 | ☐ |
 | TC-PROJ-02 | 點擊專案查看詳情 | 顯示專案資訊 | ☐ |
-| TC-PROJ-03 | 展開專案項目樹 | 正確顯示階層 | ☐ |
+| TC-PROJ-03 | 展開專案項目樹 | 正確顯示階層 (Accordion) | ☐ |
 
 ### 4.3 項目管理
 
 | 測試案例 | 操作步驟 | 預期結果 | ✓ |
 |----------|----------|----------|---|
-| TC-ITEM-01 | 檢視項目詳情 | 顯示完整內容 | ☐ |
+| TC-ITEM-01 | 檢視項目詳情 | 顯示完整內容 (New Sidebar) | ☐ |
 | TC-ITEM-02 | 新增項目 (EDITOR) | 進入待審核 | ☐ |
 | TC-ITEM-03 | 編輯項目 (EDITOR) | 進入待審核 | ☐ |
 | TC-ITEM-04 | 審核通過 (INSPECTOR) | 項目更新 | ☐ |
@@ -150,13 +153,12 @@ docker logs rms-application --tail 20
 | TC-FILE-03 | 下載已上傳檔案 | 下載正確 | ☐ |
 | TC-FILE-04 | 刪除檔案 | 進入待審核 | ☐ |
 
-### 4.5 搜尋功能
+### 4.5 ISO 文件管理
 
 | 測試案例 | 操作步驟 | 預期結果 | ✓ |
 |----------|----------|----------|---|
-| TC-SRCH-01 | 關鍵字搜尋項目 | 顯示符合結果 | ☐ |
-| TC-SRCH-02 | 關鍵字搜尋檔案 | 顯示符合結果 | ☐ |
-| TC-SRCH-03 | 無結果搜尋 | 顯示無結果提示 | ☐ |
+| TC-ISO-01 | 產生說明書 (PDF) | 成功下載 PDF | ☐ |
+| TC-ISO-02 | 產生條文對照表 (PDF) | 成功下載 PDF | ☐ |
 
 ### 4.6 權限檢驗
 
@@ -181,7 +183,7 @@ docker stats --no-stream
 | 檢驗項目 | 通過標準 | ✓ |
 |----------|----------|---|
 | CPU 使用率 | < 80% | ☐ |
-| 記憶體使用 | < 2 GB | ☐ |
+| 記憶體使用 | < 4 GB (含 Postgres) | ☐ |
 | 容器重啟次數 | 0 次 | ☐ |
 
 ### 5.2 備份檢驗
@@ -239,10 +241,10 @@ docker logs rms-application --since 168h 2>&1 | Select-String "ERROR"
 
 | 階段 | 通過項目 | 失敗項目 | 備註 |
 |------|----------|----------|------|
-| 部署前檢驗 | ___/___ | | |
-| 部署後檢驗 | ___/___ | | |
-| 功能驗收 | ___/___ | | |
-| 穩定性檢驗 | ___/___ | | |
+| 部署前檢驗 | _**/**_ | | |
+| 部署後檢驗 | _**/**_ | | |
+| 功能驗收 | _**/**_ | | |
+| 穩定性檢驗 | _**/**_ | | |
 
 ### 問題記錄
 
@@ -281,8 +283,8 @@ Write-Host "`n[1/5] Docker 狀態檢驗..." -ForegroundColor Yellow
 try {
     $containers = docker compose ps --format json | ConvertFrom-Json
     foreach ($c in $containers) {
-        if ($c.State -eq "running") {
-            Write-Host "  ✓ $($c.Name): Running" -ForegroundColor Green
+        if ($c.State -eq "running" -or $c.State -eq "Up") {
+            Write-Host "  ✓ $($c.Name): Distributed" -ForegroundColor Green
         } else {
             Write-Host "  ✗ $($c.Name): $($c.State)" -ForegroundColor Red
             $errors += "$($c.Name) 狀態異常: $($c.State)"
@@ -371,15 +373,3 @@ Write-Host "===========================================" -ForegroundColor Cyan
 ```powershell
 C:\RMS\scripts\verify.ps1
 ```
-
----
-
-## 附錄：檢驗週期建議
-
-| 檢驗類型 | 頻率 | 自動化 |
-|----------|------|--------|
-| 健康檢查 | 每 5 分鐘 | ✓ Docker healthcheck |
-| 備份驗證 | 每日 | ✓ 排程任務 |
-| 完整功能驗收 | 每月 | ✗ 人工執行 |
-| 安全性檢驗 | 每季 | ✗ 人工執行 |
-| 災難復原演練 | 每半年 | ✗ 人工執行 |

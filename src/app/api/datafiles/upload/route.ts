@@ -20,13 +20,13 @@ export async function POST(request: NextRequest) {
         const formData = await request.formData();
         const file = formData.get('file') as File;
         const dataYear = formData.get('dataYear') as string;
-        const dataCode = formData.get('dataCode') as string;
+        const dataCode = formData.get('dataCode') as string | null;
 
         if (!file) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
-        if (!dataYear || !dataCode) {
+        if (!dataYear) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -41,10 +41,12 @@ export async function POST(request: NextRequest) {
         const originalName = file.name;
         const ext = path.extname(originalName);
 
-        // Create unique filename
+        // Create unique filename - use dataCode if provided, otherwise use timestamp-based name
         const timestamp = Date.now();
-        const safeDataCode = dataCode.replace(/[^a-zA-Z0-9-_]/g, '_');
-        const newFileName = `${safeDataCode}_${timestamp}${ext}`;
+        const safePrefix = dataCode?.trim()
+            ? dataCode.replace(/[^a-zA-Z0-9-_]/g, '_')
+            : `file_${timestamp.toString(36)}`;
+        const newFileName = `${safePrefix}_${timestamp}${ext}`;
 
         // Create year directory if not exists
         const yearDir = path.join(process.cwd(), 'public', 'uploads', 'datafiles', dataYear);

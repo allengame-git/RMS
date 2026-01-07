@@ -1,7 +1,7 @@
 # RMS 系統 Windows 部署 Step-by-Step 指南
 
-> **文件版本**: 1.0  
-> **最後更新**: 2026-01-04
+> **文件版本**: 1.1  
+> **最後更新**: 2026-01-07
 
 ---
 
@@ -73,15 +73,14 @@ git push origin main
 zip -r RMS-deployment.zip . \
     -x "node_modules/*" \
     -x ".next/*" \
-    -x "*.db" \
     -x ".git/*"
 ```
 
-**3.3 匯出資料庫**
+**3.3 匯出資料庫 (PostgreSQL)**
 
 ```bash
-# 複製資料庫檔案
-cp prisma/dev.db RMS-database-backup.db
+# 匯出資料庫架構與數據
+docker exec rms-postgres pg_dump -U rms_user -d rms_db > rms_db_dump.sql
 ```
 
 ### Step 4: 傳輸到 Windows 電腦
@@ -89,8 +88,9 @@ cp prisma/dev.db RMS-database-backup.db
 將以下檔案傳輸到 Windows 電腦：
 
 - `RMS-deployment.zip` - 專案程式碼
-- `RMS-database-backup.db` - 資料庫備份
+- `rms_db_dump.sql` - 資料庫備份 (SQL)
 - 上傳檔案目錄 `public/uploads/` (如有)
+- ISO 文件目錄 `public/iso_doc/` (如有)
 
 **建議使用**：隨身碟、網路共享、雲端硬碟
 
@@ -118,7 +118,11 @@ Expand-Archive -Path "C:\Downloads\RMS-deployment.zip" -DestinationPath "C:\RMS"
 ```powershell
 # 建立 .env 檔案
 @"
-DATABASE_URL="file:./prisma/dev.db"
+# PostgreSQL Connection
+POSTGRES_PASSWORD=rms_secure_password
+DATABASE_URL="postgresql://rms_user:rms_secure_password@postgres:5432/rms_db?schema=public"
+
+# NextAuth
 NEXTAUTH_URL="https://your-domain.com"
 NEXTAUTH_SECRET="請替換為至少32個字符的隨機字串"
 "@ | Out-File -FilePath ".env" -Encoding UTF8
@@ -130,14 +134,16 @@ NEXTAUTH_SECRET="請替換為至少32個字符的隨機字串"
 > [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 > ```
 
-**5.3 還原資料庫**
+**5.3 還原上傳檔案**
 
 ```powershell
-# 複製資料庫檔案
-Copy-Item "C:\Downloads\RMS-database-backup.db" "C:\RMS\prisma\dev.db"
-
-# 還原上傳檔案 (如有)
-Copy-Item -Recurse "C:\Downloads\uploads\*" "C:\RMS\public\uploads\"
+# 還原上傳檔案
+if (Test-Path "C:\Downloads\uploads") {
+    Copy-Item -Recurse "C:\Downloads\uploads\*" "C:\RMS\public\uploads\"
+}
+if (Test-Path "C:\Downloads\iso_doc") {
+    Copy-Item -Recurse "C:\Downloads\iso_doc\*" "C:\RMS\public\iso_doc\"
+}
 ```
 
 ### Step 6: 設置 SSL 憑證
@@ -199,18 +205,30 @@ docker compose ps
 
 # 預期輸出：
 # NAME              STATUS    PORTS
+# rms-postgres      Up        5432/tcp
 # rms-application   Up        0.0.0.0:3000->3000/tcp
 # rms-nginx         Up        0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
 ```
 
 ### Step 9: 初始化資料庫 (首次部署)
 
+> 如果是還原 `rms_db_dump.sql`，則不需要執行 prisma migrate，直接匯入 SQL 即可。
+
+**情況 A: 匯入舊資料庫**
+
+```powershell
+# 等待 PostgreSQL 啟動
+Start-Sleep -Seconds 10
+
+# 匯入 SQL
+Get-Content "C:\Downloads\rms_db_dump.sql" | docker exec -i rms-postgres psql -U rms_user -d rms_db
+```
+
+**情況 B: 全新安裝**
+
 ```powershell
 # 執行資料庫遷移
 docker exec rms-application npx prisma migrate deploy
-
-# 如果是全新部署，需要推送 schema
-docker exec rms-application npx prisma db push
 ```
 
 ### Step 10: 設置 Windows 防火牆
@@ -239,7 +257,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/health"
 
 # 預期回應：
 # status    : ok
-# timestamp : 2026-01-04T14:23:38.000Z
+# timestamp : 2026-01-07T...
 # database  : connected
 ```
 
@@ -324,7 +342,11 @@ docker compose ps         # 查看容器狀態
 docker stats              # 查看資源使用
 
 # ===== 資料庫操作 =====
-docker exec rms-application npx prisma studio  # 開啟資料庫管理介面
+# 進入 PostgreSQL CLI
+docker exec -it rms-postgres psql -U rms_user -d rms_db
+
+# 備份資料庫
+docker exec rms-postgres pg_dump -U rms_user -d rms_db > backup.sql
 
 # ===== 更新部署 =====
 git pull origin main                           # 拉取最新程式碼
@@ -347,7 +369,7 @@ docker compose up -d                           # 重啟服務
 - [ ] 專案檔案已解壓縮
 - [ ] .env 環境變數已設置
 - [ ] SSL 憑證已配置
-- [ ] 資料庫檔案已還原
+- [ ] 資料庫已匯入 (PostgreSQL)
 
 **部署後檢驗：**
 
@@ -365,50 +387,6 @@ docker compose up -d                           # 重啟服務
 - [ ] 磁碟空間充足
 - [ ] 日誌無異常錯誤
 - [ ] SSL 憑證未過期
-
----
-
-## 故障排除
-
-### 問題：容器無法啟動
-
-```powershell
-# 查看錯誤日誌
-docker compose logs rms-application
-
-# 常見原因：
-# 1. .env 檔案不存在或格式錯誤
-# 2. 資料庫檔案路徑錯誤
-# 3. Port 3000 被佔用
-```
-
-### 問題：HTTPS 憑證錯誤
-
-```powershell
-# 檢查憑證檔案
-Test-Path "C:\RMS\nginx\ssl\fullchain.pem"
-Test-Path "C:\RMS\nginx\ssl\privkey.pem"
-
-# 重新產生自簽憑證
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 `
-    -keyout "C:\RMS\nginx\ssl\privkey.pem" `
-    -out "C:\RMS\nginx\ssl\fullchain.pem" `
-    -subj "/CN=localhost"
-
-# 重啟 Nginx
-docker compose restart nginx
-```
-
-### 問題：資料庫連線失敗
-
-```powershell
-# 檢查資料庫檔案
-Test-Path "C:\RMS\prisma\dev.db"
-
-# 進入容器檢查
-docker exec -it rms-application sh
-ls -la /app/data/
-```
 
 ---
 
