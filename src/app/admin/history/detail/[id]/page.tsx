@@ -233,7 +233,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                                 提交者
                             </div>
                             <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--color-text-main)' }}>
-                                {record.submittedBy.username}
+                                {record.submittedBy?.username || record.submitterName || '(已刪除)'}
                             </div>
                             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
                                 {new Date(record.createdAt).toLocaleString('zh-TW')}

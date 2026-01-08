@@ -126,11 +126,13 @@ model ChangeRequest {
   targetParentId  Int?
   targetParent    Item?    @relation("TargetParent", fields: [targetParentId], references: [id])
 
-  submittedById String
-  submittedBy   User   @relation("SubmittedBy", fields: [submittedById], references: [id])
+  submittedById String?
+  submittedBy   User?  @relation("SubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  submitterName String?  // Redundant: preserved when user is deleted
   
   reviewedById  String?
-  reviewedBy    User?  @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedBy    User?  @relation("ReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewerName  String?  // Redundant: preserved when user is deleted
 
   reviewNote    String?
   createdAt     DateTime @default(now())
@@ -150,11 +152,13 @@ model ItemHistory {
   snapshot    String   // JSON
   diff        String?  // JSON
   
-  submittedById String
-  submittedBy   User   @relation("HistorySubmitter", fields: [submittedById], references: [id])
+  submittedById String?
+  submittedBy   User?  @relation("HistorySubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  submitterName String?  // Redundant: preserved when user is deleted
   
   reviewedById  String?
-  reviewedBy    User?  @relation("HistoryReviewer", fields: [reviewedById], references: [id])
+  reviewedBy    User?  @relation("HistoryReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewerName  String?  // Redundant: preserved when user is deleted
   
   reviewStatus  String // "APPROVED" | "REJECTED" - usually APPROVED for committed history
   reviewNote    String?
@@ -190,12 +194,14 @@ model QCDocumentApproval {
   status          String   @default("PENDING_QC") // PENDING_QC, PENDING_PM, COMPLETED, REJECTED
   
   qcApprovedById  String?
-  qcApprovedBy    User?    @relation("QCApprover", fields: [qcApprovedById], references: [id])
+  qcApprovedBy    User?    @relation("QCApprover", fields: [qcApprovedById], references: [id], onDelete: SetNull)
+  qcApproverName  String?  // Redundant: preserved when user is deleted
   qcApprovedAt    DateTime?
   qcNote          String?
   
   pmApprovedById  String?
-  pmApprovedBy    User?    @relation("PMApprover", fields: [pmApprovedById], references: [id])
+  pmApprovedBy    User?    @relation("PMApprover", fields: [pmApprovedById], references: [id], onDelete: SetNull)
+  pmApproverName  String?  // Redundant: preserved when user is deleted
   pmApprovedAt    DateTime?
   pmNote          String?
   
@@ -250,12 +256,14 @@ model DataFileChangeRequest {
   file        DataFile? @relation(fields: [fileId], references: [id])
   
   // Submitter
-  submittedById String
-  submittedBy   User   @relation("FileSubmittedBy", fields: [submittedById], references: [id])
+  submittedById String?
+  submittedBy   User?  @relation("FileSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  submitterName String?  // Redundant: preserved when user is deleted
   
   // Reviewer
   reviewedById  String?
-  reviewedBy    User?  @relation("FileReviewedBy", fields: [reviewedById], references: [id])
+  reviewedBy    User?  @relation("FileReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewerName  String?  // Redundant: preserved when user is deleted
   
   reviewNote    String?
   createdAt     DateTime @default(now())
@@ -275,12 +283,14 @@ model DataFileHistory {
   diff        String?  // JSON
   
   // Submitter
-  submittedById String
-  submittedBy   User   @relation("FileHistorySubmitter", fields: [submittedById], references: [id])
+  submittedById String?
+  submittedBy   User?  @relation("FileHistorySubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  submitterName String?  // Redundant: preserved when user is deleted
   
   // Reviewer
   reviewedById  String?
-  reviewedBy    User?  @relation("FileHistoryReviewer", fields: [reviewedById], references: [id])
+  reviewedBy    User?  @relation("FileHistoryReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewerName  String?  // Redundant: preserved when user is deleted
   
   reviewStatus  String   // APPROVED, REJECTED
   reviewNote    String?

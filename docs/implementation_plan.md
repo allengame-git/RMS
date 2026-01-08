@@ -422,3 +422,35 @@ const handleDrop = (e: React.DragEvent) => {
 - `src/app/admin/history/detail/[id]/page.tsx`: 審查紀錄詳情卡片
 
 ### 狀態: ✅ 已完成
+
+---
+
+## 12. Phase 9: 管理員自我編輯功能
+
+> Status: ⏳ Planning
+
+### 12.1 需求分析
+
+- **目標**: 允許 ADMIN 在使用者管理介面修改自己的密碼
+- **限制**: 為防止權限遺失，ADMIN 不可修改自己的角色 (Role)
+- **現況**: 目前 UI 完全禁用 ADMIN 編輯自己的按鈕
+
+### 12.2 實作計畫
+
+**前端修改 (`src/app/admin/users/page.tsx`)**:
+
+1. **啟用編輯按鈕**:
+   - 移除 `Edit` 按鈕對 `session.user.id === user.id` 的禁用狀態
+   - 保留 `Delete` 按鈕的禁用狀態 (防止自殺)
+
+2. **編輯 Modal 防呆**:
+   - 在 Role `<select>` 加入 `disabled={editingUser.id === session.user.id}`
+   - 確保密碼欄位可正常使用
+   - Qualifications (QC/PM) 欄位可維持開放或視需求鎖定 (目前建議保持開放)
+
+### 12.3 驗證計畫
+
+1. 以 Admin 登入
+2. 點擊自己的 Edit 按鈕 (應可點擊)
+3. 修改密碼 -> 登出 -> 使用新密碼登入 (應成功)
+4. 嘗試修改自己的 Role (應無法修改)

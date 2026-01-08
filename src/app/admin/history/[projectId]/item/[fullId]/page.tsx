@@ -58,7 +58,7 @@ export default async function ItemHistoryListPage({ params }: { params: { projec
                                         {record.changeType}
                                     </span>
                                 </td>
-                                <td style={{ padding: '0.75rem' }}>{record.submittedBy.username}</td>
+                                <td style={{ padding: '0.75rem' }}>{record.submittedBy?.username || record.submitterName || '(已刪除)'}</td>
                                 <td style={{ padding: '0.75rem' }}>
                                     <Link
                                         href={`/admin/history/detail/${record.id}`}

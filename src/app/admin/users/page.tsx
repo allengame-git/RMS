@@ -78,7 +78,7 @@ export default function UserManagementPage() {
                 setFormError(result.error);
             } else {
                 setIsCreateModalOpen(false);
-                setFormData({ username: '', password: '', role: 'VIEWER' });
+                setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false, signaturePath: '' });
                 fetchUsers();
             }
         } catch (err) {
@@ -125,7 +125,7 @@ export default function UserManagementPage() {
             } else {
                 setIsEditModalOpen(false);
                 setEditingUser(null);
-                setFormData({ username: '', password: '', role: 'VIEWER' });
+                setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false, signaturePath: '' });
                 fetchUsers();
             }
         } catch (err) {
@@ -140,8 +140,9 @@ export default function UserManagementPage() {
         try {
             await deleteUser(userId);
             fetchUsers();
-        } catch (err) {
-            alert('Failed to delete user');
+        } catch (err: any) {
+            console.error('Delete user error:', err);
+            alert('Failed to delete user: ' + (err?.message || 'Unknown error'));
         }
     };
 
@@ -265,14 +266,14 @@ export default function UserManagementPage() {
                                 <td style={{ padding: "1rem", textAlign: "right" }}>
                                     <button
                                         onClick={() => openEditModal(user)}
-                                        disabled={user.id === session.user.id}
+                                        disabled={false}
                                         style={{
                                             marginRight: "1rem",
                                             color: "var(--color-primary)",
                                             background: "transparent",
                                             border: "none",
-                                            cursor: user.id === session.user.id ? "not-allowed" : "pointer",
-                                            opacity: user.id === session.user.id ? 0.5 : 1
+                                            cursor: "pointer",
+                                            opacity: 1
                                         }}
                                     >
                                         Edit
@@ -474,7 +475,15 @@ export default function UserManagementPage() {
                                 <select
                                     value={formData.role}
                                     onChange={e => setFormData({ ...formData, role: e.target.value })}
-                                    style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--color-border)" }}
+                                    disabled={editingUser.id === session?.user?.id}
+                                    style={{
+                                        width: "100%",
+                                        padding: "0.5rem",
+                                        borderRadius: "4px",
+                                        border: "1px solid var(--color-border)",
+                                        backgroundColor: editingUser.id === session?.user?.id ? "var(--color-background-muted)" : "var(--color-background)",
+                                        cursor: editingUser.id === session?.user?.id ? "not-allowed" : "default"
+                                    }}
                                 >
                                     <option value="VIEWER">VIEWER (Read Only)</option>
                                     <option value="EDITOR">EDITOR (Create/Edit)</option>

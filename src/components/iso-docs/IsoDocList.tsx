@@ -9,7 +9,8 @@ type IsoDoc = {
     version: number;
     isoDocPath: string | null;
     createdAt: Date;
-    submittedBy: { username: string };
+    submittedBy: { username: string } | null;
+    submitterName?: string | null;  // Fallback when user is deleted
     reviewedBy: { username: string } | null;
     item?: { fullId: string; title: string } | null;
 };
@@ -34,9 +35,12 @@ export default function IsoDocList({ docs }: { docs: IsoDoc[] }) {
                 case 'version':
                     comparison = a.version - b.version;
                     break;
-                case 'submittedBy':
-                    comparison = a.submittedBy.username.localeCompare(b.submittedBy.username);
+                case 'submittedBy': {
+                    const aName = a.submittedBy?.username || a.submitterName || '';
+                    const bName = b.submittedBy?.username || b.submitterName || '';
+                    comparison = aName.localeCompare(bName);
                     break;
+                }
                 case 'createdAt':
                     comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
                     break;
@@ -156,7 +160,7 @@ export default function IsoDocList({ docs }: { docs: IsoDoc[] }) {
                                     {new Date(doc.createdAt).toLocaleDateString()}
                                 </td>
                                 <td style={{ padding: '0.75rem 1rem' }}>
-                                    <div>{doc.submittedBy.username}</div>
+                                    <div>{doc.submittedBy?.username || doc.submitterName || '(已刪除)'}</div>
                                     <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                                         {doc.reviewedBy?.username || '-'}
                                     </div>

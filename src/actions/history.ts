@@ -47,7 +47,7 @@ function computeDiff(oldData: ItemSnapshot, newData: ItemSnapshot) {
 export async function createHistoryRecord(
     item: Item,
     snapshotData: ItemSnapshot,
-    changeRequest: { id: number; submittedById: string },
+    changeRequest: { id: number; submittedById: string | null },
     changeType: "CREATE" | "UPDATE" | "DELETE" | "RESTORE",
     reviewerId: string,
     oldSnapshot?: ItemSnapshot
@@ -334,7 +334,7 @@ export async function getRecentUpdates(limit = 100) {
         identifier: h.itemFullId,
         name: h.itemTitle,
         projectTitle: h.project?.title || '',
-        submittedBy: h.submittedBy.username,
+        submittedBy: h.submittedBy?.username || h.submitterName || '(已刪除)',
         reviewedBy: h.reviewedBy?.username || null,
         createdAt: h.createdAt,
         targetId: h.itemId
@@ -347,7 +347,7 @@ export async function getRecentUpdates(limit = 100) {
         identifier: h.dataCode,
         name: h.dataName,
         projectTitle: `${h.dataYear}年度`,
-        submittedBy: h.submittedBy.username,
+        submittedBy: h.submittedBy?.username || h.submitterName || '(已刪除)',
         reviewedBy: h.reviewedBy?.username || null,
         createdAt: h.createdAt,
         targetId: h.fileId

@@ -16,7 +16,8 @@ type Request = {
     status: string;
     data: string;
     createdAt: Date;
-    submittedBy: { username: string };
+    submittedBy: { username: string } | null;
+    submitterName?: string | null;  // Fallback when user is deleted
     targetProject: { title: string; codePrefix: string } | null;
     targetParent: { fullId: string } | null;
     item: {
@@ -61,8 +62,9 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
     const handleApproveClick = (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
         const request = requests.find(r => r.id === id);
+        const submitterUsername = request?.submittedBy?.username || request?.submitterName;
         // ADMIN can approve their own requests, others cannot
-        if (request && request.submittedBy.username === currentUsername && currentUserRole !== 'ADMIN') {
+        if (request && submitterUsername === currentUsername && currentUserRole !== 'ADMIN') {
             setErrorDialog('您不能批准自己提交的申請。請由其他審核人員處理。');
             return;
         }
@@ -125,6 +127,8 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                 {requests.map(req => {
                     const data = JSON.parse(req.data);
                     const isExpanded = expandedId === req.id;
+                    const submitterUsername = req.submittedBy?.username || req.submitterName || '(已刪除)';
+                    const isSelf = submitterUsername === currentUsername && currentUserRole !== 'ADMIN';
 
                     return (
                         <div
@@ -138,12 +142,12 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                                 transition: "all 0.2s",
                                 border: isExpanded
                                     ? "2px solid var(--color-primary)"
-                                    : req.submittedBy.username === currentUsername
+                                    : isSelf
                                         ? "2px solid var(--color-warning)"
                                         : "2px solid transparent",
                                 transform: isExpanded ? "scale(1.02)" : "scale(1)",
                                 boxShadow: isExpanded ? "0 8px 16px rgba(0,0,0,0.1)" : "none",
-                                backgroundColor: req.submittedBy.username === currentUsername && !isExpanded
+                                backgroundColor: isSelf && !isExpanded
                                     ? "rgba(234, 179, 8, 0.05)"
                                     : undefined
                             }}
@@ -181,7 +185,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                                     {req.targetProject?.title}
                                     {req.item && ` • ${req.item.fullId}`}
                                 </div>
-                                {req.submittedBy.username === currentUsername && (
+                                {isSelf && (
                                     <div style={{
                                         fontSize: "0.75rem",
                                         marginTop: "0.5rem",
@@ -205,7 +209,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                                 justifyContent: "space-between",
                                 alignItems: "center"
                             }}>
-                                <span>編輯者：{req.submittedBy.username}</span>
+                                <span>編輯者：{submitterUsername}</span>
                                 <span>
                                     {new Date(req.createdAt).toLocaleDateString('zh-TW', {
                                         month: 'short',
@@ -326,7 +330,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                                 )}
 
                                 <strong>編輯者：</strong>
-                                <span>{req.submittedBy.username}</span>
+                                <span>{req.submittedBy?.username || req.submitterName || '(已刪除)'}</span>
                             </div>
 
                             {/* Title Comparison */}

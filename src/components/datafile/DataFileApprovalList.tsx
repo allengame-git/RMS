@@ -26,7 +26,8 @@ type FileRequest = {
     submittedBy: {
         id: string;
         username: string;
-    };
+    } | null;
+    submitterName?: string | null;  // Fallback when user is deleted
     createdAt: Date;
 };
 
@@ -131,7 +132,8 @@ export default function DataFileApprovalList({
 
     const handleApprove = async (id: number) => {
         const request = requests.find(r => r.id === id);
-        if (request && request.submittedBy.username === currentUsername && currentUserRole !== 'ADMIN') {
+        const submitterUsername = request?.submittedBy?.username || request?.submitterName;
+        if (request && submitterUsername === currentUsername && currentUserRole !== 'ADMIN') {
             setErrorDialog('您不能審核自己提交的申請');
             return;
         }
@@ -180,7 +182,8 @@ export default function DataFileApprovalList({
                     const typeInfo = getTypeLabel(req.type);
                     const data = JSON.parse(req.data);
                     const isExpanded = expandedId === req.id;
-                    const isSelf = req.submittedBy.username === currentUsername && currentUserRole !== 'ADMIN';
+                    const submitterUsername = req.submittedBy?.username || req.submitterName || '(已刪除)';
+                    const isSelf = submitterUsername === currentUsername && currentUserRole !== 'ADMIN';
                     const file = req.file;
 
                     return (
@@ -270,7 +273,7 @@ export default function DataFileApprovalList({
                                 justifyContent: 'space-between',
                                 alignItems: 'center'
                             }}>
-                                <span>編輯者：{req.submittedBy.username}</span>
+                                <span>編輯者：{submitterUsername}</span>
                                 <span>
                                     {new Date(req.createdAt).toLocaleDateString('zh-TW', {
                                         month: 'short',
@@ -380,7 +383,7 @@ export default function DataFileApprovalList({
                                 <span>{file?.dataYear || data.dataYear}</span>
 
                                 <strong>編輯者：</strong>
-                                <span>{req.submittedBy.username}</span>
+                                <span>{req.submittedBy?.username || req.submitterName || '(已刪除)'}</span>
                             </div>
 
                             {/* Comparison Fields */}

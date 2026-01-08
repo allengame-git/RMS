@@ -149,8 +149,83 @@ export async function deleteUser(userId: string) {
 
     if (userId === session.user.id) throw new Error("Cannot delete yourself");
 
+    // Get user info before deletion
+    const userToDelete = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true }
+    });
+
+    if (!userToDelete) throw new Error("User not found");
+
+    const username = userToDelete.username;
+
+    // Update all related records with the username before deletion
+    // This preserves the username in the redundant fields when the FK is set to null
+
+    // 1. ChangeRequest - submitter
+    await prisma.changeRequest.updateMany({
+        where: { submittedById: userId },
+        data: { submitterName: username }
+    });
+
+    // 2. ChangeRequest - reviewer
+    await prisma.changeRequest.updateMany({
+        where: { reviewedById: userId },
+        data: { reviewerName: username }
+    });
+
+    // 3. ItemHistory - submitter
+    await prisma.itemHistory.updateMany({
+        where: { submittedById: userId },
+        data: { submitterName: username }
+    });
+
+    // 4. ItemHistory - reviewer
+    await prisma.itemHistory.updateMany({
+        where: { reviewedById: userId },
+        data: { reviewerName: username }
+    });
+
+    // 5. DataFileChangeRequest - submitter
+    await prisma.dataFileChangeRequest.updateMany({
+        where: { submittedById: userId },
+        data: { submitterName: username }
+    });
+
+    // 6. DataFileChangeRequest - reviewer
+    await prisma.dataFileChangeRequest.updateMany({
+        where: { reviewedById: userId },
+        data: { reviewerName: username }
+    });
+
+    // 7. DataFileHistory - submitter
+    await prisma.dataFileHistory.updateMany({
+        where: { submittedById: userId },
+        data: { submitterName: username }
+    });
+
+    // 8. DataFileHistory - reviewer
+    await prisma.dataFileHistory.updateMany({
+        where: { reviewedById: userId },
+        data: { reviewerName: username }
+    });
+
+    // 9. QCDocumentApproval - QC approver
+    await prisma.qCDocumentApproval.updateMany({
+        where: { qcApprovedById: userId },
+        data: { qcApproverName: username }
+    });
+
+    // 10. QCDocumentApproval - PM approver
+    await prisma.qCDocumentApproval.updateMany({
+        where: { pmApprovedById: userId },
+        data: { pmApproverName: username }
+    });
+
+    // Now delete the user - FK fields will be set to null by onDelete: SetNull
     await prisma.user.delete({
         where: { id: userId },
     });
+
     revalidatePath("/admin/users");
 }

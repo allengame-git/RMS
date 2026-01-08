@@ -316,7 +316,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                                                         {record.changeType}
                                                     </span>
                                                 </td>
-                                                <td style={{ padding: '0.75rem' }}>{record.submittedBy.username}</td>
+                                                <td style={{ padding: '0.75rem' }}>{record.submittedBy?.username || record.submitterName || '(已刪除)'}</td>
                                                 <td style={{ padding: '0.75rem' }}>
                                                     <Link
                                                         href={`/admin/history/detail/${record.id}`} // Or item specific URL?
