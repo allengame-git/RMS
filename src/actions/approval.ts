@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { generateNextItemId } from "@/lib/item-utils";
 import { createHistoryRecord, ItemSnapshot } from "./history";
+import { createNotification } from "./notifications";
 
 export type ApprovalState = {
     message?: string;
@@ -91,6 +92,7 @@ export async function submitUpdateItemRequest(
 
     const data = JSON.stringify({ title, content, attachments, relatedItems });
     const submitReason = formData.get("submitReason") as string || null;
+    const previousRequestId = formData.get("previousRequestId") ? parseInt(formData.get("previousRequestId") as string) : null;
 
     try {
         await prisma.changeRequest.create({
@@ -102,6 +104,7 @@ export async function submitUpdateItemRequest(
                 targetProjectId: item.projectId,
                 submittedById: session.user.id,
                 submitReason,
+                previousRequestId: previousRequestId,
             },
         });
 
@@ -279,7 +282,9 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
     const request = await prisma.changeRequest.findUnique({
         where: { id: requestId },
         include: {
-            submittedBy: { select: { id: true } }
+            submittedBy: { select: { id: true } },
+            item: { select: { fullId: true, title: true } },
+            targetProject: { select: { title: true, codePrefix: true } },
         }
     });
 
@@ -503,6 +508,21 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
             }
         });
 
+        // Send approval notification to submitter
+        if (request.submittedById) {
+            const itemId = request.item?.fullId || request.targetProject?.codePrefix || "項目";
+            const itemTitle = request.item?.title || request.targetProject?.title || "";
+
+            await createNotification({
+                userId: request.submittedById,
+                type: "APPROVAL",
+                title: `變更申請已核准`,
+                message: `${itemId} ${itemTitle} - 已通過審核`,
+                link: request.itemId ? `/items/${request.itemId}` : `/projects/${request.targetProjectId}`,
+                changeRequestId: requestId,
+            });
+        }
+
         revalidatePath("/admin/approval");
         if (request.targetProjectId) revalidatePath(`/projects/${request.targetProjectId}`);
         if (request.itemId) revalidatePath(`/items/${request.itemId}`);
@@ -519,6 +539,17 @@ export async function rejectRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
     if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR")) throw new Error("Unauthorized");
 
+    // Get request details for notification
+    const request = await prisma.changeRequest.findUnique({
+        where: { id: requestId },
+        include: {
+            item: { select: { fullId: true, title: true } },
+            targetProject: { select: { title: true, codePrefix: true } },
+        }
+    });
+
+    if (!request) throw new Error("Request not found");
+
     await prisma.changeRequest.update({
         where: { id: requestId },
         data: {
@@ -528,6 +559,21 @@ export async function rejectRequest(requestId: number, reviewNote?: string) {
             updatedAt: new Date()
         }
     });
+
+    // Send notification to submitter
+    if (request.submittedById) {
+        const itemId = request.item?.fullId || request.targetProject?.codePrefix || "項目";
+        const itemTitle = request.item?.title || request.targetProject?.title || "";
+
+        await createNotification({
+            userId: request.submittedById,
+            type: "REJECTION",
+            title: `變更申請已退回`,
+            message: `${itemId} ${itemTitle} - ${reviewNote || "無審查意見"}`,
+            link: `/admin/rejected-requests/${requestId}`,
+            changeRequestId: requestId,
+        });
+    }
 
     revalidatePath("/admin/approval");
 }

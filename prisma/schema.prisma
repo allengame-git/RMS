@@ -39,6 +39,12 @@ model User {
   // QC Document Approval relations
   qcApprovals QCDocumentApproval[] @relation("QCApprover")
   pmApprovals QCDocumentApproval[] @relation("PMApprover")
+  
+  // Notifications
+  notifications Notification[]
+  
+  // Revision requests
+  revisionRequests QCDocumentRevision[] @relation("RevisionRequester")
 }
 
 model Project {
@@ -138,6 +144,11 @@ model ChangeRequest {
   submitReason  String?  // 提交者說明編輯原因
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // Chaining for resubmissions
+  previousRequestId Int?           @unique
+  previousRequest   ChangeRequest? @relation("RequestChain", fields: [previousRequestId], references: [id])
+  childRequest      ChangeRequest? @relation("RequestChain")
 }
 
 model ItemHistory {
@@ -193,7 +204,8 @@ model QCDocumentApproval {
   itemHistoryId   Int      @unique
   itemHistory     ItemHistory @relation(fields: [itemHistoryId], references: [id])
   
-  status          String   @default("PENDING_QC") // PENDING_QC, PENDING_PM, COMPLETED, REJECTED
+  status          String   @default("PENDING_QC") // PENDING_QC, PENDING_PM, COMPLETED, REJECTED, REVISION_REQUIRED
+  revisionCount   Int      @default(0)  // 修訂次數
   
   qcApprovedById  String?
   qcApprovedBy    User?    @relation("QCApprover", fields: [qcApprovedById], references: [id], onDelete: SetNull)
@@ -209,6 +221,34 @@ model QCDocumentApproval {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  
+  // Revision history
+  revisions       QCDocumentRevision[]
+}
+
+// ============================================
+// QC Document Revision History
+// ============================================
+
+model QCDocumentRevision {
+  id              Int      @id @default(autoincrement())
+  
+  approvalId      Int
+  approval        QCDocumentApproval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  
+  revisionNumber  Int      // 第幾次修訂 (1, 2, 3...)
+  
+  // 退回資訊
+  requestedById   String?
+  requestedBy     User?    @relation("RevisionRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  requestedAt     DateTime @default(now())
+  requestNote     String   // 退回原因/修改要求
+  
+  // 解決資訊
+  resolvedAt            DateTime?
+  resolvedItemHistoryId Int?     // 新版本的 ItemHistory ID
+  
+  @@index([approvalId])
 }
 
 // ============================================
@@ -308,4 +348,31 @@ model DataFileHistory {
   @@index([fileId, version])
   @@index([fileId, createdAt])
   @@index([dataYear])
+}
+
+// ============================================
+// Notification System
+// ============================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      String   // REJECTION, REVISION_REQUEST, APPROVAL, COMPLETED
+  title     String
+  message   String
+  link      String?  // 跳轉連結
+  
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  // 可選：關聯來源
+  changeRequestId Int?
+  qcApprovalId    Int?
+  itemHistoryId   Int?
+  
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }

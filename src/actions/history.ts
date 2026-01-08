@@ -169,10 +169,34 @@ export async function getItemHistory(itemId: number) {
 }
 
 /**
+ * Get the chain of previous change requests for a given request ID
+ */
+async function getRequestChain(requestId: number) {
+    const chain: any[] = [];
+    let currentId: number | null = requestId;
+
+    while (currentId) {
+        const req = await prisma.changeRequest.findUnique({
+            where: { id: currentId },
+            include: {
+                submittedBy: { select: { username: true } },
+                reviewedBy: { select: { username: true } }
+            }
+        });
+
+        if (!req) break;
+        chain.push(req);
+        currentId = (req as any).previousRequestId;
+    }
+
+    return chain;
+}
+
+/**
  * Get detailed history record
  */
 export async function getHistoryDetail(historyId: number) {
-    return await prisma.itemHistory.findUnique({
+    const history = await prisma.itemHistory.findUnique({
         where: { id: historyId },
         include: {
             submittedBy: { select: { username: true } },
@@ -181,11 +205,31 @@ export async function getHistoryDetail(historyId: number) {
             qcApproval: {
                 include: {
                     qcApprovedBy: { select: { username: true } },
-                    pmApprovedBy: { select: { username: true } }
+                    pmApprovedBy: { select: { username: true } },
+                    revisions: {
+                        orderBy: { revisionNumber: "asc" },
+                        include: {
+                            requestedBy: { select: { username: true } }
+                        }
+                    }
                 }
             }
         }
     });
+
+    if (!history) return null;
+
+    // If it's a generic item change (not necessarily ISO flow), 
+    // it might have a chain of previous change requests.
+    let reviewChain: any[] = [];
+    if (history.changeRequestId) {
+        reviewChain = await getRequestChain(history.changeRequestId);
+    }
+
+    return {
+        ...history,
+        reviewChain
+    };
 }
 
 
@@ -378,7 +422,8 @@ export async function getIsoDocuments() {
         include: {
             item: { select: { fullId: true, title: true } },
             submittedBy: { select: { username: true } },
-            reviewedBy: { select: { username: true } }
+            reviewedBy: { select: { username: true } },
+            qcApproval: { select: { status: true, revisionCount: true } }
         }
     });
 }

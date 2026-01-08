@@ -16,6 +16,7 @@ interface QCDocumentApproval {
     qcNote?: string;
     pmApprovedAt?: string;
     pmNote?: string;
+    revisionCount: number;
     itemHistory: {
         id: number;
         version: number;
@@ -125,6 +126,8 @@ export default function QCDocumentApprovalList({
                 return { text: "已完成", color: "#10b981" };
             case "REJECTED":
                 return { text: "已駁回", color: "#ef4444" };
+            case "REVISION_REQUIRED":
+                return { text: "待修訂", color: "#d97706" };
             default:
                 return { text: status, color: "#6b7280" };
         }
@@ -181,7 +184,32 @@ export default function QCDocumentApprovalList({
                                     style={{ borderBottom: "1px solid var(--color-border)" }}
                                 >
                                     <td style={{ padding: "1rem", fontWeight: "bold" }}>
-                                        QC-{String(history.id).padStart(4, "0")}
+                                        <div>QC-{String(history.id).padStart(4, "0")}</div>
+                                        {approval.revisionCount > 0 ? (
+                                            <div style={{
+                                                fontSize: "10px",
+                                                color: "#d97706",
+                                                backgroundColor: "rgba(249, 168, 37, 0.1)",
+                                                padding: "2px 4px",
+                                                borderRadius: "4px",
+                                                display: "inline-block",
+                                                marginTop: "4px"
+                                            }}>
+                                                重新核修 ({approval.revisionCount})
+                                            </div>
+                                        ) : (
+                                            <div style={{
+                                                fontSize: "10px",
+                                                color: "var(--color-primary)",
+                                                backgroundColor: "var(--color-primary-soft)",
+                                                padding: "2px 4px",
+                                                borderRadius: "4px",
+                                                display: "inline-block",
+                                                marginTop: "4px"
+                                            }}>
+                                                首次審核
+                                            </div>
+                                        )}
                                     </td>
                                     <td style={{ padding: "1rem" }}>
                                         <div style={{ fontWeight: "500" }}>{history.itemFullId}</div>

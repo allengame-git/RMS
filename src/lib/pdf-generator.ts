@@ -30,6 +30,15 @@ interface ItemHistory {
     pmNote?: string | null;
     pmDate?: Date | null;
     pmUser?: string | null;
+
+    // Revision History (for PDF generation)
+    revisions?: Array<{
+        revisionNumber: number;
+        requestedBy?: { username: string } | null;
+        requestedAt: Date;
+        requestNote: string;
+        resolvedAt?: Date | null;
+    }>;
 }
 
 interface Item {
@@ -91,6 +100,27 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
             return html;
         };
 
+        // Helper to render Revision History Section
+        const renderRevisionHistory = () => {
+            if (!history.revisions || history.revisions.length === 0) return '';
+            let html = '<div class="section"><h2>修訂歷程</h2>';
+            html += '<table class="revision-table">';
+            html += '<thead><tr><th>版次</th><th>退回者</th><th>修改要求</th><th>完成時間</th></tr></thead>';
+            html += '<tbody>';
+            for (const rev of history.revisions) {
+                html += `
+                    <tr>
+                        <td style="text-align: center; font-weight: bold;">#${rev.revisionNumber}</td>
+                        <td>${rev.requestedBy?.username || '-'}</td>
+                        <td>${rev.requestNote}</td>
+                        <td style="text-align: center;">${rev.resolvedAt ? new Date(rev.resolvedAt).toLocaleString('zh-TW') : '<span style="color: #d97706;">待修訂</span>'}</td>
+                    </tr>
+                `;
+            }
+            html += '</tbody></table></div>';
+            return html;
+        };
+
         // Helper to render Snapshot Section
         const renderSnapshotSection = (title: string, data: any) => {
             if (!data) return '';
@@ -148,6 +178,10 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
                     table { width: 100%; border-collapse: collapse; margin: 10px 0; }
                     th, td { border: 1px solid #ddd; padding: 6px; }
                     img { max-width: 100%; }
+                    
+                    .revision-table { font-size: 12px; }
+                    .revision-table th { background: #f5f5f5; font-weight: 600; }
+                    .revision-table td { vertical-align: top; }
                 </style>
             </head>
             <body>
@@ -184,6 +218,8 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
                         ${history.pmNote ? `<div class="note-box">意見: ${history.pmNote}</div>` : ''}
                     </div>` : ''}
                 </div>
+
+                ${renderRevisionHistory()}
 
                 ${renderDiffSection()}
                 

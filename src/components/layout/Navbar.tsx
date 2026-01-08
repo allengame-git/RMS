@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -32,6 +33,25 @@ export default function Navbar() {
             fetchCount();
             // Refresh every 30 seconds
             const interval = setInterval(fetchCount, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [session]);
+
+    // Fetch rejected requests count for all logged-in users
+    const [rejectedCount, setRejectedCount] = useState(0);
+    useEffect(() => {
+        if (session) {
+            const fetchRejectedCount = async () => {
+                try {
+                    const res = await fetch('/api/rejected-count');
+                    const data = await res.json();
+                    setRejectedCount(data.count || 0);
+                } catch (e) {
+                    console.error('Failed to fetch rejected count');
+                }
+            };
+            fetchRejectedCount();
+            const interval = setInterval(fetchRejectedCount, 30000);
             return () => clearInterval(interval);
         }
     }, [session]);
@@ -94,6 +114,34 @@ export default function Navbar() {
                             >
                                 ISO Docs
                             </Link>
+                            <Link
+                                href="/admin/rejected-requests"
+                                className={`btn btn-outline ${isActive("/admin/rejected-requests") ? "active-link" : ""}`}
+                                style={{ border: "none", padding: "0.5rem 1rem", position: "relative" }}
+                            >
+                                待修改
+                                {rejectedCount > 0 && (
+                                    <span style={{
+                                        position: "absolute",
+                                        top: "0",
+                                        right: "0",
+                                        transform: "translate(30%, -30%)",
+                                        backgroundColor: "#f59e0b",
+                                        color: "white",
+                                        fontSize: "0.7rem",
+                                        fontWeight: "bold",
+                                        minWidth: "18px",
+                                        height: "18px",
+                                        borderRadius: "9px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        padding: "0 4px"
+                                    }}>
+                                        {rejectedCount > 99 ? '99+' : rejectedCount}
+                                    </span>
+                                )}
+                            </Link>
                             {(session.user.role === "ADMIN" || session.user.role === "INSPECTOR") && (
                                 <Link
                                     href="/admin/approval"
@@ -148,6 +196,7 @@ export default function Navbar() {
                             {theme === 'dark' ? '☀️' : '🌙'}
                         </button>
                     )}
+                    {session && <NotificationBell />}
                     {session ? (
                         <>
                             <span style={{ fontSize: "0.9rem", color: "var(--color-text-muted)" }}>

@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { generateQCDocument } from "@/lib/pdf-generator";
+import { createNotification } from "./notifications";
 
 // ============================================
 // QC Document Approval Actions
@@ -288,13 +289,26 @@ export async function approveAsPM(
         }
     });
 
+    // Send completion notification to original submitter
+    if (approval.itemHistory.submittedById) {
+        await createNotification({
+            userId: approval.itemHistory.submittedById,
+            type: "COMPLETED",
+            title: `品質文件審核完成`,
+            message: `${approval.itemHistory.itemFullId} ${approval.itemHistory.itemTitle} - 已完成 PM 核定`,
+            link: `/admin/history/detail/${approval.itemHistory.id}`,
+            qcApprovalId: approvalId,
+            itemHistoryId: approval.itemHistory.id,
+        });
+    }
+
     revalidatePath("/admin/approvals");
     revalidatePath("/iso-docs");
     return { message: "PM approval completed - Document finalized" };
 }
 
 /**
- * Reject QC Document at any stage
+ * Reject QC Document - Changes to REVISION_REQUIRED and creates revision record
  */
 export async function rejectQCDocument(
     approvalId: number,
@@ -306,16 +320,26 @@ export async function rejectQCDocument(
     // Verify user has QC or PM qualification
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { isQC: true, isPM: true }
+        select: { isQC: true, isPM: true, username: true }
     });
 
     if (!user?.isQC && !user?.isPM) {
         return { error: "Unauthorized - QC or PM qualification required" };
     }
 
-    // Get the approval record
+    // Get the approval record with itemHistory
     const approval = await prisma.qCDocumentApproval.findUnique({
-        where: { id: approvalId }
+        where: { id: approvalId },
+        include: {
+            itemHistory: {
+                select: {
+                    id: true,
+                    itemFullId: true,
+                    itemTitle: true,
+                    submittedById: true,
+                }
+            }
+        }
     });
 
     if (!approval) return { error: "Approval record not found" };
@@ -328,9 +352,25 @@ export async function rejectQCDocument(
         return { error: "Only PM users can reject at PM stage" };
     }
 
-    // Update status to rejected
-    const updateData: any = {
-        status: "REJECTED",
+    // Calculate next revision number
+    const existingRevisions = await prisma.qCDocumentRevision.count({
+        where: { approvalId }
+    });
+    const nextRevisionNumber = existingRevisions + 1;
+
+    // Create revision record
+    await prisma.qCDocumentRevision.create({
+        data: {
+            approvalId,
+            revisionNumber: nextRevisionNumber,
+            requestedById: session.user.id,
+            requestNote: note,
+        }
+    });
+
+    // Update approval status to REVISION_REQUIRED
+    const updateData: Record<string, unknown> = {
+        status: "REVISION_REQUIRED",
     };
 
     if (approval.status === "PENDING_QC") {
@@ -348,9 +388,131 @@ export async function rejectQCDocument(
         data: updateData
     });
 
+    // Send notification to editor
+    if (approval.itemHistory.submittedById) {
+        await createNotification({
+            userId: approval.itemHistory.submittedById,
+            type: "REVISION_REQUEST",
+            title: `品質文件需要修改`,
+            message: `${approval.itemHistory.itemFullId} ${approval.itemHistory.itemTitle} - ${note}`,
+            link: `/admin/revisions`,
+            qcApprovalId: approvalId,
+            itemHistoryId: approval.itemHistory.id,
+        });
+    }
+
     revalidatePath("/admin/approvals");
+    revalidatePath("/admin/revisions");
     revalidatePath("/iso-docs");
-    return { message: "Document rejected" };
+    return { message: "已退回要求修改" };
+}
+
+/**
+ * Get documents requiring revision for current user
+ */
+export async function getRevisionRequiredDocuments(userId?: string) {
+    const session = await getServerSession(authOptions);
+    if (!session) return [];
+
+    const targetUserId = userId || session.user.id;
+
+    const approvals = await prisma.qCDocumentApproval.findMany({
+        where: {
+            status: "REVISION_REQUIRED",
+            itemHistory: {
+                submittedById: targetUserId
+            }
+        },
+        include: {
+            itemHistory: {
+                select: {
+                    id: true,
+                    itemId: true,
+                    itemFullId: true,
+                    itemTitle: true,
+                    version: true,
+                    changeType: true,
+                    createdAt: true,
+                }
+            },
+            revisions: {
+                orderBy: { revisionNumber: "desc" },
+                take: 1,
+                include: {
+                    requestedBy: { select: { username: true } }
+                }
+            }
+        },
+        orderBy: { updatedAt: "desc" }
+    });
+
+    return approvals;
+}
+
+/**
+ * Resubmit a revised document for review
+ * Called after editor makes changes and creates new ItemHistory
+ */
+export async function resubmitForReview(
+    approvalId: number,
+    newItemHistoryId: number
+): Promise<QCApprovalState> {
+    const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
+
+    // Get the approval record
+    const approval = await prisma.qCDocumentApproval.findUnique({
+        where: { id: approvalId },
+        include: {
+            revisions: {
+                where: { resolvedAt: null },
+                orderBy: { revisionNumber: "desc" },
+                take: 1
+            }
+        }
+    });
+
+    if (!approval) return { error: "Approval record not found" };
+    if (approval.status !== "REVISION_REQUIRED") {
+        return { error: "Document is not in revision required state" };
+    }
+
+    // Get the latest unresolved revision
+    const latestRevision = approval.revisions[0];
+    if (!latestRevision) {
+        return { error: "No pending revision found" };
+    }
+
+    // Update revision record to mark as resolved
+    await prisma.qCDocumentRevision.update({
+        where: { id: latestRevision.id },
+        data: {
+            resolvedAt: new Date(),
+            resolvedItemHistoryId: newItemHistoryId
+        }
+    });
+
+    // Update approval: increment revision count, reset to PENDING_QC
+    await prisma.qCDocumentApproval.update({
+        where: { id: approvalId },
+        data: {
+            status: "PENDING_QC",
+            revisionCount: { increment: 1 },
+            // Clear previous approval data for re-review
+            qcApprovedById: null,
+            qcApprovedAt: null,
+            qcNote: null,
+            pmApprovedById: null,
+            pmApprovedAt: null,
+            pmNote: null,
+        }
+    });
+
+    revalidatePath("/admin/approvals");
+    revalidatePath("/admin/revisions");
+    revalidatePath("/iso-docs");
+
+    return { message: "已重新提交審核" };
 }
 
 /**

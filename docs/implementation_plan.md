@@ -1,6 +1,6 @@
 # 功能實作計畫 (implementation_plan.md)
 
-> 最後更新: 2026-01-07
+> 最後更新: 2026-01-08
 
 本文件記錄各功能的需求分析與技術設計。
 
@@ -427,7 +427,7 @@ const handleDrop = (e: React.DragEvent) => {
 
 ## 12. Phase 9: 管理員自我編輯功能
 
-> Status: ⏳ Planning
+> Status: ✅ Done (v1.1.0)
 
 ### 12.1 需求分析
 
@@ -458,9 +458,9 @@ const handleDrop = (e: React.DragEvent) => {
 
 ---
 
-## 13. Phase 13: 品質文件 PDF 優化
+## 10. Phase 10: 品質文件 PDF 優化
 
-> Status: ⏳ In Progress
+> Status: ✅ Done (v1.2.0)
 
 ### 13.1 需求分析
 
