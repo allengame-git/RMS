@@ -53,6 +53,7 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
         description: r.description
     }));
     const [relatedItems, setRelatedItems] = useState<RelatedItem[]>(initialRelatedItems);
+    const [submitReason, setSubmitReason] = useState("");
     const [status, setStatus] = useState<{ message?: string; error?: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -76,6 +77,7 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
                 projectTitle: r.target.project.title,
                 description: r.description
             })));
+            setSubmitReason("");
             setStatus(null);
         }
     }, [isModalOpen, item]);
@@ -97,6 +99,8 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
         if (relatedItems.length > 0) {
             formData.append("relatedItems", JSON.stringify(relatedItems));
         }
+
+        formData.append("submitReason", submitReason);
 
         try {
             const result = await submitUpdateItemRequest({}, formData);
@@ -200,6 +204,27 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
                             initialRelatedItems={relatedItems}
                             onChange={setRelatedItems}
                             canEdit={true}
+                        />
+                    </div>
+
+                    {/* Edit Reason */}
+                    <div>
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>編輯原因 (必填)</label>
+                        <textarea
+                            required
+                            value={submitReason}
+                            onChange={(e) => setSubmitReason(e.target.value)}
+                            placeholder="請說明編輯此項目的原因..."
+                            style={{
+                                width: "100%",
+                                padding: "0.75rem",
+                                borderRadius: "var(--radius-sm)",
+                                border: "1px solid var(--color-border)",
+                                background: "var(--color-background)",
+                                color: "var(--color-text)",
+                                minHeight: "80px",
+                                resize: "vertical"
+                            }}
                         />
                     </div>
 

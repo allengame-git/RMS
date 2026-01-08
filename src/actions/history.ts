@@ -47,7 +47,7 @@ function computeDiff(oldData: ItemSnapshot, newData: ItemSnapshot) {
 export async function createHistoryRecord(
     item: Item,
     snapshotData: ItemSnapshot,
-    changeRequest: { id: number; submittedById: string | null },
+    changeRequest: { id: number; submittedById: string | null; submitReason?: string | null; reviewNote?: string | null },
     changeType: "CREATE" | "UPDATE" | "DELETE" | "RESTORE",
     reviewerId: string,
     oldSnapshot?: ItemSnapshot
@@ -76,6 +76,8 @@ export async function createHistoryRecord(
             submittedById: changeRequest.submittedById,
             reviewedById: reviewerId,
             reviewStatus: "APPROVED",
+            reviewNote: changeRequest.reviewNote || null,
+            submitReason: changeRequest.submitReason || null,
             changeRequestId: changeRequest.id,
 
             // Redundant fields

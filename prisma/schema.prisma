@@ -135,6 +135,7 @@ model ChangeRequest {
   reviewerName  String?  // Redundant: preserved when user is deleted
 
   reviewNote    String?
+  submitReason  String?  // 提交者說明編輯原因
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -162,6 +163,7 @@ model ItemHistory {
   
   reviewStatus  String // "APPROVED" | "REJECTED" - usually APPROVED for committed history
   reviewNote    String?
+  submitReason  String?  // 提交者編輯原因
   
   changeRequestId Int?
   
@@ -266,6 +268,7 @@ model DataFileChangeRequest {
   reviewerName  String?  // Redundant: preserved when user is deleted
   
   reviewNote    String?
+  submitReason  String?  // 提交者說明編輯原因
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

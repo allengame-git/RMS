@@ -126,6 +126,21 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
                 onChange={setRelatedItems}
             />
 
+            <label style={{ fontSize: "0.9rem", marginTop: "0.5rem" }}>編輯原因 (必填)</label>
+            <textarea
+                name="submitReason"
+                required
+                placeholder="請說明新增此項目的原因..."
+                className="input-field"
+                style={{
+                    padding: "0.5rem",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--color-border)",
+                    minHeight: "60px",
+                    resize: "vertical"
+                }}
+            />
+
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                 <SubmitButton />
                 <button

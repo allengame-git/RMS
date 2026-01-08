@@ -39,6 +39,7 @@ export async function submitCreateItemRequest(
         return { error: "Missing required fields" };
     }
 
+    const submitReason = formData.get("submitReason") as string || null;
     const data = JSON.stringify({ title, content, attachments, relatedItems });
 
     try {
@@ -50,6 +51,7 @@ export async function submitCreateItemRequest(
                 targetProjectId: projectId,
                 targetParentId: parentId,
                 submittedById: session.user.id,
+                submitReason,
             },
         });
 
@@ -88,6 +90,7 @@ export async function submitUpdateItemRequest(
     if (!item) return { error: "Item not found" };
 
     const data = JSON.stringify({ title, content, attachments, relatedItems });
+    const submitReason = formData.get("submitReason") as string || null;
 
     try {
         await prisma.changeRequest.create({
@@ -96,8 +99,9 @@ export async function submitUpdateItemRequest(
                 status: "PENDING",
                 data,
                 itemId: itemId,
-                targetProjectId: item.projectId, // Useful for filtering
+                targetProjectId: item.projectId,
                 submittedById: session.user.id,
+                submitReason,
             },
         });
 
@@ -110,7 +114,7 @@ export async function submitUpdateItemRequest(
 }
 
 // --- Submit Delete Request ---
-export async function submitDeleteItemRequest(itemId: number): Promise<ApprovalState> {
+export async function submitDeleteItemRequest(itemId: number, submitReason?: string): Promise<ApprovalState> {
     const session = await getServerSession(authOptions);
     if (!session || (session.user.role !== "EDITOR" && session.user.role !== "INSPECTOR" && session.user.role !== "ADMIN")) {
         return { error: "Unauthorized" };
@@ -133,10 +137,11 @@ export async function submitDeleteItemRequest(itemId: number): Promise<ApprovalS
             data: {
                 type: "DELETE",
                 status: "PENDING",
-                data: "{}", // No specific data needed for delete
+                data: "{}",
                 itemId: itemId,
                 targetProjectId: item.projectId,
                 submittedById: session.user.id,
+                submitReason: submitReason || null,
             },
         });
 
@@ -171,6 +176,7 @@ export async function submitUpdateProjectRequest(
     if (!project) return { error: "Project not found" };
 
     const data = JSON.stringify({ title, description });
+    const submitReason = formData.get("submitReason") as string || null;
 
     try {
         await prisma.changeRequest.create({
@@ -180,6 +186,7 @@ export async function submitUpdateProjectRequest(
                 data,
                 targetProjectId: projectId,
                 submittedById: session.user.id,
+                submitReason,
             },
         });
 
@@ -265,7 +272,7 @@ export async function getPendingRequests() {
     });
 }
 
-export async function approveRequest(requestId: number) {
+export async function approveRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
     if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR")) throw new Error("Unauthorized");
 
@@ -341,7 +348,7 @@ export async function approveRequest(requestId: number) {
                 relatedItems: relationsForSnapshot.map(r => ({ id: r.target.id, fullId: r.target.fullId, title: r.target.title, description: r.description }))
             };
 
-            await createHistoryRecord(newItem, snapshot, { id: request.id, submittedById: request.submittedById }, "CREATE", session.user.id);
+            await createHistoryRecord(newItem, snapshot, { id: request.id, submittedById: request.submittedById, submitReason: request.submitReason, reviewNote: reviewNote }, "CREATE", session.user.id);
         }
         else if (request.type === "UPDATE") {
             if (!request.itemId) throw new Error("Missing target item ID");
@@ -416,7 +423,7 @@ export async function approveRequest(requestId: number) {
                     relatedItems: updatedRelations.map(r => ({ id: r.target.id, fullId: r.target.fullId, title: r.target.title, description: r.description }))
                 };
 
-                await createHistoryRecord(updatedItem, newSnapshot, { id: request.id, submittedById: request.submittedById }, "UPDATE", session.user.id, oldSnapshot);
+                await createHistoryRecord(updatedItem, newSnapshot, { id: request.id, submittedById: request.submittedById, submitReason: request.submitReason, reviewNote: reviewNote }, "UPDATE", session.user.id, oldSnapshot);
             }
         }
         else if (request.type === "DELETE") {
@@ -459,7 +466,7 @@ export async function approveRequest(requestId: number) {
                 data: { isDeleted: true }
             });
 
-            await createHistoryRecord(item, lastSnapshot, { id: request.id, submittedById: request.submittedById }, "DELETE", session.user.id);
+            await createHistoryRecord(item, lastSnapshot, { id: request.id, submittedById: request.submittedById, submitReason: request.submitReason, reviewNote: reviewNote }, "DELETE", session.user.id);
         }
         else if (request.type === "PROJECT_UPDATE") {
             if (!request.targetProjectId) throw new Error("Missing target project ID");
@@ -491,6 +498,7 @@ export async function approveRequest(requestId: number) {
             data: {
                 status: "APPROVED",
                 reviewedById: session.user.id,
+                reviewNote: reviewNote || null,
                 updatedAt: new Date()
             }
         });
@@ -507,7 +515,7 @@ export async function approveRequest(requestId: number) {
     }
 }
 
-export async function rejectRequest(requestId: number) {
+export async function rejectRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
     if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR")) throw new Error("Unauthorized");
 
@@ -516,6 +524,7 @@ export async function rejectRequest(requestId: number) {
         data: {
             status: "REJECTED",
             reviewedById: session.user.id,
+            reviewNote: reviewNote || null,
             updatedAt: new Date()
         }
     });

@@ -18,6 +18,7 @@ type Request = {
     createdAt: Date;
     submittedBy: { username: string } | null;
     submitterName?: string | null;  // Fallback when user is deleted
+    submitReason?: string | null;   // 提交者說明編輯原因
     targetProject: { title: string; codePrefix: string } | null;
     targetParent: { fullId: string } | null;
     item: {
@@ -54,6 +55,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
     const [loading, setLoading] = useState<number | null>(null);
     const [confirmDialog, setConfirmDialog] = useState<{ id: number; action: 'approve' | 'reject' } | null>(null);
     const [errorDialog, setErrorDialog] = useState<string | null>(null);
+    const [reviewNote, setReviewNote] = useState('');
 
     const handleCardClick = (id: number) => {
         setExpandedId(expandedId === id ? null : id);
@@ -68,6 +70,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
             setErrorDialog('您不能批准自己提交的申請。請由其他審核人員處理。');
             return;
         }
+        setReviewNote('');
         setConfirmDialog({ id, action: 'approve' });
     };
 
@@ -75,6 +78,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
     const handleRejectClick = (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
         // 允許使用者拒絕自己的申請
+        setReviewNote('');
         setConfirmDialog({ id, action: 'reject' });
     };
 
@@ -90,10 +94,11 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
 
         try {
             if (action === 'approve') {
-                await approveRequest(id);
+                await approveRequest(id, reviewNote || undefined);
             } else {
-                await rejectRequest(id);
+                await rejectRequest(id, reviewNote || undefined);
             }
+            setReviewNote('');
             // Success - reload page
             setTimeout(() => {
                 window.location.reload();
@@ -218,6 +223,28 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                                 </span>
                             </div>
 
+                            {/* Submit Reason Preview */}
+                            {req.submitReason && (
+                                <div style={{
+                                    marginTop: '0.75rem',
+                                    padding: '0.5rem 0.75rem',
+                                    backgroundColor: 'var(--color-bg-secondary)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: '0.8rem'
+                                }}>
+                                    <span style={{ color: 'var(--color-text-muted)' }}>編輯原因：</span>
+                                    <span style={{
+                                        display: isExpanded ? 'block' : 'inline',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: isExpanded ? 'normal' : 'nowrap',
+                                        maxWidth: isExpanded ? 'none' : '200px'
+                                    }}>
+                                        {req.submitReason}
+                                    </span>
+                                </div>
+                            )}
+
                             {/* Expand Indicator */}
                             <div style={{
                                 marginTop: "0.75rem",
@@ -280,6 +307,24 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
 
                         {/* Detail Content */}
                         <div style={{ marginBottom: "2rem" }}>
+                            {/* Edit Reason Section */}
+                            {req.submitReason && (
+                                <div style={{
+                                    padding: "1rem",
+                                    backgroundColor: "var(--color-bg-secondary)",
+                                    borderRadius: "var(--radius-sm)",
+                                    marginBottom: "1.5rem",
+                                    borderLeft: "4px solid var(--color-primary)"
+                                }}>
+                                    <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginBottom: "0.5rem", fontWeight: 600 }}>
+                                        📝 編輯原因
+                                    </div>
+                                    <div style={{ fontSize: "0.95rem" }}>
+                                        {req.submitReason}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Modified Fields Indicator */}
                             {req.type === "UPDATE" && (
                                 <div style={{
@@ -569,54 +614,92 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
             })()}
 
             {/* Confirmation Dialog */}
-            {confirmDialog && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1000
-                }}>
-                    <div className="glass" style={{
-                        padding: '2rem',
-                        borderRadius: 'var(--radius-md)',
-                        maxWidth: '400px',
-                        width: '90%'
+            {confirmDialog && (() => {
+                const req = requests.find(r => r.id === confirmDialog.id);
+                const submitReason = req ? JSON.parse(req.data)?.submitReason : null;
+                return (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000
                     }}>
-                        <h3 style={{ marginBottom: '1rem' }}>
-                            {confirmDialog.action === 'approve' ? '確認批准？' : '確認拒絕？'}
-                        </h3>
-                        <p style={{ marginBottom: '2rem', color: 'var(--color-text-muted)' }}>
-                            {confirmDialog.action === 'approve'
-                                ? '此操作將建立/更新項目並將申請標記為已批准。'
-                                : '此操作將拒絕申請且無法復原。'}
-                        </p>
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                            <button
-                                onClick={handleCancel}
-                                className="btn btn-outline"
-                            >
-                                取消
-                            </button>
-                            <button
-                                onClick={handleConfirm}
-                                className="btn btn-primary"
+                        <div className="glass" style={{
+                            padding: '2rem',
+                            borderRadius: 'var(--radius-md)',
+                            maxWidth: '500px',
+                            width: '90%'
+                        }}>
+                            <h3 style={{ marginBottom: '1rem' }}>
+                                {confirmDialog.action === 'approve' ? '確認批准？' : '確認拒絕？'}
+                            </h3>
+                            <p style={{ marginBottom: '1rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                                {confirmDialog.action === 'approve'
+                                    ? '此操作將建立/更新項目並將申請標記為已批准。'
+                                    : '此操作將拒絕申請且無法復原。'}
+                            </p>
+
+                            {/* Display submit reason if available */}
+                            {req?.submitReason && (
+                                <div style={{
+                                    backgroundColor: 'var(--color-bg-secondary)',
+                                    padding: '0.75rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    marginBottom: '1rem'
+                                }}>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>
+                                        提交者說明：
+                                    </div>
+                                    <div style={{ fontSize: '0.9rem' }}>{req.submitReason}</div>
+                                </div>
+                            )}
+
+                            <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: 600 }}>
+                                審查意見
+                            </label>
+                            <textarea
+                                value={reviewNote}
+                                onChange={(e) => setReviewNote(e.target.value)}
+                                placeholder="請輸入審查意見（選填）..."
                                 style={{
-                                    backgroundColor: confirmDialog.action === 'approve' ? 'var(--color-success)' : 'var(--color-danger)',
-                                    border: 'none'
+                                    width: '100%',
+                                    padding: '0.5rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: '1px solid var(--color-border)',
+                                    minHeight: '80px',
+                                    resize: 'vertical',
+                                    marginBottom: '1.5rem'
                                 }}
-                            >
-                                {confirmDialog.action === 'approve' ? '批准' : '拒絕'}
-                            </button>
+                            />
+
+                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={handleCancel}
+                                    className="btn btn-outline"
+                                >
+                                    取消
+                                </button>
+                                <button
+                                    onClick={handleConfirm}
+                                    className="btn btn-primary"
+                                    style={{
+                                        backgroundColor: confirmDialog.action === 'approve' ? 'var(--color-success)' : 'var(--color-danger)',
+                                        border: 'none'
+                                    }}
+                                >
+                                    {confirmDialog.action === 'approve' ? '批准' : '拒絕'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Error Dialog */}
             {errorDialog && (

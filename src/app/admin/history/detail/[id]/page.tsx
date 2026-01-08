@@ -226,7 +226,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                     }}>
                         📋 審查紀錄詳情
                     </div>
-                    <div style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                    <div style={{ padding: '1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                         {/* Submitter Info */}
                         <div style={{ borderLeft: '3px solid var(--chart-2)', paddingLeft: '1rem' }}>
                             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
@@ -238,6 +238,18 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
                                 {new Date(record.createdAt).toLocaleString('zh-TW')}
                             </div>
+                            {record.submitReason && (
+                                <div style={{
+                                    marginTop: '0.75rem',
+                                    padding: '0.5rem 0.75rem',
+                                    backgroundColor: 'rgba(0,0,0,0.03)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: '0.85rem'
+                                }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem', fontWeight: 'bold' }}>編輯原因</div>
+                                    {record.submitReason}
+                                </div>
+                            )}
                         </div>
 
                         {/* Reviewer Info */}
@@ -246,11 +258,23 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                                 核准者
                             </div>
                             <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--color-text-main)' }}>
-                                {record.reviewedBy?.username || '-'}
+                                {record.reviewedBy?.username || record.reviewerName || '-'}
                             </div>
                             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
                                 {record.reviewedBy ? new Date(record.createdAt).toLocaleString('zh-TW') : '-'}
                             </div>
+                            {record.reviewNote && (
+                                <div style={{
+                                    marginTop: '0.75rem',
+                                    padding: '0.5rem 0.75rem',
+                                    backgroundColor: 'rgba(0,0,0,0.03)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: '0.85rem'
+                                }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem', fontWeight: 'bold' }}>審查意見</div>
+                                    {record.reviewNote}
+                                </div>
+                            )}
                         </div>
 
                         {/* QC Approval Info */}
@@ -270,6 +294,18 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                             ) : (
                                 <div style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>
                                     {record.qcApproval ? (record.qcApproval.status === 'PENDING_QC' ? '待 QC 簽核' : '-') : '不適用'}
+                                </div>
+                            )}
+                            {record.qcApproval?.qcNote && (
+                                <div style={{
+                                    marginTop: '0.75rem',
+                                    padding: '0.5rem 0.75rem',
+                                    backgroundColor: 'rgba(0,0,0,0.03)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: '0.85rem'
+                                }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem', fontWeight: 'bold' }}>QC 審查意見</div>
+                                    {record.qcApproval.qcNote}
                                 </div>
                             )}
                         </div>
@@ -293,30 +329,20 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                                     {record.qcApproval ? (record.qcApproval.status === 'PENDING_PM' ? '待 PM 簽核' : record.qcApproval.status === 'PENDING_QC' ? '等待 QC' : '-') : '不適用'}
                                 </div>
                             )}
+                            {record.qcApproval?.pmNote && (
+                                <div style={{
+                                    marginTop: '0.75rem',
+                                    padding: '0.5rem 0.75rem',
+                                    backgroundColor: 'rgba(0,0,0,0.03)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    fontSize: '0.85rem'
+                                }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem', fontWeight: 'bold' }}>PM 審查意見</div>
+                                    {record.qcApproval.pmNote}
+                                </div>
+                            )}
                         </div>
                     </div>
-
-                    {/* Notes Section */}
-                    {(record.reviewNote || record.qcApproval?.qcNote || record.qcApproval?.pmNote) && (
-                        <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--color-border)', background: 'rgba(0,0,0,0.01)' }}>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600, marginBottom: '0.5rem' }}>備註</div>
-                            {record.reviewNote && (
-                                <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-                                    <strong>核准備註:</strong> {record.reviewNote}
-                                </div>
-                            )}
-                            {record.qcApproval?.qcNote && (
-                                <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-                                    <strong>QC 備註:</strong> {record.qcApproval.qcNote}
-                                </div>
-                            )}
-                            {record.qcApproval?.pmNote && (
-                                <div style={{ fontSize: '0.85rem' }}>
-                                    <strong>PM 備註:</strong> {record.qcApproval.pmNote}
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
 
