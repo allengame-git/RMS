@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 /**
  * Get rejected change requests for the current user
@@ -91,6 +92,21 @@ export async function markRejectedAsResubmitted(requestId: number) {
         where: { id: requestId },
         data: { status: "RESUBMITTED" }
     });
+
+    // Mark related notifications as read
+    try {
+        await prisma.notification.updateMany({
+            where: {
+                userId: session.user.id,
+                changeRequestId: requestId,
+                isRead: false
+            },
+            data: { isRead: true }
+        });
+        revalidatePath("/notifications");
+    } catch (e) {
+        console.error("Failed to sync notifications:", e);
+    }
 
     return { success: true };
 }

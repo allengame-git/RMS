@@ -156,3 +156,20 @@ export async function clearReadNotifications() {
 
     revalidatePath("/notifications");
 }
+
+/**
+ * 刪除所有已讀通知
+ */
+export async function deleteAllReadNotifications() {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error("Unauthorized");
+
+    await prisma.notification.deleteMany({
+        where: {
+            userId: session.user.id,
+            isRead: true,
+        },
+    });
+
+    revalidatePath("/notifications");
+}

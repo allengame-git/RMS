@@ -15,6 +15,33 @@ export default async function RejectedRequestDetailPage({ params }: { params: { 
     // Parse the request data
     const requestData = request.data ? JSON.parse(request.data as string) : {};
 
+    if (request.status === "RESUBMITTED") {
+        return (
+            <div style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto" }}>
+                <div style={{ marginBottom: "1.5rem" }}>
+                    <Link href="/admin/rejected-requests" style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
+                        &larr; 返回待修改清單
+                    </Link>
+                </div>
+                <div className="glass" style={{ padding: "3rem", borderRadius: "var(--radius-lg)", textAlign: "center" }}>
+                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
+                    <h1 style={{ marginBottom: "1rem" }}>此申請已完成修訂</h1>
+                    <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>
+                        您已經為此項退回申請提交了新的變更請求。
+                    </p>
+                    <div style={{ display: "flex", justifyContent: "center", gap: "1rem" }}>
+                        <Link href={`/items/${request.itemId || ''}`} className="btn btn-primary">
+                            前往項目詳情
+                        </Link>
+                        <Link href="/admin/history" className="btn btn-outline">
+                            查看歷程記錄
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={{ padding: "2rem", maxWidth: "1000px", margin: "0 auto" }}>
             <div style={{ marginBottom: "1.5rem" }}>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { markAsRead, markAllAsRead, deleteNotification } from "@/actions/notifications";
+import { markAsRead, markAllAsRead, deleteNotification, deleteAllReadNotifications } from "@/actions/notifications";
 
 interface Notification {
   id: string;
@@ -50,6 +50,12 @@ export default function NotificationList({ initialNotifications }: NotificationL
   const handleDelete = async (id: string) => {
     await deleteNotification(id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const handleDeleteAllRead = async () => {
+    if (!window.confirm("確定要刪除所有已讀通知嗎？")) return;
+    await deleteAllReadNotifications();
+    setNotifications((prev) => prev.filter((n) => !n.isRead));
   };
 
   const formatTime = (date: Date) => {
@@ -109,11 +115,18 @@ export default function NotificationList({ initialNotifications }: NotificationL
             未讀 ({unreadCount})
           </button>
         </div>
-        {unreadCount > 0 && (
-          <button className="mark-all-btn" onClick={handleMarkAllAsRead}>
-            全部標記已讀
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "10px" }}>
+          {unreadCount > 0 && (
+            <button className="mark-all-btn" onClick={handleMarkAllAsRead}>
+              全部標記已讀
+            </button>
+          )}
+          {notifications.length > unreadCount && (
+            <button className="delete-all-read-btn" onClick={handleDeleteAllRead}>
+              刪除所有已讀
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="notification-list">
@@ -206,6 +219,22 @@ export default function NotificationList({ initialNotifications }: NotificationL
 
         .mark-all-btn:hover {
           background-color: var(--color-primary);
+          color: white;
+        }
+
+        .delete-all-read-btn {
+          padding: 8px 16px;
+          border: 1px solid var(--color-danger);
+          background-color: transparent;
+          color: var(--color-danger);
+          font-size: 13px;
+          cursor: pointer;
+          border-radius: 6px;
+          transition: all 0.2s;
+        }
+
+        .delete-all-read-btn:hover {
+          background-color: var(--color-danger);
           color: white;
         }
 

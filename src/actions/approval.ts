@@ -92,7 +92,8 @@ export async function submitUpdateItemRequest(
 
     const data = JSON.stringify({ title, content, attachments, relatedItems });
     const submitReason = formData.get("submitReason") as string || null;
-    const previousRequestId = formData.get("previousRequestId") ? parseInt(formData.get("previousRequestId") as string) : null;
+    const rawPreviousRequestId = formData.get("previousRequestId");
+    const previousRequestId = (rawPreviousRequestId && rawPreviousRequestId !== "") ? parseInt(rawPreviousRequestId as string) : null;
 
     try {
         await prisma.changeRequest.create({
@@ -104,15 +105,15 @@ export async function submitUpdateItemRequest(
                 targetProjectId: item.projectId,
                 submittedById: session.user.id,
                 submitReason,
-                previousRequestId: previousRequestId,
+                previousRequestId: (previousRequestId && !isNaN(previousRequestId)) ? previousRequestId : null,
             },
         });
 
         revalidatePath(`/items/${itemId}`);
         return { message: "Update request submitted successfully! Waiting for approval." };
-    } catch (e) {
-        console.error(e);
-        return { error: "Failed to submit request" };
+    } catch (e: any) {
+        console.error("Submission Error:", e);
+        return { error: `Failed to submit request: ${e.message || "Unknown error"}` };
     }
 }
 
