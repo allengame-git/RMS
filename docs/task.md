@@ -1,6 +1,6 @@
 # 專案項目資訊管理系統 - 開發進度 (task.md)
 
->> 最後更新: 2026-01-09
+>> 最後更新: 2026-01-12
 
 ## 進度總覽
 
@@ -262,3 +262,32 @@
 - [x] 新增全域搜尋 (關鍵字: 文件編號、標題、專案)
 - [x] Client Side Search Component (`IsoDocSearch`)
 - [x] 整合至專案列表與最近更新紀錄篩選
+
+---
+
+## Phase 13: 系統全面中文化與 UI 現代化 (v1.5.0) ✅
+
+### Phase 13.1: 頁面中文化 ✅
+
+- [x] `/projects` 專案列表頁 (標題、描述、按鈕、Modal)
+- [x] `/admin/users` 使用者管理頁 (表格、欄位、Modal、錯誤訊息)
+- [x] `/admin/rejected-requests` 待修改申請頁
+- [x] Login 頁面 ("會員登入" -> "使用者登入")
+
+### Phase 13.2: Bento Grid 首頁改版 ✅
+
+- [x] 採用現代化 Bento Grid 佈局 (5 Card Layout)
+- [x] 整合工業風黑白攝影 (Drone, Tunnel, Coast)
+- [x] 資料視覺化 (Stat Cards, Pending Actions List)
+- [x] 移除多餘遮罩與干擾元素，優化閱讀體驗
+
+---
+
+## Phase 14: 變更申請取消流程 (v1.6.0) ✅
+
+### Phase 14.1: 取消申請功能 ✅
+
+- [x] Server Action: `cancelRejectedRequest` (支援權限檢查)
+- [x] UI Component: `CancelRequestButton` (Client Component)
+- [x] 整合至 `/admin/rejected-requests` 頁面
+- [x] 權限邏輯: 僅限原提交者或 Admin 可執行

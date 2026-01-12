@@ -484,3 +484,59 @@ const handleDrop = (e: React.DragEvent) => {
 
 - 中文字型需確保 Puppeteer 環境可讀取
 - 樣式需注入 (Tailwind or Basic CSS) 以確保可讀性
+
+---
+
+## 14. Phase 13: 系統全面中文化與 UI 現代化
+
+> Status: ✅ Done (v1.5.0)
+
+### 14.1 需求分析
+
+- **全面中文化**: 將系統所有操作介面、提示訊息、錯誤訊息轉為繁體中文，提升台灣使用者體驗。
+- **UI 現代化**: 改造首頁 Dashboard，採用更具視覺衝擊力的 Bento Grid 設計，結合工業風元素。
+
+### 14.2 技術實作
+
+**Localization**:
+
+- 直接替換 Component 與 Page 中的 Hardcoded Strings
+- 統一術語：Project -> 專案, Item -> 項目, Change Request -> 變更申請
+
+**Bento Grid Layout**:
+
+- Grid Container: `display: grid; grid-template-columns: repeat(4, 1fr);`
+- Card Spanning: 利用 `col-span-2`, `row-span-2` 創造錯落感
+- Visuals: 使用 `next/image` 載入高畫質黑白攝影圖片，搭配 `mix-blend-mode` 與 `backdrop-filter`
+
+### 14.3 狀態: ✅ 已完成
+
+---
+
+## 15. Phase 14: 變更申請取消流程
+
+> Status: ✅ Done (v1.6.0)
+
+### 15.1 需求分析
+
+- **痛點**: 使用者提交錯誤或被退回後，無法取消該筆申請，導致列表堆積。
+- **解法**: 提供「取消申請」功能，允許使用者撤銷被退回的變更請求。
+
+### 15.2 技術實作
+
+**Permission Logic**:
+
+- 下列情況允許取消:
+  1. 申請狀態為 `REJECTED`
+  2. 操作者是原提交人 (Submitter) 或 管理員 (Admin)
+
+**Action**: `cancelRejectedRequest(requestId)`
+
+- 驗證權限與狀態後，執行 `prisma.changeRequest.delete()`
+- 使用 `revalidatePath` 更新 UI
+
+**UI Component**: `CancelRequestButton`
+
+- Client Component，處理 `window.confirm` 與 Loading 狀態
+
+### 15.3 狀態: ✅ 已完成

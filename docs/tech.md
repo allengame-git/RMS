@@ -795,13 +795,83 @@ src/
 - **生成方式**: 後端非同步生成 PDF，不阻塞主要流程 (但需確保生成成功後更新 DB)
 - **儲存策略**: 產生靜態檔案至 `/public/iso_doc/`，資料庫儲存相對路徑
 
-**流程**:
+### 13. S.O.P. & Structure
 
-1. `approveRequest` (Server Action) 執行核准
+1. **Wait for Approval**: 監聽 DB 變更或 Polling 與 Action 回傳 (目前採用 Action 回傳即時生成)
+2. **Retrieve Data**: 獲取完整 Item History, Project Info, User Info
+3. **Render PDF**:
+   - 表頭: 專案資訊, 文件編號 QC-[Project]-[ID]
+   - 內容: Item Title, Content (Snapshot), Attachments List
+   - 簽核欄: 提交者 (System Stamp), 核准者 (System Stamp), QC (Pending), PM (Pending)
+   - 浮水印: "CONFIDENTIAL"
+4. **Save**: 寫入 `/public/iso_doc/`
+5. **Update DB**: 建立 `QCDocumentApproval` 紀錄關聯
+
+### 狀態: ✅ 已完成
+
+---
+
+## Phase 13: 系統全面中文化與 UI 現代化 (v1.5.0)
+
+### 13.1 Localization Strategy
+
+**手動中文化 (No i18n Library)**:
+為保持專案架構簡單，不使用 `next-i18next` 或 `react-intl`，直接將 UI 文字替換為繁體中文。
+
+**範圍**:
+
+- **Pages**: 所有 Route 頁面 (Projects, Items, Admin, Login)
+- **Components**: 共用元件 (Modal, Button, Dialog)
+- **Server Actions**: 錯誤訊息與成功提示 (Toasts)
+- **Database Data**: 部分預設資料已中文化，使用者輸入內容維持原樣
+
+### 13.2 Bento Grid UI Architecture
+
+**設計哲學**:
+採用 "Bento Grid" (便當盒/網格) 佈局，強調內容區塊化與資訊層級。
+
+**技術實作**:
+
+- **CSS Grid**: 使用 `grid-template-columns: repeat(auto-fit, minmax(...))` 實現響應式佈局
+- **Glassmorphism**: 使用 `backdrop-filter: blur()` 與半透明背景
+- **Image Optimization**: 使用 Next.js `<Image>` 元件優化載入效能
+- **Visual Assets**: 整合工業風黑白攝影圖片 (`/public/bento_*.jpg`)
+
+**Layout Structure**:
+
+1. **Welcome Card (Large)**: 個人化歡迎訊息與時間
+2. **System Overview (Wide)**: 4 個關鍵數據指標 (Projects, Items, Files, Pending)
+3. **Quick Actions (Small)**: 常用功能捷徑
+4. **Pending Tasks (Vertical)**: 待辦事項清單
+5. **Recent Activity (Medium)**: 最近系統活動
+
+---
+
+## Phase 14: 變更申請取消流程 (v1.6.0)
+
+### 14.1 Cancel Request Mechanism
+
+**核心需求**:
+允許使用者「撤回」或「取消」已被退回 (REJECTED) 的申請，避免無效資料堆積。
+
+**Server Action**: `cancelRejectedRequest(requestId)`
+
+**邏輯**:
+
+1. 驗證權限: `submittedBy === currentUser` OR `role === ADMIN`
+2. 驗證狀態: `request.status === 'REJECTED'`
+3. **硬刪除**: 直接執行 `prisma.changeRequest.delete()`，完全移除該筆申請紀錄 (因為尚未影響 Item 資料)
+
+**UI Interaction**:
+
+- **Location**: `/admin/rejected-requests`
+- **Component**: `CancelRequestButton` (Client Component)
+- **Confirmation**: `window.confirm` 二次確認
+
 2. DB 更新 ChangeRequest 狀態為 APPROVED
-3. `createHistoryRecord` 建立 ItemHistory
-4. `generateQCDocument` 觸發 PDF 生成
-5. 更新 ItemHistory 的 `isoDocPath`
+2. `createHistoryRecord` 建立 ItemHistory
+3. `generateQCDocument` 觸發 PDF 生成
+4. 更新 ItemHistory 的 `isoDocPath`
 
 ---
 

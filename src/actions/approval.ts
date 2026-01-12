@@ -579,3 +579,33 @@ export async function rejectRequest(requestId: number, reviewNote?: string) {
 
     revalidatePath("/admin/approval");
 }
+
+// --- Cancel Rejected Request ---
+export async function cancelRejectedRequest(requestId: number): Promise<ApprovalState> {
+    const session = await getServerSession(authOptions);
+    if (!session) return { error: "未登入" };
+
+    const request = await prisma.changeRequest.findUnique({
+        where: { id: requestId }
+    });
+
+    if (!request) return { error: "找不到該申請" };
+    if (request.status !== "REJECTED") return { error: "只能取消被退回的申請" };
+
+    // 權限檢查：只有原提交者或管理員可以取消
+    if (request.submittedById !== session.user.id && session.user.role !== "ADMIN") {
+        return { error: "您沒有權限取消此申請" };
+    }
+
+    try {
+        await prisma.changeRequest.delete({
+            where: { id: requestId }
+        });
+
+        revalidatePath("/admin/rejected-requests");
+        return { message: "申請已取消" };
+    } catch (e) {
+        console.error("Failed to cancel request:", e);
+        return { error: "取消申請失敗" };
+    }
+}

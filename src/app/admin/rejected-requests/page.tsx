@@ -1,5 +1,6 @@
 import { getRejectedRequests } from "@/data/rejected-requests";
 import Link from "next/link";
+import CancelRequestButton from "@/components/approval/CancelRequestButton";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,10 @@ export default async function RejectedRequestsPage() {
 
                             {/* Actions */}
                             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                                <CancelRequestButton
+                                    requestId={request.id}
+                                    itemTitle={request.item?.title || request.targetProject?.title || "此項目"}
+                                />
                                 <Link
                                     href={`/admin/rejected-requests/${request.id}`}
                                     className="btn btn-primary"
