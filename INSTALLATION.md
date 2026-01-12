@@ -312,6 +312,53 @@ Get-ChildItem C:\RMS-Backups -Filter "*.zip" | Sort-Object LastWriteTime -Descen
 
 ---
 
+## 每日審計日誌匯出設定
+
+系統會將登入審計日誌匯出為 JSON 檔案，存放於 `daily_logs` 資料夾。
+
+### 1. 手動匯出
+
+```powershell
+# 匯出昨天的日誌
+Invoke-RestMethod -Uri "http://localhost:3000/api/audit/export" -Method GET
+
+# 匯出指定日期的日誌
+Invoke-RestMethod -Uri "http://localhost:3000/api/audit/export?date=2026-01-11" -Method GET
+```
+
+### 2. 建立每日匯出排程
+
+```powershell
+# 建立排程任務 (每日凌晨 1:00 執行)
+$Action = New-ScheduledTaskAction `
+    -Execute "pwsh.exe" `
+    -Argument "-File C:\RMS\scripts\export-daily-logs.ps1"
+
+$Trigger = New-ScheduledTaskTrigger -Daily -At "01:00"
+
+$Settings = New-ScheduledTaskSettingsSet `
+    -StartWhenAvailable `
+    -DontStopOnIdleEnd
+
+Register-ScheduledTask `
+    -TaskName "RMS-DailyAuditExport" `
+    -Action $Action `
+    -Trigger $Trigger `
+    -Settings $Settings `
+    -Description "RMS 每日審計日誌匯出 (01:00)"
+
+# 驗證排程任務
+Get-ScheduledTask -TaskName "RMS-DailyAuditExport"
+```
+
+### 3. 檢視匯出檔案
+
+```powershell
+Get-ChildItem C:\RMS\daily_logs -Filter "*.json" | Sort-Object LastWriteTime -Descending
+```
+
+---
+
 ## 常用指令
 
 | 操作 | 指令 |

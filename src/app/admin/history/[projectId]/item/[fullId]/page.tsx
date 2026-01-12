@@ -9,7 +9,7 @@ export default async function ItemHistoryListPage({ params }: { params: { projec
     if (history.length === 0) {
         return (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                No history found for {params.fullId}
+                找不到歷史記錄： {params.fullId}
             </div>
         )
     }
@@ -22,7 +22,7 @@ export default async function ItemHistoryListPage({ params }: { params: { projec
             <div style={{ marginBottom: '2rem' }}>
                 <h1 style={{ fontSize: '2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     {params.fullId}
-                    {isDeleted && <span style={{ fontSize: '1rem', background: 'var(--color-error-bg)', color: 'var(--color-error)', padding: '0.25rem 0.75rem', borderRadius: '4px' }}>Deleted</span>}
+                    {isDeleted && <span style={{ fontSize: '1rem', background: 'var(--color-error-bg)', color: 'var(--color-error)', padding: '0.25rem 0.75rem', borderRadius: '4px' }}>已刪除</span>}
                 </h1>
                 <h2 style={{ fontSize: '1.2rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>{firstRecord.itemTitle}</h2>
             </div>
@@ -31,11 +31,11 @@ export default async function ItemHistoryListPage({ params }: { params: { projec
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>Version</th>
-                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>Date</th>
-                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>Type</th>
-                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>Submitted By</th>
-                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>Actions</th>
+                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>版本</th>
+                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>日期</th>
+                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>類型</th>
+                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>提交者</th>
+                            <th style={{ padding: '0.75rem', color: 'var(--color-text-muted)' }}>操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -55,7 +55,10 @@ export default async function ItemHistoryListPage({ params }: { params: { projec
                                             record.changeType === 'UPDATE' ? 'var(--color-info)' :
                                                 record.changeType === 'DELETE' ? 'var(--color-error)' : 'var(--color-text)',
                                     }}>
-                                        {record.changeType}
+                                        {record.changeType === 'CREATE' ? '建立' :
+                                            record.changeType === 'UPDATE' ? '更新' :
+                                                record.changeType === 'DELETE' ? '刪除' :
+                                                    record.changeType === 'RESTORE' ? '還原' : record.changeType}
                                     </span>
                                 </td>
                                 <td style={{ padding: '0.75rem' }}>{record.submittedBy?.username || record.submitterName || '(已刪除)'}</td>
@@ -64,7 +67,7 @@ export default async function ItemHistoryListPage({ params }: { params: { projec
                                         href={`/admin/history/detail/${record.id}`}
                                         style={{ color: 'var(--color-primary)', textDecoration: 'none', marginRight: '1rem' }}
                                     >
-                                        View Detail
+                                        查看詳情
                                     </Link>
                                 </td>
                             </tr>

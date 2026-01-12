@@ -79,19 +79,72 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
             if (!diff) return '';
             let html = '<div class="section"><h2>變更內容比對</h2>';
 
+            // Helper to render relatedItems as formatted list
+            const renderRelatedItems = (items: any[] | null) => {
+                if (!items || items.length === 0) return '<em>(無關聯項目)</em>';
+                return items.map(item => `
+                    <div style="padding: 8px; margin: 4px 0; border: 1px solid #ddd; border-radius: 4px; background: rgba(255,255,255,0.5);">
+                        <strong style="color: #00838f;">${item.fullId || ''}</strong>
+                        ${item.title ? ` - ${item.title}` : ''}
+                        ${item.description ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${item.description}</div>` : ''}
+                    </div>
+                `).join('');
+            };
+
             for (const [key, value] of Object.entries(diff) as [string, any][]) {
-                const label = key === 'content' ? '內容' : key === 'title' ? '標題' : key;
+                const label = key === 'content' ? '內容'
+                    : key === 'title' ? '標題'
+                        : key === 'relatedItems' ? '關聯項目'
+                            : key === 'attachments' ? '參考文獻'
+                                : key;
+
+                // Determine how to render the content based on field type
+                let oldContent: string;
+                let newContent: string;
+
+                if (key === 'content') {
+                    oldContent = value.old || '<em>(空白)</em>';
+                    newContent = value.new || '<em>(空白)</em>';
+                } else if (key === 'relatedItems') {
+                    oldContent = renderRelatedItems(value.old);
+                    newContent = renderRelatedItems(value.new);
+                } else if (key === 'attachments') {
+                    // Handle attachments/references - show file names
+                    const renderAttachments = (attachments: any) => {
+                        if (!attachments) return '<em>(無參考文獻)</em>';
+                        try {
+                            const files = typeof attachments === 'string' ? JSON.parse(attachments) : attachments;
+                            if (!Array.isArray(files) || files.length === 0) return '<em>(無參考文獻)</em>';
+                            return files.map((f: any) => `
+                                <div style="padding: 4px 8px; margin: 2px 0; background: #f5f5f5; border-radius: 4px;">
+                                    📎 ${f.name || f.dataName || f.fileName || '未命名'}
+                                    ${f.author ? `<span style="color: #666; font-size: 12px;"> - ${f.author}</span>` : ''}
+                                    ${f.citation ? `<div style="font-size: 11px; color: #888; margin-top: 2px;">${f.citation}</div>` : ''}
+                                </div>
+                            `).join('');
+                        } catch {
+                            return '<em>(無參考文獻)</em>';
+                        }
+                    };
+                    oldContent = renderAttachments(value.old);
+                    newContent = renderAttachments(value.new);
+                } else {
+                    // Default: stringify other values
+                    oldContent = typeof value.old === 'object' ? JSON.stringify(value.old, null, 2) : String(value.old ?? '');
+                    newContent = typeof value.new === 'object' ? JSON.stringify(value.new, null, 2) : String(value.new ?? '');
+                }
+
                 html += `
                     <div class="diff-row">
                         <div class="diff-header">${label}</div>
                         <div class="diff-grid">
                             <div class="diff-old">
                                 <div class="diff-label error">修改前</div>
-                                <div class="content-box">${key === 'content' ? (value.old || '<em>(空白)</em>') : JSON.stringify(value.old)}</div>
+                                <div class="content-box">${oldContent}</div>
                             </div>
                             <div class="diff-new">
                                 <div class="diff-label success">修改後</div>
-                                <div class="content-box">${key === 'content' ? (value.new || '<em>(空白)</em>') : JSON.stringify(value.new)}</div>
+                                <div class="content-box">${newContent}</div>
                             </div>
                         </div>
                     </div>
@@ -220,6 +273,26 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
         // Helper to render Snapshot Section
         const renderSnapshotSection = (title: string, data: any) => {
             if (!data) return '';
+
+            // Helper to format attachments/references
+            const formatAttachments = (attachments: any) => {
+                if (!attachments) return '';
+                try {
+                    const files = typeof attachments === 'string' ? JSON.parse(attachments) : attachments;
+                    if (!Array.isArray(files) || files.length === 0) return '';
+                    const fileList = files.map((f: any) => `
+                        <div style="padding: 6px 10px; margin: 4px 0; background: #f5f5f5; border-radius: 4px; border-left: 3px solid #00838f;">
+                            📎 ${f.name || f.dataName || f.fileName || '未命名檔案'}
+                            ${f.author ? `<span style="color: #666; font-size: 12px;"> - ${f.author}</span>` : ''}
+                            ${f.citation ? `<div style="font-size: 12px; color: #666; margin-top: 2px;">${f.citation}</div>` : ''}
+                        </div>
+                    `).join('');
+                    return `<div class="field-group"><label>參考文獻</label><div class="value">${fileList}</div></div>`;
+                } catch {
+                    return '';
+                }
+            };
+
             return `
                 <div class="section">
                     <h2>${title}</h2>
@@ -231,10 +304,11 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
                         <label>內容</label>
                         <div class="value rich-text">${data.content || '(無內容)'}</div>
                     </div>
-                     ${data.attachments ? `<div class="field-group"><label>附件 (JSON)</label><pre>${data.attachments}</pre></div>` : ''}
+                    ${formatAttachments(data.attachments)}
                 </div>
              `;
         };
+
 
         const htmlContent = `
             <!DOCTYPE html>

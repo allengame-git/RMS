@@ -4,8 +4,8 @@ import { useFormStatus, useFormState, createPortal } from "react-dom";
 import { submitCreateItemRequest, ApprovalState } from "@/actions/approval";
 import { useEffect, useState, CSSProperties, ReactNode } from "react";
 import RichTextEditor from "../editor/RichTextEditor";
-import FileUploader from "../upload/FileUploader";
 import RelatedItemsManager from "./RelatedItemsManager";
+import ReferencesManager from "./ReferencesManager";
 
 // Type definition from RelatedItemsManager
 interface RelatedItem {
@@ -13,6 +13,17 @@ interface RelatedItem {
     fullId: string;
     title: string;
     projectId: number;
+}
+
+// Type definition for References
+interface Reference {
+    fileId: number;
+    dataCode: string;
+    dataName: string;
+    dataYear: number;
+    author: string;
+    fileName: string;
+    citation: string | null;
 }
 
 const initialState: ApprovalState = {
@@ -24,7 +35,7 @@ function SubmitButton() {
     const { pending } = useFormStatus();
     return (
         <button type="submit" className="btn btn-primary" disabled={pending}>
-            {pending ? "Submitting..." : "Submit Request"}
+            {pending ? "提交中..." : "提交申請"}
         </button>
     );
 }
@@ -50,15 +61,15 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
     const [state, formAction] = useFormState(submitCreateItemRequest, initialState);
     const [isOpen, setIsOpen] = useState(false);
     const [content, setContent] = useState("");
-    const [attachments, setAttachments] = useState<FileInfo[]>([]);
     const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
+    const [references, setReferences] = useState<Reference[]>([]);
 
     useEffect(() => {
         if (state.message) {
             setIsOpen(false);
             setContent(""); // Reset content
-            setAttachments([]); // Reset attachments
             setRelatedItems([]); // Reset related items
+            setReferences([]); // Reset references
             alert(state.message);
         }
     }, [state.message]);
@@ -84,7 +95,7 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
                 className={`btn btn-outline ${className || ''}`}
                 style={{ fontSize: "0.9rem", ...style }}
             >
-                {parentId ? "+" : "+ Add Item"}
+                {parentId ? "+" : "+ 新增項目"}
             </button>
         );
     }
@@ -97,12 +108,9 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
             {/* Hidden input to submit rich text content */}
             <input type="hidden" name="content" value={content} />
 
-            {/* Hidden input to submit attachments */}
-            <input type="hidden" name="attachments" value={JSON.stringify(attachments)} />
-
             {state.error && <p style={{ color: "var(--color-danger)" }}>{state.error}</p>}
 
-            <label style={{ fontSize: "0.9rem" }}>Title</label>
+            <label style={{ fontSize: "0.9rem" }}>標題</label>
             <input
                 name="title"
                 required
@@ -111,19 +119,24 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
                 autoFocus
             />
 
-            <label style={{ fontSize: "0.9rem" }}>Content (Rich Text)</label>
+            <label style={{ fontSize: "0.9rem" }}>內容</label>
             {/* Hidden input to submit related items */}
             <input type="hidden" name="relatedItems" value={JSON.stringify(relatedItems)} />
+            {/* Hidden input to submit references */}
+            <input type="hidden" name="references" value={JSON.stringify(references)} />
 
             <div style={{ maxHeight: modal ? '300px' : 'none', overflowY: 'auto' }}>
                 <RichTextEditor content={content} onChange={setContent} />
             </div>
 
-            <FileUploader onFilesChange={setAttachments} initialFiles={attachments} />
-
             <RelatedItemsManager
                 initialRelatedItems={[]}
                 onChange={setRelatedItems}
+            />
+
+            <ReferencesManager
+                initialReferences={[]}
+                onChange={setReferences}
             />
 
             <label style={{ fontSize: "0.9rem", marginTop: "0.5rem" }}>編輯原因 (必填)</label>
@@ -148,7 +161,7 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
                     onClick={() => setIsOpen(false)}
                     className="btn btn-outline"
                 >
-                    Cancel
+                    取消
                 </button>
             </div>
         </form>
@@ -183,7 +196,7 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
                     border: '1px solid var(--color-border)'
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "1rem" }}>
-                        <h4 style={{ margin: 0 }}>{parentId ? 'New Child Item Request' : 'New Item Request'}</h4>
+                        <h4 style={{ margin: 0 }}>{parentId ? '新增子項目申請' : '新增項目申請'}</h4>
                         <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
                     </div>
                     {FormContent}
@@ -195,7 +208,7 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
 
     return (
         <div className="glass" style={{ padding: "1rem", marginTop: "1rem", borderRadius: "var(--radius-md)" }}>
-            <h4 style={{ marginBottom: "1rem" }}>{parentId ? 'New Child Item Request' : 'New Item Request'}</h4>
+            <h4 style={{ marginBottom: "1rem" }}>{parentId ? '新增子項目申請' : '新增項目申請'}</h4>
             {FormContent}
         </div>
     );

@@ -67,19 +67,19 @@ export default function HistorySidebar({ items, projectId }: { items: HistoryIte
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--color-bg-base)', borderRight: '1px solid var(--color-border)', width: '320px' }}>
             <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-surface)' }}>
                 <Link href="/admin/history" style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1rem', display: 'block', textDecoration: 'none' }}>
-                    &larr; Back to Projects
+                    &larr; 返回專案列表
                 </Link>
                 <div style={{ marginBottom: '0.5rem' }}>
                     <input
                         type="text"
-                        placeholder="Search items..."
+                        placeholder="搜尋項目..."
                         style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: '0.9rem', background: 'var(--color-bg-base)' }}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                    {filtered.length} items found
+                    找到 {filtered.length} 個項目
                 </div>
             </div>
 
@@ -88,7 +88,7 @@ export default function HistorySidebar({ items, projectId }: { items: HistoryIte
                     <AccordionNode key={node.fullId} node={node} projectId={projectId} pathname={pathname} />
                 ))}
                 {filtered.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>No items found</div>
+                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>找不到項目</div>
                 )}
             </div>
         </div>
@@ -174,7 +174,7 @@ function AccordionNode({ node, projectId, pathname }: AccordionNodeProps) {
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             {node.isDeleted && (
                                 <span style={{ fontSize: '0.65rem', background: 'rgba(198,40,40,0.1)', color: 'var(--color-danger)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600 }}>
-                                    Deleted
+                                    已刪除
                                 </span>
                             )}
                             {hasChildren && (
@@ -194,7 +194,7 @@ function AccordionNode({ node, projectId, pathname }: AccordionNodeProps) {
                         {node.title}
                     </span>
                     <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                        {node.historyCount} changes
+                        {node.historyCount} 次變更
                     </span>
                 </Link>
             </div>

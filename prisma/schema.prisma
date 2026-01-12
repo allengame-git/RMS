@@ -99,6 +99,9 @@ model Item {
   relationsFrom ItemRelation[] @relation("RelationSource")
   relationsTo   ItemRelation[] @relation("RelationTarget")
   
+  // References to DataFiles
+  references    ItemReference[]
+  
   history ItemHistory[]
 }
 
@@ -116,6 +119,22 @@ model ItemRelation {
   @@unique([sourceId, targetId])
   @@index([sourceId])
   @@index([targetId])
+}
+
+// Reference relation table for linking Items to DataFiles
+model ItemReference {
+  id         Int      @id @default(autoincrement())
+  itemId     Int
+  fileId     Int
+  citation   String?  // 引用說明
+  createdAt  DateTime @default(now())
+  
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  file       DataFile @relation(fields: [fileId], references: [id])
+  
+  @@unique([itemId, fileId])  // 同一項目不能重複引用同一檔案
+  @@index([itemId])
+  @@index([fileId])
 }
 
 model ChangeRequest {
@@ -287,6 +306,7 @@ model DataFile {
   // Relations
   changeRequests DataFileChangeRequest[]
   history        DataFileHistory[]
+  references     ItemReference[]
   
   @@index([dataYear])
   @@index([dataCode])

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 /**
  * Log a login attempt (success or failure)
@@ -136,4 +138,82 @@ export async function getRecentFailedAttempts(username: string, minutes: number 
             createdAt: { gte: since }
         }
     });
+}
+
+/**
+ * Export daily login logs to a JSON file
+ * @param date - The date to export logs for (defaults to yesterday)
+ * @returns Path to the exported file
+ */
+export async function exportDailyLoginLogs(date?: Date): Promise<{ success: boolean; filePath?: string; recordCount?: number; error?: string }> {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+        return { success: false, error: "Unauthorized: Admin access required" };
+    }
+
+    try {
+        // Default to yesterday if no date provided
+        const targetDate = date || new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const dateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        // Calculate date range (start of day to end of day)
+        const startOfDay = new Date(dateStr + 'T00:00:00.000Z');
+        const endOfDay = new Date(dateStr + 'T23:59:59.999Z');
+
+        // Fetch logs for the specified date
+        const logs = await prisma.loginLog.findMany({
+            where: {
+                createdAt: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                }
+            },
+            orderBy: { createdAt: 'asc' },
+            include: {
+                user: {
+                    select: { username: true, role: true }
+                }
+            }
+        });
+
+        // Prepare export data
+        const exportData = {
+            exportDate: dateStr,
+            generatedAt: new Date().toISOString(),
+            totalRecords: logs.length,
+            logs: logs.map(log => ({
+                id: log.id,
+                username: log.username,
+                success: log.success,
+                ipAddress: log.ipAddress,
+                userAgent: log.userAgent,
+                failReason: log.failReason,
+                createdAt: log.createdAt.toISOString(),
+                user: log.user ? { username: log.user.username, role: log.user.role } : null
+            }))
+        };
+
+        // Ensure daily_logs directory exists
+        const logsDir = path.join(process.cwd(), 'daily_logs');
+        await fs.mkdir(logsDir, { recursive: true });
+
+        // Write to file
+        const fileName = `login_log_${dateStr}.json`;
+        const filePath = path.join(logsDir, fileName);
+        await fs.writeFile(filePath, JSON.stringify(exportData, null, 2), 'utf-8');
+
+        console.log(`[exportDailyLoginLogs] Exported ${logs.length} records to ${filePath}`);
+
+        return {
+            success: true,
+            filePath: fileName,
+            recordCount: logs.length
+        };
+    } catch (error) {
+        console.error("[exportDailyLoginLogs] Export failed:", error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error"
+        };
+    }
 }

@@ -6,27 +6,56 @@ import { authOptions } from "@/lib/auth";
 export async function GET() {
     const session = await getServerSession(authOptions);
 
-    // Only ADMIN and INSPECTOR can see pending counts
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR")) {
+    if (!session) {
         return NextResponse.json({ count: 0 });
     }
+
+    const role = session.user.role;
 
     try {
-        // Count pending ChangeRequests
-        const changeRequestCount = await prisma.changeRequest.count({
-            where: { status: "PENDING" }
+        // Fetch user to check isQC and isPM flags
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { isQC: true, isPM: true }
         });
 
-        // Count pending DataFileChangeRequests
-        const dataFileRequestCount = await prisma.dataFileChangeRequest.count({
-            where: { status: "PENDING" }
-        });
+        let totalCount = 0;
 
-        const totalCount = changeRequestCount + dataFileRequestCount;
+        // ADMIN and INSPECTOR see pending ChangeRequests and DataFileChangeRequests
+        if (role === "ADMIN" || role === "INSPECTOR") {
+            const changeRequestCount = await prisma.changeRequest.count({
+                where: { status: "PENDING" }
+            });
+            const dataFileRequestCount = await prisma.dataFileChangeRequest.count({
+                where: { status: "PENDING" }
+            });
+            totalCount += changeRequestCount + dataFileRequestCount;
+        }
 
-        return NextResponse.json({ count: totalCount });
+        // Users with QC permission see PENDING_QC documents
+        if (user?.isQC || role === "ADMIN") {
+            const qcPendingCount = await prisma.qCDocumentApproval.count({
+                where: { status: "PENDING_QC" }
+            });
+            totalCount += qcPendingCount;
+        }
+
+        // Users with PM permission see PENDING_PM documents
+        if (user?.isPM || role === "ADMIN") {
+            const pmPendingCount = await prisma.qCDocumentApproval.count({
+                where: { status: "PENDING_PM" }
+            });
+            totalCount += pmPendingCount;
+        }
+
+        // Determine if user has approval access (isQC or isPM or ADMIN/INSPECTOR)
+        const hasApprovalAccess = user?.isQC || user?.isPM ||
+            role === "ADMIN" || role === "INSPECTOR";
+
+        return NextResponse.json({ count: totalCount, hasApprovalAccess });
     } catch (error) {
         console.error("Error fetching pending count:", error);
-        return NextResponse.json({ count: 0 });
+        return NextResponse.json({ count: 0, hasApprovalAccess: false });
     }
 }
+

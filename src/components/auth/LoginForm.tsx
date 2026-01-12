@@ -31,8 +31,8 @@ export default function LoginForm() {
                     setError("帳號或密碼錯誤");
                 }
             } else {
-                router.refresh();
-                router.push("/");
+                // Force full reload to ensure session is picked up
+                window.location.href = "/";
             }
         } catch (err) {
             setError("發生未預期的錯誤");

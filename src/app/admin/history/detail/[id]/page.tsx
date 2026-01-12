@@ -31,7 +31,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
         if (!attachmentsJson) return null;
         try {
             const files = JSON.parse(attachmentsJson) as { name: string; path: string; size: number; uploadedAt: string }[];
-            if (files.length === 0) return <span style={{ color: 'gray', fontStyle: 'italic' }}>No attachments</span>;
+            if (files.length === 0) return <span style={{ color: 'gray', fontStyle: 'italic' }}>無參考文獻</span>;
             return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {files.map((file, index) => (
@@ -264,7 +264,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
 
                     {previousSnapshot.attachments && (
                         <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>附件</label>
+                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>參考文獻</label>
                             {renderAttachments(previousSnapshot.attachments)}
                         </div>
                     )}
@@ -300,27 +300,27 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                     </h3>
 
                     <div style={{ marginBottom: '2rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>TITLE</label>
+                        <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>標題</label>
                         <div style={{ fontSize: '1.1rem', fontWeight: 500 }}>{snapshot.title}</div>
                     </div>
 
                     <div style={{ marginBottom: '2rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>CONTENT</label>
+                        <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>內容</label>
                         <div className="rich-text-content" style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.5)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
-                            dangerouslySetInnerHTML={{ __html: snapshot.content || '<span style="color:gray;font-style:italic">No content</span>' }}
+                            dangerouslySetInnerHTML={{ __html: snapshot.content || '<span style="color:gray;font-style:italic">無內容</span>' }}
                         />
                     </div>
 
                     {snapshot.attachments && (
                         <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>ATTACHMENTS</label>
+                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>參考文獻</label>
                             {renderAttachments(snapshot.attachments)}
                         </div>
                     )}
 
                     {snapshot.relatedItems && snapshot.relatedItems.length > 0 && (
                         <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>RELATED ITEMS</label>
+                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' }}>關聯項目</label>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 {snapshot.relatedItems.map(ri => (
                                     <div key={ri.id} style={{ padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '4px', background: 'rgba(255,255,255,0.3)' }}>

@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
@@ -64,11 +65,23 @@ export default async function Home() {
     <div className="container" style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
       <main className="flex-col gap-md">
         <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-          <h1 style={{ marginBottom: '1rem', fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.025em', background: 'linear-gradient(to right, var(--color-primary), var(--color-secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            低放射性類廢棄物處置管理系統
+          <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+            <div style={{
+              padding: '1.5rem',
+              borderRadius: '50%',
+              backgroundColor: 'white',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              display: 'inline-flex'
+            }}>
+              <Image src="/taipower_logo.png" alt="Taipower Logo" width={80} height={80} style={{ objectFit: 'contain' }} />
+            </div>
+          </div>
+          <h1 style={{ marginBottom: '1rem', fontSize: '2.5rem', fontWeight: 800, letterSpacing: '0.05em', color: 'var(--color-primary)' }}>
+            低放射性廢棄物處置管理系統
           </h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '1.25rem', fontWeight: 500 }}>
-            Radioactive Waste Management System
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '1.1rem', fontWeight: 500, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <span>Low-level Radiowaste Disposal Management System</span>
+            <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>(LLRWD Management System)</span>
           </p>
 
           {session?.user ? (

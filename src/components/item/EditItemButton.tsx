@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import RichTextEditor from "../editor/RichTextEditor";
 import { submitUpdateItemRequest } from "@/actions/approval";
-import FileUploader from "../upload/FileUploader";
 import RelatedItemsManager from "./RelatedItemsManager";
+import ReferencesManager from "./ReferencesManager";
 
 interface RelatedItem {
     id: number;
@@ -14,6 +14,17 @@ interface RelatedItem {
     projectId: number;
     projectTitle?: string;
     description?: string | null;
+}
+
+// Type definition for References
+interface Reference {
+    fileId: number;
+    dataCode: string;
+    dataName: string;
+    dataYear: number;
+    author: string;
+    fileName: string;
+    citation: string | null;
 }
 
 interface EditItemButtonProps {
@@ -32,6 +43,18 @@ interface EditItemButtonProps {
                 project: { title: string };
             };
         }>;
+        references?: Array<{
+            fileId: number;
+            citation: string | null;
+            file: {
+                id: number;
+                dataCode: string;
+                dataName: string;
+                dataYear: number;
+                author: string;
+                fileName: string;
+            };
+        }>;
     };
     isDisabled?: boolean;
 }
@@ -40,9 +63,6 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [title, setTitle] = useState(item.title);
     const [content, setContent] = useState(item.content || "");
-    const [attachments, setAttachments] = useState<any[]>(
-        item.attachments ? JSON.parse(item.attachments) : []
-    );
     // Transform relationsFrom to RelatedItem format
     const initialRelatedItems: RelatedItem[] = (item.relationsFrom || []).map(r => ({
         id: r.target.id,
@@ -53,6 +73,17 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
         description: r.description
     }));
     const [relatedItems, setRelatedItems] = useState<RelatedItem[]>(initialRelatedItems);
+    // Transform references to Reference format
+    const initialReferences: Reference[] = (item.references || []).map(r => ({
+        fileId: r.file.id,
+        dataCode: r.file.dataCode,
+        dataName: r.file.dataName,
+        dataYear: r.file.dataYear,
+        author: r.file.author,
+        fileName: r.file.fileName,
+        citation: r.citation
+    }));
+    const [references, setReferences] = useState<Reference[]>(initialReferences);
     const [submitReason, setSubmitReason] = useState("");
     const [status, setStatus] = useState<{ message?: string; error?: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,7 +99,6 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
         if (isModalOpen) {
             setTitle(item.title);
             setContent(item.content || "");
-            setAttachments(item.attachments ? JSON.parse(item.attachments) : []);
             setRelatedItems((item.relationsFrom || []).map(r => ({
                 id: r.target.id,
                 fullId: r.target.fullId,
@@ -76,6 +106,15 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
                 projectId: r.target.projectId,
                 projectTitle: r.target.project.title,
                 description: r.description
+            })));
+            setReferences((item.references || []).map(r => ({
+                fileId: r.file.id,
+                dataCode: r.file.dataCode,
+                dataName: r.file.dataName,
+                dataYear: r.file.dataYear,
+                author: r.file.author,
+                fileName: r.file.fileName,
+                citation: r.citation
             })));
             setSubmitReason("");
             setStatus(null);
@@ -92,12 +131,12 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
         formData.append("title", title);
         formData.append("content", content);
 
-        if (attachments.length > 0) {
-            formData.append("attachments", JSON.stringify(attachments));
-        }
-
         if (relatedItems.length > 0) {
             formData.append("relatedItems", JSON.stringify(relatedItems));
+        }
+
+        if (references.length > 0) {
+            formData.append("references", JSON.stringify(references));
         }
 
         formData.append("submitReason", submitReason);
@@ -193,16 +232,20 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
                         </div>
                     </div>
 
-                    <div>
-                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>附件</label>
-                        <FileUploader onFilesChange={setAttachments} initialFiles={attachments} />
-                    </div>
-
                     {/* Related Items Section */}
                     <div>
                         <RelatedItemsManager
                             initialRelatedItems={relatedItems}
                             onChange={setRelatedItems}
+                            canEdit={true}
+                        />
+                    </div>
+
+                    {/* References Section */}
+                    <div>
+                        <ReferencesManager
+                            initialReferences={references}
+                            onChange={setReferences}
                             canEdit={true}
                         />
                     </div>
