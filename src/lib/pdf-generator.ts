@@ -194,7 +194,7 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
             let html = '<div class="section"><h2>審核歷程時間軸</h2><div class="timeline-container">';
             rounds.forEach((round, idx) => {
                 html += `<div class="timeline-round">`;
-                html += `<div class="round-title">ROUND ${idx + 1}</div>`;
+                html += `<div class="round-title">第 ${idx + 1} 次審核</div>`;
                 round.forEach(ev => {
                     const color = ev.status === 'success' ? '#10b981' : ev.status === 'warning' ? '#f59e0b' : ev.status === 'danger' ? '#ef4444' : '#3b82f6';
                     html += `
@@ -206,7 +206,7 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
                                     <span class="event-user">${ev.user}</span>
                                 </div>
                                 <div class="event-date">${new Date(ev.date).toLocaleString('zh-TW')}</div>
-                                ${ev.note ? `<div class="event-note">${ev.note}</div>` : ''}
+                                ${ev.note ? `<div class="event-note">${(ev.type === '提交' || ev.type === '重新提交') ? '原因：' : '意見：'}${ev.note}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -298,34 +298,7 @@ const generateHistoryPagePDF = async (history: ItemHistory): Promise<Uint8Array 
                     ${history.itemFullId} - ${history.itemTitle} | 變更類型: ${history.changeType}
                 </div>
 
-                <div class="review-card">
-                    <div class="review-col submitter">
-                        <div class="label">提交者</div>
-                        <div class="value">${history.submittedBy?.username || '(已刪除)'}</div>
-                        <div class="date">${new Date(history.createdAt).toLocaleString('zh-TW')}</div>
-                        ${history.submitReason ? `<div class="note-box">原因: ${history.submitReason}</div>` : ''}
-                    </div>
-                    <div class="review-col reviewer">
-                        <div class="label">核准者</div>
-                        <div class="value">${history.reviewedBy?.username || '-'}</div>
-                        <div class="date">${history.reviewedBy ? new Date(history.createdAt).toLocaleString('zh-TW') : '-'}</div>
-                        ${history.reviewNote ? `<div class="note-box">意見: ${history.reviewNote}</div>` : ''}
-                    </div>
-                    ${history.qcUser ? `
-                    <div class="review-col qc">
-                        <div class="label">QC 簽核</div>
-                        <div class="value">${history.qcUser}</div>
-                        <div class="date">${history.qcDate ? new Date(history.qcDate).toLocaleString('zh-TW') : '-'}</div>
-                        ${history.qcNote ? `<div class="note-box">意見: ${history.qcNote}</div>` : ''}
-                    </div>` : ''}
-                    ${history.pmUser ? `
-                    <div class="review-col pm">
-                        <div class="label">PM 簽核</div>
-                        <div class="value">${history.pmUser}</div>
-                        <div class="date">${history.pmDate ? new Date(history.pmDate).toLocaleString('zh-TW') : '-'}</div>
-                        ${history.pmNote ? `<div class="note-box">意見: ${history.pmNote}</div>` : ''}
-                    </div>` : ''}
-                </div>
+                <!-- Review card removed - moved to page 1 -->
 
                 ${renderReviewTimeline()}
 
@@ -450,12 +423,62 @@ export const generateQCDocument = async (
             return currentY - 10; // Extra spacing
         };
 
-        // Submitter
-        y = drawSection('提交人員:', history.submittedBy?.username || 'N/A', history.submissionDate, '編輯意見:', history.submitReason, y);
-        y -= 10;
+        // ==========================================
+        // Draw All Review Rounds (if reviewChain exists)
+        // ==========================================
+        if (history.reviewChain && history.reviewChain.length > 0) {
+            const sortedChain = [...history.reviewChain].sort(
+                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
 
-        // Approver
-        y = drawSection('核准人員:', history.reviewedBy?.username || 'N/A', history.createdAt, '審查意見:', history.reviewNote, y);
+            for (let i = 0; i < sortedChain.length; i++) {
+                const req = sortedChain[i];
+                const roundLabel = sortedChain.length > 1 ? `【第 ${i + 1} 輪】` : '';
+
+                // Check page overflow - skip if too little space (rare edge case)
+                if (y < 150) {
+                    console.warn('[generateQCDocument] Page overflow, some content may be truncated');
+                    break; // Simple handling: stop adding more rounds
+                }
+
+                // Round Header
+                if (roundLabel) {
+                    page.drawText(roundLabel, { x: margin, y, size: 11, font, color: rgb(0, 0.4, 0.5) });
+                    y -= 20;
+                }
+
+                // Submitter
+                y = drawSection(
+                    '提交人員:',
+                    req.submittedBy?.username || req.submitterName || 'N/A',
+                    new Date(req.createdAt),
+                    '編輯意見:',
+                    req.submitReason || req.submitNote,
+                    y
+                );
+                y -= 5;
+
+                // Reviewer (if approved or rejected)
+                if (req.reviewedBy || req.status === 'APPROVED' || req.status === 'REJECTED' || req.status === 'RESUBMITTED') {
+                    const reviewerName = req.reviewedBy?.username || 'N/A';
+                    const reviewStatus = req.status === 'APPROVED' ? '核准' : req.status === 'REJECTED' ? '退回' : '已處理';
+                    y = drawSection(
+                        `${reviewStatus}人員:`,
+                        reviewerName,
+                        req.updatedAt ? new Date(req.updatedAt) : null,
+                        '審查意見:',
+                        req.reviewNote,
+                        y
+                    );
+                    y -= 10;
+                }
+            }
+        } else {
+            // Fallback: Single round (original logic)
+            y = drawSection('提交人員:', history.submittedBy?.username || 'N/A', history.submissionDate, '編輯意見:', history.submitReason, y);
+            y -= 10;
+            y = drawSection('核准人員:', history.reviewedBy?.username || 'N/A', history.createdAt, '審查意見:', history.reviewNote, y);
+        }
         y -= 25;
 
         // Divider

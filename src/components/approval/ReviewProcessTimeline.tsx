@@ -302,7 +302,7 @@ export default function ReviewProcessTimeline({
                                                     wordBreak: "break-word",
                                                     lineHeight: "1.4"
                                                 }}>
-                                                    {event.note}
+                                                    {(event.type === "SUBMISSION" || event.type === "RESUBMISSION") ? "編輯原因：" : "審查意見："}{event.note}
                                                 </div>
                                             )}
                                         </div>

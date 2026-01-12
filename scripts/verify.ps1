@@ -76,13 +76,28 @@ if ($freeGB -gt 10) {
 }
 
 # 5. 錯誤日誌
-Write-Host "`n[5/5] 錯誤日誌檢驗..." -ForegroundColor Yellow
+Write-Host "`n[5/6] 錯誤日誌檢驗..." -ForegroundColor Yellow
 $errorLogs = docker logs rms-application --since 1h 2>&1 | Select-String "ERROR"
 if ($errorLogs.Count -eq 0) {
     Write-Host "  ✓ 過去 1 小時無錯誤" -ForegroundColor Green
 } else {
     Write-Host "  ⚠ 發現 $($errorLogs.Count) 個錯誤" -ForegroundColor Yellow
     $errors += "日誌中有 $($errorLogs.Count) 個錯誤"
+}
+
+# 6. 登入審計日誌
+Write-Host "`n[6/6] 審計日誌檢驗..." -ForegroundColor Yellow
+try {
+    $auditCount = docker exec rms-postgres psql -U rms_user -d rms_db -t -c "SELECT COUNT(*) FROM \"LoginLog\";" 2>$null
+    if ($auditCount -match '\d+') {
+        $count = [int]($auditCount -replace '\D', '')
+        Write-Host "  ✓ 登入審計記錄: $count 筆" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠ 無法取得審計記錄數量" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "  ✗ 審計日誌檢驗失敗: $_" -ForegroundColor Red
+    $errors += "審計日誌檢驗失敗"
 }
 
 # 結果摘要

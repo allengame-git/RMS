@@ -1,7 +1,7 @@
 # RMS 系統 Windows 部署規劃文件
 
-> **版本**: 1.1  
-> **日期**: 2026-01-07  
+> **版本**: 1.2  
+> **日期**: 2026-01-10  
 > **專案技術棧**: Next.js 14 + Prisma + PostgreSQL + NextAuth.js
 
 ---
@@ -55,7 +55,9 @@ RMS/
 - **Item**: 項目結構 (支援階層關係)
 - **DataFile**: 檔案管理
 - **ChangeRequest**: 變更申請工作流程
-- **History**: 歷史版本追蹤
+- **ItemHistory**: 歷史版本追蹤
+- **LoginLog**: 登入審計日誌
+- **Notification**: 通知系統
 
 ---
 
@@ -657,7 +659,25 @@ docker logs -f rms-application
 docker logs rms-application --since 24h > "C:\RMS-Logs\app-$(Get-Date -Format 'yyyyMMdd').log"
 ```
 
-### 7.2 資源監控
+### 7.2 登入審計日誌
+
+系統內建登入審計功能，記錄所有登入嘗試（成功/失敗）：
+
+**檢視方式**：
+
+- 管理介面：`/admin/audit`
+- 資料庫查詢：`SELECT * FROM "LoginLog" ORDER BY "createdAt" DESC LIMIT 50;`
+
+**記錄欄位**：
+
+- 使用者名稱、成功/失敗、IP 位址、User-Agent、時間
+
+**安全功能**：
+
+- 帳號鎖定：連續 5 次登入失敗自動鎖定 15 分鐘
+- 管理員可在 `/admin/users` 手動解鎖
+
+### 7.3 資源監控
 
 ```powershell
 # 監控容器資源使用
@@ -709,8 +729,9 @@ Invoke-RestMethod http://localhost:3000/api/health
 建立 `.env.production`：
 
 ```env
-# Database
-DATABASE_URL="file:/app/data/rms.db"
+# Database (PostgreSQL)
+DATABASE_URL="postgresql://rms_user:rms_secure_password@postgres:5432/rms_db?schema=public"
+POSTGRES_PASSWORD="rms_secure_password"
 
 # NextAuth
 NEXTAUTH_URL="https://your-domain.com"
@@ -747,4 +768,4 @@ New-NetFirewallRule -DisplayName "RMS HTTP" -Direction Inbound -Port 80 -Protoco
 
 - **系統維護**: IT 部門
 - **緊急聯絡**: (待填寫)
-- **文件更新**: 2026-01-04
+- **文件更新**: 2026-01-10
