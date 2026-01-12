@@ -57,7 +57,7 @@ export default function EditProjectButton({ project }: EditProjectButtonProps) {
                 }, 1500);
             }
         } catch (err) {
-            setStatus({ error: "An unexpected error occurred." });
+            setStatus({ error: "發生未預期的錯誤。" });
         } finally {
             setIsSubmitting(false);
         }
@@ -80,7 +80,7 @@ export default function EditProjectButton({ project }: EditProjectButtonProps) {
                 border: "1px solid var(--color-border)"
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "1.5rem" }}>
-                    <h2 style={{ margin: 0 }}>Edit Project</h2>
+                    <h2 style={{ margin: 0 }}>編輯專案</h2>
                     <button
                         type="button"
                         onClick={() => setIsModalOpen(false)}
@@ -112,7 +112,7 @@ export default function EditProjectButton({ project }: EditProjectButtonProps) {
 
                 <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                     <div>
-                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Project Title *</label>
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>專案名稱 *</label>
                         <input
                             type="text"
                             required
@@ -127,7 +127,7 @@ export default function EditProjectButton({ project }: EditProjectButtonProps) {
                     </div>
 
                     <div>
-                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Description</label>
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>描述</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
@@ -147,14 +147,14 @@ export default function EditProjectButton({ project }: EditProjectButtonProps) {
                             className="btn btn-outline"
                             disabled={isSubmitting}
                         >
-                            Cancel
+                            取消
                         </button>
                         <button
                             type="submit"
                             className="btn btn-primary"
                             disabled={isSubmitting}
                         >
-                            {isSubmitting ? "Submitting..." : "Request Changes"}
+                            {isSubmitting ? "送出中..." : "申請變更"}
                         </button>
                     </div>
                 </form>
@@ -176,9 +176,9 @@ export default function EditProjectButton({ project }: EditProjectButtonProps) {
                     borderRadius: "4px",
                     transition: "all 0.2s"
                 }}
-                title="Edit Project"
+                title="編輯專案"
             >
-                Edit
+                編輯
             </button>
             {isModalOpen && mounted && typeof document !== 'undefined' && createPortal(modalContent, document.body)}
         </>

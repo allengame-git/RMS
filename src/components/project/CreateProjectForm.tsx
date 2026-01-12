@@ -13,7 +13,7 @@ function SubmitButton() {
     const { pending } = useFormStatus();
     return (
         <button type="submit" className="btn btn-primary" disabled={pending}>
-            {pending ? "Creating..." : "Create Project"}
+            {pending ? "建立中..." : "建立專案"}
         </button>
     );
 }
@@ -35,7 +35,7 @@ export default function CreateProjectForm() {
                 onClick={() => setIsOpen(true)}
                 className="btn btn-primary"
             >
-                + New Project
+                + 新增專案
             </button>
         );
     }
@@ -43,13 +43,13 @@ export default function CreateProjectForm() {
     return (
         <div className="glass" style={{ padding: "1.5rem", borderRadius: "var(--radius-md)", marginBottom: "2rem" }}>
             <div className="flex-center" style={{ justifyContent: "space-between", marginBottom: "1rem" }}>
-                <h3>Create New Project</h3>
+                <h3>建立新專案</h3>
                 <button
                     onClick={() => setIsOpen(false)}
                     className="btn btn-outline"
                     style={{ padding: "0.25rem 0.5rem", fontSize: "0.8rem" }}
                 >
-                    Cancel
+                    取消
                 </button>
             </div>
 
@@ -61,39 +61,39 @@ export default function CreateProjectForm() {
                 )}
 
                 <div className="flex-col gap-sm">
-                    <label htmlFor="title" style={{ fontSize: "0.9rem", fontWeight: 500 }}>Project Title</label>
+                    <label htmlFor="title" style={{ fontSize: "0.9rem", fontWeight: 500 }}>專案名稱</label>
                     <input
                         id="title"
                         name="title"
                         type="text"
                         required
-                        placeholder="e.g. Website Redesign"
+                        placeholder="例如：網站改版"
                         className="input-field"
                         style={{ padding: "0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)" }}
                     />
                 </div>
 
                 <div className="flex-col gap-sm">
-                    <label htmlFor="codePrefix" style={{ fontSize: "0.9rem", fontWeight: 500 }}>Code Prefix (Uppercase, ID for items)</label>
+                    <label htmlFor="codePrefix" style={{ fontSize: "0.9rem", fontWeight: 500 }}>代碼前綴 (大寫，項目編號用)</label>
                     <input
                         id="codePrefix"
                         name="codePrefix"
                         type="text"
                         required
                         pattern="[A-Z0-9]+"
-                        placeholder="e.g. WEB, Q4"
+                        placeholder="例如：WEB, Q4"
                         className="input-field"
                         style={{ padding: "0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)" }}
                     />
                 </div>
 
                 <div className="flex-col gap-sm">
-                    <label htmlFor="description" style={{ fontSize: "0.9rem", fontWeight: 500 }}>Description</label>
+                    <label htmlFor="description" style={{ fontSize: "0.9rem", fontWeight: 500 }}>描述</label>
                     <textarea
                         id="description"
                         name="description"
                         rows={3}
-                        placeholder="Brief description of the project..."
+                        placeholder="專案簡述..."
                         style={{ padding: "0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)", fontFamily: "inherit" }}
                     />
                 </div>

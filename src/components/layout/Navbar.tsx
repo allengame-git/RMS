@@ -224,11 +224,7 @@ export default function Navbar() {
                                 登出
                             </button>
                         </>
-                    ) : (
-                        <Link href="/auth/login" className="btn btn-primary">
-                            登入
-                        </Link>
-                    )}
+                    ) : null}
                 </div>
             </div>
             <style jsx>{`

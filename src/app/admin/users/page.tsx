@@ -54,7 +54,7 @@ export default function UserManagementPage() {
             setUsers(data);
         } catch (error) {
             console.error("Failed to fetch users", error);
-            setFetchError("Failed to fetch users. Please check your permissions or try again.");
+            setFetchError("無法獲取使用者資訊。請檢查權限或稍後再試。");
         } finally {
             setLoading(false);
         }
@@ -85,7 +85,7 @@ export default function UserManagementPage() {
                 fetchUsers();
             }
         } catch (err) {
-            setFormError('An error occurred');
+            setFormError('發生錯誤');
         } finally {
             setIsSubmitting(false);
         }
@@ -132,20 +132,20 @@ export default function UserManagementPage() {
                 fetchUsers();
             }
         } catch (err) {
-            setFormError('An error occurred');
+            setFormError('發生錯誤');
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleDelete = async (userId: string) => {
-        if (!confirm('Are you sure you want to delete this user?')) return;
+        if (!confirm('您確定要刪除此使用者嗎？')) return;
         try {
             await deleteUser(userId);
             fetchUsers();
         } catch (err: any) {
             console.error('Delete user error:', err);
-            alert('Failed to delete user: ' + (err?.message || 'Unknown error'));
+            alert('刪除使用者失敗: ' + (err?.message || '未知錯誤'));
         }
     };
 
@@ -159,7 +159,7 @@ export default function UserManagementPage() {
             }
         } catch (err: any) {
             console.error('Unlock user error:', err);
-            alert('解鎖失敗: ' + (err?.message || 'Unknown error'));
+            alert('解鎖失敗: ' + (err?.message || '未知錯誤'));
         }
     };
 
@@ -167,10 +167,10 @@ export default function UserManagementPage() {
         return user.lockedUntil && new Date(user.lockedUntil) > new Date();
     };
 
-    if (loading) return <div className="container" style={{ padding: '2rem' }}>Loading...</div>;
+    if (loading) return <div className="container" style={{ padding: '2rem' }}>載入中...</div>;
 
     if (session?.user?.role !== "ADMIN") {
-        return <div className="container" style={{ padding: '2rem' }}>Unauthorized</div>;
+        return <div className="container" style={{ padding: '2rem' }}>未經授權</div>;
     }
 
     const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,18 +189,18 @@ export default function UserManagementPage() {
             if (data.success) {
                 setFormData(prev => ({ ...prev, signaturePath: data.file.path }));
             } else {
-                alert(`Upload failed: ${data.error}`);
+                alert(`上傳失敗: ${data.error}`);
             }
         } catch (error) {
             console.error('Upload error:', error);
-            alert('Upload failed');
+            alert('上傳失敗');
         }
     };
 
     return (
         <div className="container" style={{ padding: "2rem 0", maxWidth: "1000px", margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-                <h1>User Management</h1>
+                <h1>使用者管理</h1>
                 <button
                     className="btn btn-primary"
                     onClick={() => {
@@ -215,7 +215,7 @@ export default function UserManagementPage() {
                         setIsCreateModalOpen(true);
                     }}
                 >
-                    Add User
+                    新增使用者
                 </button>
             </div>
 
@@ -229,11 +229,11 @@ export default function UserManagementPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                         <tr style={{ borderBottom: "1px solid var(--color-border)", backgroundColor: "rgba(0,0,0,0.02)" }}>
-                            <th style={{ padding: "1rem", textAlign: "left" }}>Username</th>
-                            <th style={{ padding: "1rem", textAlign: "left" }}>Role & Qualifications</th>
+                            <th style={{ padding: "1rem", textAlign: "left" }}>使用者名稱</th>
+                            <th style={{ padding: "1rem", textAlign: "left" }}>角色與資歷</th>
                             <th style={{ padding: "1rem", textAlign: "left" }}>狀態</th>
-                            <th style={{ padding: "1rem", textAlign: "left" }}>Joined Info</th>
-                            <th style={{ padding: "1rem", textAlign: "right" }}>Actions</th>
+                            <th style={{ padding: "1rem", textAlign: "left" }}>加入時間</th>
+                            <th style={{ padding: "1rem", textAlign: "right" }}>操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -244,7 +244,7 @@ export default function UserManagementPage() {
                             }}>
                                 <td style={{ padding: "1rem", fontWeight: "bold" }}>
                                     {user.username}
-                                    {session.user.id === user.id && <span style={{ marginLeft: "0.5rem", fontSize: "0.8rem", color: "var(--color-primary)", border: "1px solid currentColor", padding: "2px 6px", borderRadius: "10px" }}>YOU</span>}
+                                    {session.user.id === user.id && <span style={{ marginLeft: "0.5rem", fontSize: "0.8rem", color: "var(--color-primary)", border: "1px solid currentColor", padding: "2px 6px", borderRadius: "10px" }}>您</span>}
                                 </td>
 
                                 <td style={{ padding: "1rem" }}>
@@ -360,7 +360,7 @@ export default function UserManagementPage() {
                                             opacity: 1
                                         }}
                                     >
-                                        Edit
+                                        編輯
                                     </button>
                                     <button
                                         onClick={() => handleDelete(user.id)}
@@ -373,7 +373,7 @@ export default function UserManagementPage() {
                                             opacity: user.id === session.user.id ? 0.5 : 1
                                         }}
                                     >
-                                        Delete
+                                        刪除
                                     </button>
                                 </td>
                             </tr>
@@ -391,10 +391,10 @@ export default function UserManagementPage() {
                     zIndex: 1000
                 }}>
                     <div className="glass" style={{ padding: "2rem", borderRadius: "var(--radius-lg)", width: "500px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto" }}>
-                        <h2 style={{ marginBottom: "1.5rem" }}>Create New User</h2>
+                        <h2 style={{ marginBottom: "1.5rem" }}>建立新使用者</h2>
                         <form onSubmit={handleCreateUser}>
                             <div style={{ marginBottom: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Username</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>使用者名稱</label>
                                 <input
                                     type="text"
                                     required
@@ -405,7 +405,7 @@ export default function UserManagementPage() {
                                 />
                             </div>
                             <div style={{ marginBottom: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Password</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>密碼</label>
                                 <input
                                     type="password"
                                     required
@@ -417,21 +417,21 @@ export default function UserManagementPage() {
                                 <PasswordStrengthIndicator password={formData.password} />
                             </div>
                             <div style={{ marginBottom: "1.5rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Role</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>角色</label>
                                 <select
                                     value={formData.role}
                                     onChange={e => setFormData({ ...formData, role: e.target.value })}
                                     style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--color-border)" }}
                                 >
-                                    <option value="VIEWER">VIEWER (Read Only)</option>
-                                    <option value="EDITOR">EDITOR (Create/Edit)</option>
-                                    <option value="INSPECTOR">INSPECTOR (Approve)</option>
-                                    <option value="ADMIN">ADMIN (Full Access)</option>
+                                    <option value="VIEWER">VIEWER (唯讀)</option>
+                                    <option value="EDITOR">EDITOR (建立/編輯)</option>
+                                    <option value="INSPECTOR">INSPECTOR (審核)</option>
+                                    <option value="ADMIN">ADMIN (管理員)</option>
                                 </select>
                             </div>
 
                             <div style={{ marginBottom: "1.5rem", borderTop: "1px solid var(--color-border)", paddingTop: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "bold" }}>Qualifications</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "bold" }}>權限資歷</label>
                                 <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem" }}>
                                     <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
                                         <input
@@ -439,7 +439,7 @@ export default function UserManagementPage() {
                                             checked={formData.isQC}
                                             onChange={e => setFormData({ ...formData, isQC: e.target.checked })}
                                         />
-                                        <span>Quality Control (QC)</span>
+                                        <span>品管 (QC)</span>
                                     </label>
                                     <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
                                         <input
@@ -447,13 +447,13 @@ export default function UserManagementPage() {
                                             checked={formData.isPM}
                                             onChange={e => setFormData({ ...formData, isPM: e.target.checked })}
                                         />
-                                        <span>Project Manager (PM)</span>
+                                        <span>專案經理 (PM)</span>
                                     </label>
                                 </div>
                             </div>
 
                             <div style={{ marginBottom: "1.5rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Digital Signature</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>電子簽章</label>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -472,7 +472,7 @@ export default function UserManagementPage() {
                                             onClick={() => setFormData({ ...formData, signaturePath: '' })}
                                             style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-danger)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                                         >
-                                            Remove Signature
+                                            移除簽章
                                         </button>
                                     </div>
                                 )}
@@ -485,14 +485,14 @@ export default function UserManagementPage() {
                                     onClick={() => setIsCreateModalOpen(false)}
                                     className="btn btn-outline"
                                 >
-                                    Cancel
+                                    取消
                                 </button>
                                 <button
                                     type="submit"
                                     className="btn btn-primary"
                                     disabled={isSubmitting}
                                 >
-                                    {isSubmitting ? 'Creating...' : 'Create User'}
+                                    {isSubmitting ? '建立中...' : '建立使用者'}
                                 </button>
                             </div>
                         </form>
@@ -508,10 +508,10 @@ export default function UserManagementPage() {
                     zIndex: 1000
                 }}>
                     <div className="glass" style={{ padding: "2rem", borderRadius: "var(--radius-lg)", width: "500px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto" }}>
-                        <h2 style={{ marginBottom: "1.5rem" }}>Edit User</h2>
+                        <h2 style={{ marginBottom: "1.5rem" }}>編輯使用者</h2>
                         <form onSubmit={handleUpdateUser}>
                             <div style={{ marginBottom: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Username</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>使用者名稱</label>
                                 <input
                                     type="text"
                                     required
@@ -523,7 +523,7 @@ export default function UserManagementPage() {
                             </div>
                             <div style={{ marginBottom: "1rem" }}>
                                 <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                                    New Password <span style={{ fontWeight: "normal", fontSize: "0.85em", color: "var(--color-text-muted)" }}>(Leave blank to keep current)</span>
+                                    新密碼 <span style={{ fontWeight: "normal", fontSize: "0.85em", color: "var(--color-text-muted)" }}>(留白則保持不變)</span>
                                 </label>
                                 <div style={{ position: "relative" }}>
                                     <input
@@ -550,7 +550,7 @@ export default function UserManagementPage() {
                                             lineHeight: "1",
                                             padding: 0
                                         }}
-                                        title={showEditPassword ? "Hide password" : "Show password"}
+                                        title={showEditPassword ? "隱藏密碼" : "顯示密碼"}
                                     >
                                         {showEditPassword ? "👁️" : "👁️‍🗨️"}
                                     </button>
@@ -558,7 +558,7 @@ export default function UserManagementPage() {
                                 <PasswordStrengthIndicator password={formData.password} />
                             </div>
                             <div style={{ marginBottom: "1.5rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Role</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>角色</label>
                                 <select
                                     value={formData.role}
                                     onChange={e => setFormData({ ...formData, role: e.target.value })}
@@ -572,15 +572,15 @@ export default function UserManagementPage() {
                                         cursor: editingUser.id === session?.user?.id ? "not-allowed" : "default"
                                     }}
                                 >
-                                    <option value="VIEWER">VIEWER (Read Only)</option>
-                                    <option value="EDITOR">EDITOR (Create/Edit)</option>
-                                    <option value="INSPECTOR">INSPECTOR (Approve)</option>
-                                    <option value="ADMIN">ADMIN (Full Access)</option>
+                                    <option value="VIEWER">VIEWER (唯讀)</option>
+                                    <option value="EDITOR">EDITOR (建立/編輯)</option>
+                                    <option value="INSPECTOR">INSPECTOR (審核)</option>
+                                    <option value="ADMIN">ADMIN (管理員)</option>
                                 </select>
                             </div>
 
                             <div style={{ marginBottom: "1.5rem", borderTop: "1px solid var(--color-border)", paddingTop: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "bold" }}>Qualifications</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "bold" }}>權限資歷</label>
                                 <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem" }}>
                                     <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
                                         <input
@@ -588,7 +588,7 @@ export default function UserManagementPage() {
                                             checked={formData.isQC}
                                             onChange={e => setFormData({ ...formData, isQC: e.target.checked })}
                                         />
-                                        <span>Quality Control (QC)</span>
+                                        <span>品管 (QC)</span>
                                     </label>
                                     <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
                                         <input
@@ -596,13 +596,13 @@ export default function UserManagementPage() {
                                             checked={formData.isPM}
                                             onChange={e => setFormData({ ...formData, isPM: e.target.checked })}
                                         />
-                                        <span>Project Manager (PM)</span>
+                                        <span>專案經理 (PM)</span>
                                     </label>
                                 </div>
                             </div>
 
                             <div style={{ marginBottom: "1.5rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Digital Signature</label>
+                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>電子簽章</label>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -621,7 +621,7 @@ export default function UserManagementPage() {
                                             onClick={() => setFormData({ ...formData, signaturePath: '' })}
                                             style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-danger)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                                         >
-                                            Remove Signature
+                                            移除簽章
                                         </button>
                                     </div>
                                 )}
@@ -634,14 +634,14 @@ export default function UserManagementPage() {
                                     onClick={() => setIsEditModalOpen(false)}
                                     className="btn btn-outline"
                                 >
-                                    Cancel
+                                    取消
                                 </button>
                                 <button
                                     type="submit"
                                     className="btn btn-primary"
                                     disabled={isSubmitting}
                                 >
-                                    {isSubmitting ? 'Save Changes' : 'Update User'}
+                                    {isSubmitting ? '儲存中...' : '更新使用者'}
                                 </button>
                             </div>
                         </form>

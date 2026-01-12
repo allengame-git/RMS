@@ -243,7 +243,7 @@ export default function DeleteProjectButton({ project, onSuccess }: DeleteProjec
                 }}
                 title="申請刪除專案"
             >
-                Delete
+                刪除
             </button>
             {isModalOpen && mounted && typeof document !== 'undefined' && createPortal(modalContent, document.body)}
         </>
