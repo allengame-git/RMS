@@ -48,11 +48,9 @@ next-env.d.ts
 *.db
 *.db-journal
 
-# Uploads
+# Uploads and Documents
 /public/uploads
-
-# Public folder (uploaded files)
-/public
+/public/iso_doc
 
 # Agent folder
 .agent

@@ -452,7 +452,8 @@ export const generateQCDocument = async (
                 // Reviewer (if approved or rejected)
                 if (req.reviewedBy || req.status === 'APPROVED' || req.status === 'REJECTED' || req.status === 'RESUBMITTED') {
                     const reviewerName = req.reviewedBy?.username || 'N/A';
-                    const reviewStatus = req.status === 'APPROVED' ? '核准' : req.status === 'REJECTED' ? '退回' : '已處理';
+                    // 統一使用「核准」或「退回」，不使用「已處理」
+                    const reviewStatus = req.status === 'REJECTED' || req.status === 'RESUBMITTED' ? '退回' : '核准';
                     y = drawSection(
                         `${reviewStatus}人員:`,
                         reviewerName,

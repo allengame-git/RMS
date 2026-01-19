@@ -143,13 +143,10 @@ npm install
 ```bash
 npx prisma generate
 npx prisma db push
-```
-
-### 建立預設管理員 (可選)
-
-```bash
 npx prisma db seed
 ```
+
+> 💡 **注意**: `db seed` 會建立預設管理員帳號 `admin` / `adminpassword`。新環境部署後務必執行此指令。
 
 ### 啟動開發伺服器
 

@@ -50,5 +50,8 @@
     "prisma": "5.22.0",
     "typescript": "^5",
     "vitest": "^4.0.17"
+  },
+  "prisma": {
+    "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/seed-admin.ts"
   }
 }
