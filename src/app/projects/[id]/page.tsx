@@ -18,6 +18,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         where: { id: projectId },
         include: {
             items: {
+                where: { isDeleted: false },
                 orderBy: { fullId: 'asc' }
             }
         }

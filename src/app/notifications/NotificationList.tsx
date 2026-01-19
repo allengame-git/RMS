@@ -71,15 +71,41 @@ export default function NotificationList({ initialNotifications }: NotificationL
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "REJECTION":
-        return "❌";
+        return (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+        );
       case "REVISION_REQUEST":
-        return "📝";
+        return (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        );
       case "APPROVAL":
-        return "✅";
+        return (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+        );
       case "COMPLETED":
-        return "🎉";
+        return (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+        );
       default:
-        return "📢";
+        return (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+        );
     }
   };
 
@@ -132,7 +158,11 @@ export default function NotificationList({ initialNotifications }: NotificationL
       <div className="notification-list">
         {filteredNotifications.length === 0 ? (
           <div className="empty-state">
-            <span className="empty-icon">📭</span>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.5" style={{ marginBottom: "16px", opacity: 0.5 }}>
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg>
             <p>{filter === "unread" ? "沒有未讀通知" : "沒有通知"}</p>
           </div>
         ) : (
@@ -157,7 +187,10 @@ export default function NotificationList({ initialNotifications }: NotificationL
                 onClick={() => handleDelete(notification.id)}
                 title="刪除通知"
               >
-                ✕
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
           ))
@@ -279,8 +312,14 @@ export default function NotificationList({ initialNotifications }: NotificationL
         }
 
         .notification-icon {
-          font-size: 28px;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           flex-shrink: 0;
+          background-color: var(--color-bg-elevated);
+          border-radius: 8px;
         }
 
         .notification-body {

@@ -137,7 +137,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                                     )}
                                 </div>
                             </div>
-                            {canEdit && (
+                            {canEdit && !item.isDeleted && (
                                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                                     {isPending && <span style={{ color: "var(--color-warning)", fontSize: "0.9rem", marginRight: "0.5rem" }}>⚠️ 審核中</span>}
                                     <EditItemButton
@@ -150,6 +150,18 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                                         isDisabled={isPending}
                                     />
                                 </div>
+                            )}
+                            {item.isDeleted && (
+                                <span style={{
+                                    padding: "0.4rem 0.8rem",
+                                    backgroundColor: "rgba(239, 68, 68, 0.1)",
+                                    color: "#ef4444",
+                                    borderRadius: "var(--radius-sm)",
+                                    fontSize: "0.85rem",
+                                    fontWeight: 500
+                                }}>
+                                    已刪除
+                                </span>
                             )}
                         </div>
 

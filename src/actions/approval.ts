@@ -138,6 +138,28 @@ export async function submitDeleteItemRequest(itemId: number, submitReason?: str
         return { error: "Cannot delete item with existing children. Please delete children first." };
     }
 
+    // 檢查是否有進行中的 ChangeRequest (PENDING 狀態)
+    const pendingChangeRequests = await prisma.changeRequest.count({
+        where: {
+            itemId: itemId,
+            status: "PENDING"
+        }
+    });
+    if (pendingChangeRequests > 0) {
+        return { error: "該項目有待審核的變更申請，請等待審核完成後再申請刪除" };
+    }
+
+    // 檢查是否有未完成的 QC/PM 審查流程
+    const pendingApprovals = await prisma.qCDocumentApproval.count({
+        where: {
+            itemHistory: { itemId: itemId },
+            status: { notIn: ["COMPLETED", "REJECTED"] }
+        }
+    });
+    if (pendingApprovals > 0) {
+        return { error: "該項目有未完成的品質審查流程，請等待 QC/PM 審核完成後再申請刪除" };
+    }
+
     const item = await prisma.item.findUnique({ where: { id: itemId } });
     if (!item) return { error: "Item not found" };
 
