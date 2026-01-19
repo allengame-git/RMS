@@ -172,6 +172,7 @@ function AccordionItem({ node, level, canEdit, projectId, currentItemId }: Accor
                         <CreateItemForm
                             projectId={projectId}
                             parentId={node.id}
+                            parentFullId={node.fullId}
                             modal={true}
                             trigger={
                                 <button

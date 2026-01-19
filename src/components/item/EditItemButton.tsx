@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import RichTextEditor from "../editor/RichTextEditor";
 import { submitUpdateItemRequest } from "@/actions/approval";
 import RelatedItemsManager from "./RelatedItemsManager";
@@ -30,6 +31,7 @@ interface Reference {
 interface EditItemButtonProps {
     item: {
         id: number;
+        fullId: string;  // Item 編號，例如 "DAREN-1-2"
         title: string;
         content: string | null;
         attachments: string | null;
@@ -60,6 +62,7 @@ interface EditItemButtonProps {
 }
 
 export default function EditItemButton({ item, isDisabled = false }: EditItemButtonProps) {
+    const router = useRouter();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [title, setTitle] = useState(item.title);
     const [content, setContent] = useState(item.content || "");
@@ -147,6 +150,7 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
                 setStatus({ error: result.error });
             } else {
                 setStatus({ message: result.message });
+                router.refresh(); // 強制刷新頁面資料
                 setTimeout(() => {
                     setIsModalOpen(false);
                     setStatus(null);
@@ -175,8 +179,23 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
                 boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
                 border: "1px solid var(--color-border)"
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "1.5rem" }}>
-                    <h2 style={{ margin: 0 }}>編輯項目</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "1px solid var(--color-border)" }}>
+                    <div>
+                        <h2 style={{ margin: 0, display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                            編輯項目
+                            <span style={{
+                                fontFamily: 'var(--font-geist-mono)',
+                                fontSize: '0.9rem',
+                                fontWeight: 600,
+                                color: 'white',
+                                backgroundColor: 'var(--color-primary)',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: 'var(--radius-sm)',
+                            }}>
+                                {item.fullId}
+                            </span>
+                        </h2>
+                    </div>
                     <button
                         type="button"
                         onClick={() => setIsModalOpen(false)}

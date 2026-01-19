@@ -4,6 +4,7 @@ import { useFormStatus, useFormState } from "react-dom";
 import { createPortal } from "react-dom";
 import { submitCreateItemRequest, ApprovalState } from "@/actions/approval";
 import { useEffect, useState, CSSProperties, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import RichTextEditor from "../editor/RichTextEditor";
 import RelatedItemsManager from "./RelatedItemsManager";
 import ReferencesManager from "./ReferencesManager";
@@ -85,28 +86,37 @@ interface FileInfo {
 interface CreateItemFormProps {
     projectId: number;
     parentId?: number;
+    parentFullId?: string;  // 父項目的 fullId，例如 "DAREN-1"
+    codePrefix?: string;    // 專案的 codePrefix，例如 "DAREN"
     style?: CSSProperties;
     className?: string;
     modal?: boolean;
     trigger?: ReactNode;
 }
 
-export default function CreateItemForm({ projectId, parentId, style, className, modal = false, trigger }: CreateItemFormProps) {
+export default function CreateItemForm({ projectId, parentId, parentFullId, codePrefix, style, className, modal = false, trigger }: CreateItemFormProps) {
+    const router = useRouter();
     const [state, formAction] = useFormState(submitCreateItemRequest, initialState);
     const [isOpen, setIsOpen] = useState(false);
     const [content, setContent] = useState("");
     const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
     const [references, setReferences] = useState<Reference[]>([]);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     useEffect(() => {
         if (state.message) {
-            setIsOpen(false);
-            setContent(""); // Reset content
-            setRelatedItems([]); // Reset related items
-            setReferences([]); // Reset references
-            alert(state.message);
+            setSuccessMessage(state.message);
+            // 延遲關閉 modal 讓用戶看到成功訊息
+            setTimeout(() => {
+                setIsOpen(false);
+                setContent("");
+                setRelatedItems([]);
+                setReferences([]);
+                setSuccessMessage(null);
+                router.refresh(); // 強制刷新頁面資料
+            }, 1500);
         }
-    }, [state.message]);
+    }, [state.message, router]);
 
     // Close modal on escape key
     useEffect(() => {
@@ -160,6 +170,26 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
 
             {/* Hidden input to submit rich text content */}
             <input type="hidden" name="content" value={content} />
+
+            {successMessage && (
+                <div style={{
+                    padding: "0.75rem 1rem",
+                    backgroundColor: "rgba(16, 185, 129, 0.1)",
+                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                    borderRadius: "var(--radius-sm)",
+                    color: "#10b981",
+                    fontSize: "0.9rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
+                }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    {successMessage}
+                </div>
+            )}
 
             {state.error && (
                 <div style={{
@@ -350,7 +380,12 @@ export default function CreateItemForm({ projectId, parentId, style, className, 
                                     {parentId ? '新增子項目' : '新增項目'}
                                 </h3>
                                 <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
-                                    填寫以下資訊後提交審核
+                                    {parentFullId
+                                        ? `將在 ${parentFullId} 下新增子項目`
+                                        : codePrefix
+                                            ? `將在 ${codePrefix} 下新增項目`
+                                            : '填寫以下資訊後提交審核'
+                                    }
                                 </p>
                             </div>
                         </div>

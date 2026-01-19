@@ -78,7 +78,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
                     marginBottom: "1.5rem"
                 }}>
                     <h2 style={{ margin: 0, fontSize: "1.25rem" }}>項目列表</h2>
-                    {canEdit && <CreateItemForm projectId={projectId} />}
+                    {canEdit && <CreateItemForm projectId={projectId} codePrefix={project.codePrefix} />}
                 </div>
 
                 <div className="flex-col gap-sm">
