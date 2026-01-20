@@ -7,13 +7,26 @@ import { existsSync } from 'fs';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_TYPES = [
+    // PDF
     'application/pdf',
+    // Word
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    // Excel
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // PowerPoint
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    // Images
     'image/jpeg',
     'image/png',
     'image/gif',
     'image/webp',
+    'image/svg+xml',
+    // Text
+    'text/plain',
+    'text/csv',
 ];
 
 export async function POST(request: NextRequest) {
@@ -42,10 +55,13 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'File type not allowed' }, { status: 400 });
         }
 
-        // Generate safe filename
+        // Generate safe filename with path traversal protection
         const timestamp = Date.now();
-        const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const filename = `${timestamp}-${sanitizedName}`;
+        const sanitizedName = file.name
+            .replace(/[^a-zA-Z0-9.-]/g, '_')
+            .replace(/\.\./g, '_'); // 防止路徑穿越
+        const safeFilename = path.basename(sanitizedName); // 確保只取檔名
+        const filename = `${timestamp}-${safeFilename}`;
 
         // Create upload directory structure (year/month)
         const now = new Date();
