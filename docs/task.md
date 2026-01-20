@@ -1,6 +1,6 @@
 # 低放射性廢棄物處置管理系統 - 開發進度 (task.md)
 
->> 最後更新: 2026-01-19
+>> 最後更新: 2026-01-20
 
 ## 進度總覽
 
@@ -27,6 +27,7 @@
 | Phase 22 | PDF 截斷修復 (支援多頁分頁) | ✅ 完成 |
 | Phase 23 | 專案頁面中文化與 UI 優化 | ✅ 完成 |
 | Phase 24 | 刪除流程優化與通知中心 UI 更新 | ✅ 完成 |
+| Phase 25 | 單一專案備份與轉移功能 | ✅ 完成 |
 
 ---
 
@@ -459,3 +460,31 @@
 - [x] 更新 `README.md` - 加入完整套件依賴說明
 - [x] 更新 `docs/tech.md` - 加入套件依賴完整清單
 - [x] 更新 `docs/task.md` - 加入 Phase 23
+
+---
+
+## Phase 25: 單一專案備份與轉移功能 (v2.0.0) ✅
+
+### Phase 25.1: 後端服務 ✅
+
+- [x] 建立 `src/lib/backup/export-service.ts` - 專案匯出 ZIP 服務
+- [x] 建立 `src/lib/backup/import-service.ts` - 專案匯入服務 (含 ID mapping)
+- [x] 實作 14 步驟嚴格匯入順序 (含兩階段 UPDATE)
+- [x] 新增 `/api/admin/backup/project/[id]` - 專案匯出 API
+- [x] 新增 `/api/admin/restore/project` - 專案匯入 API (含自動備份)
+- [x] 新增 `/api/projects` - 專案列表 API
+
+### Phase 25.2: 前端 UI ✅
+
+- [x] 建立 `ProjectBackupSection.tsx` - 專案備份/匯入介面
+- [x] 修改 `BackupRestoreSection.tsx` - 新增 Tab 切換 (系統級/單一專案)
+- [x] 專案選擇下拉選單
+- [x] 匯入確認對話框 (需輸入 IMPORT)
+- [x] 匯入前自動執行全系統備份
+
+### Phase 25.3: 資料安全 ✅
+
+- [x] ID Mapping 機制 - 所有 ID 匯入時重新生成
+- [x] codePrefix 衝突處理 - 自動重新命名 (加 `_imported` 後綴)
+- [x] 匯入前自動備份 - 執行 `pg_dump` 產生 SQL 檔案
+- [x] 交易模式 - 使用 Prisma `$transaction` 確保原子性

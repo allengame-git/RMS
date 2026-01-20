@@ -69,12 +69,26 @@ export async function POST(request: NextRequest) {
         // 9. 複製檔案
         copyRecursive(uploadsBackupDir, targetDir);
 
-        // 10. 清理暫存檔案
+        // 10. 檢查並還原靜態資源 (static 目錄)
+        const staticBackupDir = path.join(tempDir, 'static');
+        if (fs.existsSync(staticBackupDir)) {
+            const publicDir = path.join(process.cwd(), 'public');
+            const staticFiles = fs.readdirSync(staticBackupDir);
+            for (const file of staticFiles) {
+                const srcPath = path.join(staticBackupDir, file);
+                const destPath = path.join(publicDir, file);
+                if (fs.statSync(srcPath).isFile()) {
+                    fs.copyFileSync(srcPath, destPath);
+                }
+            }
+        }
+
+        // 11. 清理暫存檔案
         fs.rmSync(tempDir, { recursive: true });
 
         return NextResponse.json({
             success: true,
-            message: '上傳檔案復原成功！',
+            message: '上傳檔案復原成功！' + (fs.existsSync(staticBackupDir) ? '（含靜態資源）' : ''),
             stats: manifest.stats,
         });
     } catch (error) {

@@ -58,9 +58,36 @@ export async function POST() {
 
         // 4. 計算統計資訊
         const stats = getDirectoryStats(uploadsDir);
-        const manifest = generateFileManifest('uploads', stats.fileCount, stats.totalSize);
 
-        // 5. 建立 ZIP 檔案
+        // 5. 收集 public 根目錄的靜態圖片資源
+        const publicDir = path.join(process.cwd(), 'public');
+        const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'];
+        const staticAssets: string[] = [];
+
+        if (fs.existsSync(publicDir)) {
+            const publicFiles = fs.readdirSync(publicDir);
+            for (const file of publicFiles) {
+                const ext = path.extname(file).toLowerCase();
+                if (imageExtensions.includes(ext)) {
+                    staticAssets.push(file);
+                }
+            }
+        }
+
+        // 計算靜態資源大小
+        let staticAssetsSize = 0;
+        for (const file of staticAssets) {
+            const filePath = path.join(publicDir, file);
+            staticAssetsSize += fs.statSync(filePath).size;
+        }
+
+        const manifest = {
+            ...generateFileManifest('uploads', stats.fileCount + staticAssets.length, stats.totalSize + staticAssetsSize),
+            staticAssets: staticAssets.length,
+            staticAssetsSize: staticAssetsSize,
+        };
+
+        // 6. 建立 ZIP 檔案
         const archive = archiver('zip', { zlib: { level: 6 } }); // 使用較低壓縮等級加快速度
         const passthrough = new PassThrough();
 
@@ -68,6 +95,11 @@ export async function POST() {
 
         // 加入 uploads 目錄
         archive.directory(uploadsDir, 'uploads');
+
+        // 加入 public 根目錄的靜態圖片
+        for (const file of staticAssets) {
+            archive.file(path.join(publicDir, file), { name: `static/${file}` });
+        }
 
         // 加入 manifest.json
         archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });

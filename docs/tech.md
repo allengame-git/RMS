@@ -1,6 +1,6 @@
 # 技術文件 - 低放射性廢棄物處置管理系統 (tech.md)
 
->> 最後更新: 2026-01-19
+>> 最後更新: 2026-01-20
 
 ## 專案資訊
 
@@ -45,6 +45,7 @@
 | `puppeteer` | ^24.34.0 | 無頭瀏覽器 (HTML 轉 PDF/截圖) |
 | `adm-zip` | ^0.5.16 | ZIP 檔案解壓縮 (備份還原) |
 | `archiver` | ^7.0.1 | ZIP 檔案壓縮 (系統備份) |
+| `unzipper` | ^0.12.3 | ZIP 檔案解壓縮 (專案備份還原) |
 | `clsx` | ^2.1.1 | CSS class 名稱條件組合 |
 | `zustand` | ^5.0.9 | 輕量級前端狀態管理 |
 | `react-easy-crop` | ^5.5.6 | 圖片裁切功能 (簽名上傳) |
@@ -65,6 +66,7 @@
 | `@types/pdfkit` | ^0.17.4 | pdfkit 型別定義 |
 | `@types/adm-zip` | ^0.5.7 | adm-zip 型別定義 |
 | `@types/archiver` | ^7.0.0 | archiver 型別定義 |
+| `@types/unzipper` | ^0.10.11 | unzipper 型別定義 |
 
 ### 安裝指令
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 // 所有需要備份的資料表 (依據外鍵關聯順序)
 const TABLES = [
     'User',
+    'ProjectCategory',  // 必須在 Project 之前（Project 有外鍵依賴 ProjectCategory）
     'Project',
     'Item',
     'ItemRelation',
@@ -94,12 +95,15 @@ export async function exportDatabaseToSQL(): Promise<string> {
     // 統計資訊
     const stats: Record<string, number> = {};
 
-    // 依照相反順序刪除資料 (避免外鍵衝突)
+    // 依照相反順序清空資料 (使用 TRUNCATE CASCADE 確保強制清空)
     const reverseTables = [...TABLES].reverse();
+    sql += '-- Disable foreign key checks temporarily\n';
+    sql += 'SET session_replication_role = replica;\n\n';
     for (const table of reverseTables) {
-        sql += `DELETE FROM "${table}" CASCADE;\n`;
+        sql += `TRUNCATE TABLE "${table}" CASCADE;\n`;
     }
-    sql += '\n';
+    sql += '\n-- Re-enable foreign key checks\n';
+    sql += 'SET session_replication_role = DEFAULT;\n\n';
 
     // 依序匯出各資料表
     for (const table of TABLES) {

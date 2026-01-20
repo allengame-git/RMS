@@ -19,10 +19,17 @@ interface User {
     lockedUntil: Date | null;
 }
 
+interface Project {
+    id: number;
+    title: string;
+    codePrefix: string;
+}
+
 export default function UserManagementPage() {
     const { data: session } = useSession();
     const router = useRouter();
     const [users, setUsers] = useState<User[]>([]);
+    const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Modal States
@@ -47,6 +54,7 @@ export default function UserManagementPage() {
     useEffect(() => {
         if (session?.user?.role !== "ADMIN") return;
         fetchUsers();
+        fetchProjects();
     }, [session]);
 
     const fetchUsers = async () => {
@@ -58,6 +66,22 @@ export default function UserManagementPage() {
             setFetchError("無法獲取使用者資訊。請檢查權限或稍後再試。");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchProjects = async () => {
+        try {
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+                const data = await response.json();
+                setProjects(data.map((p: any) => ({
+                    id: p.id,
+                    title: p.title,
+                    codePrefix: p.codePrefix,
+                })));
+            }
+        } catch (error) {
+            console.error("Failed to fetch projects", error);
         }
     };
 
@@ -651,7 +675,7 @@ export default function UserManagementPage() {
             )}
 
             {/* 備份與復原區塊 */}
-            <BackupRestoreSection />
+            <BackupRestoreSection projects={projects} />
         </div>
     );
 }
