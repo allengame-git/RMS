@@ -13,6 +13,40 @@ export type ApprovalState = {
     error?: string;
 };
 
+// ==================== Helper Functions ====================
+
+/** 可編輯角色列表 */
+const EDITABLE_ROLES = ["EDITOR", "INSPECTOR", "ADMIN"];
+
+/** 可審核角色列表 */
+const REVIEWER_ROLES = ["INSPECTOR", "ADMIN"];
+
+/** 檢查使用者是否有編輯權限 */
+const canEdit = (role: string) => EDITABLE_ROLES.includes(role);
+
+/** 檢查使用者是否有審核權限 */
+const canReview = (role: string) => REVIEWER_ROLES.includes(role);
+
+/** 將 ItemRelation 陣列映射為 snapshot 格式 */
+const mapRelationsToSnapshot = (relations: any[]) =>
+    relations.map(r => ({
+        id: r.target.id,
+        fullId: r.target.fullId,
+        title: r.target.title,
+        description: r.description
+    }));
+
+/** 將 ItemReference 陣列映射為 snapshot 格式 */
+const mapReferencesToSnapshot = (refs: any[]) =>
+    refs.map(r => ({
+        fileId: r.file.id,
+        dataCode: r.file.dataCode,
+        dataName: r.file.dataName,
+        dataYear: r.file.dataYear,
+        author: r.file.author,
+        citation: r.citation
+    }));
+
 // --- Submit Request ---
 
 export async function submitCreateItemRequest(
@@ -20,7 +54,7 @@ export async function submitCreateItemRequest(
     formData: FormData
 ): Promise<ApprovalState> {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== "EDITOR" && session.user.role !== "INSPECTOR" && session.user.role !== "ADMIN")) {
+    if (!session || !canEdit(session.user.role)) {
         return { error: "Unauthorized" };
     }
 
@@ -72,7 +106,7 @@ export async function submitUpdateItemRequest(
     formData: FormData
 ): Promise<ApprovalState> {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== "EDITOR" && session.user.role !== "INSPECTOR" && session.user.role !== "ADMIN")) {
+    if (!session || !canEdit(session.user.role)) {
         return { error: "Unauthorized" };
     }
 
@@ -125,7 +159,7 @@ export async function submitUpdateItemRequest(
 // --- Submit Delete Request ---
 export async function submitDeleteItemRequest(itemId: number, submitReason?: string): Promise<ApprovalState> {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== "EDITOR" && session.user.role !== "INSPECTOR" && session.user.role !== "ADMIN")) {
+    if (!session || !canEdit(session.user.role)) {
         return { error: "Unauthorized" };
     }
 
@@ -190,7 +224,7 @@ export async function submitUpdateProjectRequest(
     formData: FormData
 ): Promise<ApprovalState> {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== "EDITOR" && session.user.role !== "INSPECTOR" && session.user.role !== "ADMIN")) {
+    if (!session || !canEdit(session.user.role)) {
         return { error: "Unauthorized" };
     }
 
@@ -275,7 +309,7 @@ export async function submitDeleteProjectRequest(projectId: number): Promise<App
 
 export async function getPendingRequests() {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR")) return [];
+    if (!session || !canReview(session.user.role)) return [];
 
     return await prisma.changeRequest.findMany({
         where: { status: "PENDING" },
@@ -312,7 +346,7 @@ export async function getPendingRequests() {
 
 export async function approveRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR")) throw new Error("Unauthorized");
+    if (!session || !canReview(session.user.role)) throw new Error("Unauthorized");
 
     const request = await prisma.changeRequest.findUnique({
         where: { id: requestId },
@@ -404,8 +438,8 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
                 title: newItem.title,
                 content: newItem.content,
                 attachments: newItem.attachments,
-                relatedItems: relationsForSnapshot.map(r => ({ id: r.target.id, fullId: r.target.fullId, title: r.target.title, description: r.description })),
-                references: referencesForSnapshot.map(r => ({ fileId: r.file.id, dataCode: r.file.dataCode, dataName: r.file.dataName, dataYear: r.file.dataYear, author: r.file.author, citation: r.citation }))
+                relatedItems: mapRelationsToSnapshot(relationsForSnapshot),
+                references: mapReferencesToSnapshot(referencesForSnapshot)
             };
 
             await createHistoryRecord(newItem, snapshot, { id: request.id, submittedById: request.submittedById, submitReason: request.submitReason, reviewNote: reviewNote, createdAt: request.createdAt }, "CREATE", session.user.id);
@@ -431,8 +465,8 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
                 title: originalItem.title,
                 content: originalItem.content,
                 attachments: originalItem.attachments,
-                relatedItems: originalRelations.map(r => ({ id: r.target.id, fullId: r.target.fullId, title: r.target.title, description: r.description })),
-                references: originalReferences.map(r => ({ fileId: r.file.id, dataCode: r.file.dataCode, dataName: r.file.dataName, dataYear: r.file.dataYear, author: r.file.author, citation: r.citation }))
+                relatedItems: mapRelationsToSnapshot(originalRelations),
+                references: mapReferencesToSnapshot(originalReferences)
             };
 
             await prisma.item.update({
@@ -510,8 +544,8 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
                     title: updatedItem.title,
                     content: updatedItem.content,
                     attachments: updatedItem.attachments,
-                    relatedItems: updatedRelations.map(r => ({ id: r.target.id, fullId: r.target.fullId, title: r.target.title, description: r.description })),
-                    references: updatedReferences.map(r => ({ fileId: r.file.id, dataCode: r.file.dataCode, dataName: r.file.dataName, dataYear: r.file.dataYear, author: r.file.author, citation: r.citation }))
+                    relatedItems: mapRelationsToSnapshot(updatedRelations),
+                    references: mapReferencesToSnapshot(updatedReferences)
                 };
 
                 await createHistoryRecord(updatedItem, newSnapshot, { id: request.id, submittedById: request.submittedById, submitReason: request.submitReason, reviewNote: reviewNote, createdAt: request.createdAt }, "UPDATE", session.user.id, oldSnapshot);
@@ -543,8 +577,8 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
                 title: item.title,
                 content: item.content,
                 attachments: item.attachments,
-                relatedItems: relations.map(r => ({ id: r.target.id, fullId: r.target.fullId, title: r.target.title, description: r.description })),
-                references: itemReferences.map(r => ({ fileId: r.file.id, dataCode: r.file.dataCode, dataName: r.file.dataName, dataYear: r.file.dataYear, author: r.file.author, citation: r.citation }))
+                relatedItems: mapRelationsToSnapshot(relations),
+                references: mapReferencesToSnapshot(itemReferences)
             };
 
             // Delete relations first
@@ -628,7 +662,7 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
 
 export async function rejectRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR")) throw new Error("Unauthorized");
+    if (!session || !canReview(session.user.role)) throw new Error("Unauthorized");
 
     // Get request details for notification
     const request = await prisma.changeRequest.findUnique({

@@ -17,6 +17,33 @@ export type QCApprovalState = {
     error?: string;
 };
 
+// ==================== Helper Functions ====================
+
+/** 取得當前使用者的 QC/PM 資格 */
+const getUserQualifications = async (userId: string) =>
+    prisma.user.findUnique({
+        where: { id: userId },
+        select: { isQC: true, isPM: true, username: true }
+    });
+
+/** 取得 ChangeRequest 的提交日期 */
+const getSubmissionDate = async (changeRequestId: number | null) => {
+    if (!changeRequestId) return undefined;
+    const req = await prisma.changeRequest.findUnique({ where: { id: changeRequestId } });
+    return req?.createdAt;
+};
+
+/** 共用的 include 結構 */
+const APPROVAL_INCLUDE = {
+    itemHistory: {
+        include: {
+            project: true,
+            submittedBy: { select: { id: true, username: true } },
+            reviewedBy: { select: { id: true, username: true } },
+        }
+    }
+} as const;
+
 /**
  * Get pending QC approvals for QC users
  */
@@ -24,25 +51,12 @@ export async function getPendingQCApprovals() {
     const session = await getServerSession(authOptions);
     if (!session) throw new Error("Unauthorized");
 
-    // Get user's qualifications
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isQC: true, isPM: true }
-    });
-
+    const user = await getUserQualifications(session.user.id);
     if (!user?.isQC) throw new Error("Unauthorized - QC qualification required");
 
     return await prisma.qCDocumentApproval.findMany({
         where: { status: "PENDING_QC" },
-        include: {
-            itemHistory: {
-                include: {
-                    project: true,
-                    submittedBy: { select: { id: true, username: true } },
-                    reviewedBy: { select: { id: true, username: true } },
-                }
-            }
-        },
+        include: APPROVAL_INCLUDE,
         orderBy: { createdAt: "desc" }
     });
 }
@@ -54,12 +68,7 @@ export async function getPendingPMApprovals() {
     const session = await getServerSession(authOptions);
     if (!session) throw new Error("Unauthorized");
 
-    // Get user's qualifications
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isQC: true, isPM: true }
-    });
-
+    const user = await getUserQualifications(session.user.id);
     if (!user?.isPM) throw new Error("Unauthorized - PM qualification required");
 
     return await prisma.qCDocumentApproval.findMany({
@@ -85,11 +94,7 @@ export async function getQCDocumentApprovals() {
     const session = await getServerSession(authOptions);
     if (!session) throw new Error("Unauthorized");
 
-    // Get user's qualifications
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isQC: true, isPM: true }
-    });
+    const user = await getUserQualifications(session.user.id);
 
     if (!user?.isQC && !user?.isPM) {
         return [];
@@ -129,12 +134,7 @@ export async function approveAsQC(
     const session = await getServerSession(authOptions);
     if (!session) return { error: "Unauthorized" };
 
-    // Verify QC qualification
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isQC: true, username: true }
-    });
-
+    const user = await getUserQualifications(session.user.id);
     if (!user?.isQC) return { error: "Unauthorized - QC qualification required" };
 
     // Get the approval record
@@ -223,12 +223,7 @@ export async function approveAsPM(
     const session = await getServerSession(authOptions);
     if (!session) return { error: "Unauthorized" };
 
-    // Verify PM qualification
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isPM: true, username: true }
-    });
-
+    const user = await getUserQualifications(session.user.id);
     if (!user?.isPM) return { error: "Unauthorized - PM qualification required" };
 
     // Get the approval record
@@ -330,12 +325,7 @@ export async function rejectQCDocument(
     const session = await getServerSession(authOptions);
     if (!session) return { error: "Unauthorized" };
 
-    // Verify user has QC or PM qualification
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isQC: true, isPM: true, username: true }
-    });
-
+    const user = await getUserQualifications(session.user.id);
     if (!user?.isQC && !user?.isPM) {
         return { error: "Unauthorized - QC or PM qualification required" };
     }
@@ -438,11 +428,7 @@ export async function getPendingQCDocumentCount(): Promise<number> {
     const session = await getServerSession(authOptions);
     if (!session) return 0;
 
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isQC: true, isPM: true }
-    });
-
+    const user = await getUserQualifications(session.user.id);
     if (!user?.isQC && !user?.isPM) return 0;
 
     const whereConditions: string[] = [];
