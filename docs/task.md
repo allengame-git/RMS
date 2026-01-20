@@ -28,6 +28,7 @@
 | Phase 23 | 專案頁面中文化與 UI 優化 | ✅ 完成 |
 | Phase 24 | 刪除流程優化與通知中心 UI 更新 | ✅ 完成 |
 | Phase 25 | 單一專案備份與轉移功能 | ✅ 完成 |
+| Phase 26 | PDF 重構與資料庫還原優化 | ✅ 完成 |
 
 ---
 
@@ -488,3 +489,31 @@
 - [x] codePrefix 衝突處理 - 自動重新命名 (加 `_imported` 後綴)
 - [x] 匯入前自動備份 - 執行 `pg_dump` 產生 SQL 檔案
 - [x] 交易模式 - 使用 Prisma `$transaction` 確保原子性
+
+---
+
+## Phase 26: PDF 重構與資料庫還原優化 (v2.1.0) ✅
+
+### Phase 26.1: PDF 生成重構 ✅
+
+- [x] 移除 Puppeteer 依賴 - PDF 第二頁改用純 `pdf-lib` 渲染
+- [x] 移除審核時間軸 - 第一頁已有相關內容，避免重複
+- [x] 清理未使用的 imports - 移除 `html-renderer` 相關
+
+### Phase 26.2: 資料庫還原優化 ✅
+
+- [x] 支援直接上傳 `.sql` 檔案還原 (原本只支援 `.zip`)
+- [x] 更新 BackupRestoreSection UI - accept 改為 `.zip,.sql`
+- [x] 完整 SQL 內容驗證 (INSERT/User/Admin 檢查)
+
+### Phase 26.3: 專案匯入修復 ✅
+
+- [x] 替換 `unzipper` 為 `adm-zip` (解決 AWS SDK 建置錯誤)
+- [x] 更新 import-service.ts 使用 Buffer 參數
+- [x] 清理未使用的套件引用
+
+### Phase 26.4: 文件更新 ✅
+
+- [x] 更新 README.md - PDF 改為 pdf-lib 主要使用
+- [x] 更新 docs/tech.md - 套件清單同步更新
+- [x] 更新 docs/task.md - 新增 Phase 26 紀錄

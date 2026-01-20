@@ -46,7 +46,7 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 | 資料庫 | Prisma + PostgreSQL | Prisma 5.22.0 |
 | 認證 | NextAuth.js | ^4.24.13 |
 | 編輯器 | Tiptap (ProseMirror-based) | ^3.14.0 |
-| PDF 生成 | pdf-lib + Puppeteer | pdf-lib ^1.17.1, puppeteer ^24.34.0 |
+| PDF 生成 | pdf-lib (純 JavaScript) | ^1.17.1 |
 | 狀態管理 | Zustand | ^5.0.9 |
 | 樣式 | Vanilla CSS + CSS Variables | - |
 | 部署 | Docker + Nginx / Vercel + Neon | - |
@@ -93,20 +93,19 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 
 | 套件 | 說明 |
 |------|------|
-| `pdf-lib` | 純 JavaScript PDF 生成/修改函式庫 |
+| `pdf-lib` | 純 JavaScript PDF 生成/修改函式庫 (主要使用) |
 | `@pdf-lib/fontkit` | 自定義字型嵌入支援 (中文字型) |
-| `puppeteer` | 無頭瀏覽器，用於 HTML 轉 PDF 與截圖渲染 |
+| `puppeteer` | (可選) 無頭瀏覽器，用於舊版 HTML 渲染 |
 | `pdfkit` | (備用) PDF 生成函式庫 |
 
-> ⚠️ **Puppeteer 注意事項**: 此套件會自動下載 Chromium 瀏覽器 (~200MB)，首次安裝需確保網路暢通。
+> 💡 **PDF 生成說明**: 系統已改用純 `pdf-lib` 方式生成 PDF，不再依賴 Puppeteer。Puppeteer 僅作為舊版相容保留。
 
 ### 檔案處理
 
 | 套件 | 說明 |
 |------|------|
-| `adm-zip` | ZIP 檔案解壓縮 (用於備份還原) |
-| `archiver` | ZIP 檔案壓縮 (用於系統備份) |
-| `unzipper` | ZIP 檔案解壓縮 (用於單一專案備份還原) |
+| `adm-zip` | ZIP 檔案壓縮/解壓縮 (系統備份、專案匯入還原) |
+| `archiver` | ZIP 檔案壓縮 (專案匯出備份) |
 
 ### UI 工具
 

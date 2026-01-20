@@ -10,7 +10,7 @@
 | **技術棧** | Next.js, TypeScript, Prisma, PostgreSQL, NextAuth.js | - |
 | **樣式方案** | Vanilla CSS + CSS Variables | - |
 | **編輯器** | Tiptap (ProseMirror-based) | ^3.14.0 |
-| **PDF 生成** | pdf-lib + Puppeteer (高真度多頁渲染) | pdf-lib ^1.17.1 |
+| **PDF 生成** | pdf-lib (純 JavaScript，無需 Puppeteer) | pdf-lib ^1.17.1 |
 | **部署方案** | Docker + Nginx / Vercel + Neon PostgreSQL | - |
 
 ---
@@ -39,13 +39,12 @@
 | `@tiptap/extension-table-row` | ^3.14.0 | 表格行 |
 | `@tiptap/extension-text-align` | ^3.15.3 | 文字對齊功能 |
 | `tiptap-extension-resize-image` | ^1.3.2 | 圖片縮放功能 |
-| `pdf-lib` | ^1.17.1 | PDF 生成/修改函式庫 |
+| `pdf-lib` | ^1.17.1 | PDF 生成/修改 (主要使用) |
 | `@pdf-lib/fontkit` | ^1.1.1 | 自定義字型嵌入 (中文支援) |
-| `pdfkit` | ^0.17.2 | (備用) PDF 生成函式庫 |
-| `puppeteer` | ^24.34.0 | 無頭瀏覽器 (HTML 轉 PDF/截圖) |
-| `adm-zip` | ^0.5.16 | ZIP 檔案解壓縮 (備份還原) |
-| `archiver` | ^7.0.1 | ZIP 檔案壓縮 (系統備份) |
-| `unzipper` | ^0.12.3 | ZIP 檔案解壓縮 (專案備份還原) |
+| `pdfkit` | ^0.17.2 | (備用) PDF 生成 |
+| `puppeteer` | ^24.34.0 | (可選) 無頭瀏覽器，舊版相容保留 |
+| `adm-zip` | ^0.5.16 | ZIP 壓縮/解壓縮 (備份、專案匯入還原) |
+| `archiver` | ^7.0.1 | ZIP 壓縮 (專案匯出備份) |
 | `clsx` | ^2.1.1 | CSS class 名稱條件組合 |
 | `zustand` | ^5.0.9 | 輕量級前端狀態管理 |
 | `react-easy-crop` | ^5.5.6 | 圖片裁切功能 (簽名上傳) |
@@ -66,7 +65,6 @@
 | `@types/pdfkit` | ^0.17.4 | pdfkit 型別定義 |
 | `@types/adm-zip` | ^0.5.7 | adm-zip 型別定義 |
 | `@types/archiver` | ^7.0.0 | archiver 型別定義 |
-| `@types/unzipper` | ^0.10.11 | unzipper 型別定義 |
 
 ### 安裝指令
 
@@ -83,7 +81,8 @@ npm install <package-name>
 
 ### Puppeteer 特殊安裝說明
 
-Puppeteer 會自動下載 Chromium 瀏覽器 (~200MB)，在某些環境可能需要額外設定：
+> 💡 **需要才安裝**: 系統已改用純 `pdf-lib` 方式生成 PDF，Puppeteer 僅作為舊版相容保留。
+若需使用 Puppeteer，該套件會自動下載 Chromium 瀏覽器 (~200MB)。在某些環境可能需要額外設定：
 
 ```bash
 # 若需跳過 Chromium 下載 (使用系統 Chrome)

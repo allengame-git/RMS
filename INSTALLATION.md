@@ -1,8 +1,8 @@
-# RMS 系統 Windows 全新安裝指南
+# RMS 系統安裝指南 (Miniforge 環境)
 
-> **版本**: 1.0  
-> **日期**: 2026-01-10  
-> **適用對象**: 全新 Windows 環境安裝
+> **版本**: 2.0  
+> **日期**: 2026-01-20  
+> **適用對象**: Windows/macOS/Linux 環境，使用 Miniforge 建立隔離開發環境
 
 ---
 
@@ -10,420 +10,444 @@
 
 | 項目 | 最低需求 | 建議配置 |
 |------|----------|----------|
-| 作業系統 | Windows 10 Pro/Enterprise | Windows 11 Pro |
+| 作業系統 | Windows 10+ / macOS 12+ / Ubuntu 22.04+ | 最新版本 |
 | RAM | 8 GB | 16 GB |
-| 硬碟空間 | 20 GB | 50 GB (SSD) |
+| 硬碟空間 | 10 GB | 30 GB (SSD) |
 | CPU | 4 核心 | 8 核心 |
-| 瀏覽器核心 | Chromium | Chrome / Edge (用於 PDF 渲染) |
-| 網路 | 可連線至 GitHub | 固定 IP (內網存取) |
+| 網路 | 可連線至 npm / PostgreSQL | 固定 IP (內網存取) |
 
 ---
 
-## 核心技術棧與相依套件
+## 目錄
 
-本系統基於 Next.js 14 構建，以下為關鍵相依套件說明，供系統架設參考：
-
-### 1. 核心框架與認證
-
-- **Next.js 14 (App Router)**: 前後端整合框架。
-- **TypeScript**: 確保開發型別安全。
-- **Next-Auth.js**: 實作使用者身份驗證與角色權限控管。
-
-### 2. 資料庫與 ORM
-
-- **PostgreSQL**: 主資料庫伺服器 (開發環境支援 Neon 或本地 Docker 版)。
-- **Prisma ORM**: 資料庫架構管理與優化查詢。
-
-### 3. PDF 功能 (重要依賴)
-
-- **puppeteer**: 核心依賴，用於將歷史快照 HTML 渲染為高真度 PDF。**部署環境必須安裝 Chromium**。
-- **pdf-lib**: 用於 PDF 文件編輯、分頁合併以及數位簽章嵌入。
-- **@pdf-lib/fontkit**: 支援 PDF 內嵌 Arial Unicode 等中文字型。
-
-### 4. 富文本編輯器
-
-- **Tiptap 2**: 核心編輯器，整合了表格、圖片縮放、巢狀編號及自動縮排等擴充套件。
-
-### 5. 系統工具
-
-- **adm-zip / archiver**: 用於實作系統備份與災難復原功能。
-- **bcryptjs**: 使用進階雜湊演算法確保密碼儲存安全。
-- **zustand**: 輕量化前端狀態管理，用於處理導覽列與主題切換。
+1. [安裝 Miniforge](#1-安裝-miniforge)
+2. [建立 Conda 環境](#2-建立-conda-環境)
+3. [安裝 PostgreSQL](#3-安裝-postgresql)
+4. [設定專案](#4-設定專案)
+5. [初始化資料庫](#5-初始化資料庫)
+6. [啟動系統](#6-啟動系統)
+7. [生產部署](#7-生產部署)
+8. [備份與排程](#8-備份與排程)
+9. [故障排除](#9-故障排除)
 
 ---
 
-## 安裝步驟
+## 核心技術棧
 
-### 步驟 1：安裝必要軟體
+| 類別 | 技術 | 說明 |
+|------|------|------|
+| 框架 | Next.js 14 | App Router 前後端整合 |
+| 語言 | TypeScript | 型別安全開發 |
+| 資料庫 | PostgreSQL 15+ | 主資料庫 |
+| ORM | Prisma 5.22 | 資料庫架構管理 |
+| 認證 | NextAuth.js | 使用者身份驗證 |
+| 編輯器 | Tiptap 3 | 富文本編輯器 |
+| PDF | pdf-lib | PDF 生成與簽章 (純 JavaScript) |
+| 備份 | adm-zip / archiver | 系統與專案備份 |
 
-#### 方法 A：線上安裝（需網路）
+> 💡 **注意**: 系統已改用純 `pdf-lib` 生成 PDF，**不再依賴 Puppeteer/Chromium**。
 
-以**系統管理員**身份開啟 PowerShell，執行以下指令：
+---
+
+## 1. 安裝 Miniforge
+
+### Windows
 
 ```powershell
-# 安裝 Chocolatey 套件管理器 (若尚未安裝)
-Set-ExecutionPolicy Bypass -Scope Process -Force
-[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+# 下載 Miniforge 安裝程式
+Invoke-WebRequest -Uri "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Windows-x86_64.exe" -OutFile "$env:TEMP\Miniforge3.exe"
 
-# 安裝 Docker Desktop 和 Git
-choco install docker-desktop git -y
+# 執行安裝 (靜默模式，安裝至預設路徑)
+Start-Process -Wait -FilePath "$env:TEMP\Miniforge3.exe" -ArgumentList "/S", "/RegisterPython=1"
 
-# 重新啟動電腦
-Restart-Computer
+# 重新開啟終端機以載入 conda
 ```
 
-#### 方法 B：離線安裝（無網路環境）
+手動安裝：下載 [Miniforge3-Windows-x86_64.exe](https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Windows-x86_64.exe) 並執行。
 
-在有網路的電腦上預先下載以下安裝檔，再透過 USB 隨身碟複製到目標電腦：
-
-| 軟體 | 下載連結 | 檔案名稱 |
-|------|----------|----------|
-| Docker Desktop | <https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe> | `Docker Desktop Installer.exe` |
-| Git for Windows | <https://github.com/git-for-windows/git/releases/latest> | `Git-x.x.x-64-bit.exe` |
-| OpenSSL (選擇性) | <https://slproweb.com/products/Win32OpenSSL.html> | `Win64OpenSSL-x_x_x.exe` |
-
-**離線安裝步驟：**
-
-1. 將下載的安裝檔複製到目標電腦（例如 `C:\Installers\`）
-
-2. 安裝 Docker Desktop：
-
-   ```powershell
-   # 以系統管理員身份執行
-   Start-Process "C:\Installers\Docker Desktop Installer.exe" -Wait
-   ```
-
-3. 安裝 Git：
-
-   ```powershell
-   Start-Process "C:\Installers\Git-2.47.0-64-bit.exe" -ArgumentList "/VERYSILENT /NORESTART" -Wait
-   ```
-
-4. 安裝 OpenSSL（選擇性，用於產生 SSL 憑證）：
-
-   ```powershell
-   Start-Process "C:\Installers\Win64OpenSSL-3_3_0.exe" -ArgumentList "/VERYSILENT /NORESTART" -Wait
-   ```
-
-5. 重新啟動電腦
-
-**離線傳輸專案：**
-
-如果目標電腦無法連線 GitHub，請在有網路的電腦上：
+### macOS
 
 ```bash
-# 下載專案為 ZIP
+# 使用 Homebrew 安裝
+brew install miniforge
+
+# 初始化 conda (zsh)
+conda init zsh
+
+# 重新開啟終端機
+```
+
+或手動安裝：
+
+```bash
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-$(uname -m).sh"
+bash Miniforge3-MacOSX-$(uname -m).sh -b
+~/miniforge3/bin/conda init zsh
+```
+
+### Linux
+
+```bash
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh"
+bash Miniforge3-Linux-x86_64.sh -b
+~/miniforge3/bin/conda init bash
+source ~/.bashrc
+```
+
+---
+
+## 2. 建立 Conda 環境
+
+```bash
+# 建立 RMS 專用環境 (Node.js 20)
+conda create -n rms nodejs=20 -y
+
+# 啟用環境
+conda activate rms
+
+# 驗證安裝
+node --version    # 應顯示 v20.x.x
+npm --version     # 應顯示 10.x.x
+```
+
+> 💡 **提示**: 每次開啟終端機時，需執行 `conda activate rms` 啟用環境。
+
+---
+
+## 3. 安裝 PostgreSQL
+
+### 方法 A: 使用 Conda 安裝 (推薦開發環境)
+
+```bash
+# 在 rms 環境中安裝 PostgreSQL
+conda activate rms
+conda install postgresql=16 -y
+
+# 初始化資料庫叢集
+initdb -D ~/postgres_data
+
+# 啟動 PostgreSQL 服務
+pg_ctl -D ~/postgres_data -l ~/postgres_data/logfile start
+
+# 建立資料庫與使用者
+createdb rms_db
+psql -d rms_db -c "CREATE USER rms_user WITH PASSWORD 'rms_secure_password_2026';"
+psql -d rms_db -c "GRANT ALL PRIVILEGES ON DATABASE rms_db TO rms_user;"
+psql -d rms_db -c "GRANT ALL PRIVILEGES ON SCHEMA public TO rms_user;"
+
+# 驗證連線
+psql -U rms_user -d rms_db -c "SELECT version();"
+```
+
+### 方法 B: 系統安裝 PostgreSQL
+
+#### Windows
+
+```powershell
+# 下載並安裝 PostgreSQL
+# https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
+
+# 安裝後，使用 pgAdmin 或 psql 建立資料庫
+# 1. 建立資料庫: rms_db
+# 2. 建立使用者: rms_user (密碼自訂)
+# 3. 授予權限
+```
+
+#### macOS
+
+```bash
+# 使用 Homebrew 安裝
+brew install postgresql@16
+brew services start postgresql@16
+
+# 建立資料庫與使用者
+createdb rms_db
+psql -d rms_db -c "CREATE USER rms_user WITH PASSWORD 'rms_secure_password_2026';"
+psql -d rms_db -c "GRANT ALL PRIVILEGES ON DATABASE rms_db TO rms_user;"
+psql -d rms_db -c "GRANT ALL PRIVILEGES ON SCHEMA public TO rms_user;"
+```
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+# 安裝 PostgreSQL
+sudo apt update
+sudo apt install postgresql postgresql-contrib -y
+
+# 啟動服務
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# 建立資料庫與使用者
+sudo -u postgres psql -c "CREATE DATABASE rms_db;"
+sudo -u postgres psql -c "CREATE USER rms_user WITH PASSWORD 'rms_secure_password_2026';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE rms_db TO rms_user;"
+sudo -u postgres psql -d rms_db -c "GRANT ALL PRIVILEGES ON SCHEMA public TO rms_user;"
+```
+
+---
+
+## 4. 設定專案
+
+### 4.1 取得專案
+
+```bash
+# Clone 專案
 git clone https://github.com/YOUR_USERNAME/RMS.git
 cd RMS
-zip -r RMS-project.zip . -x ".git/*" -x "node_modules/*"
+
+# 或從 ZIP 解壓縮
+unzip RMS-project.zip -d RMS
+cd RMS
 ```
 
-將 `RMS-project.zip` 複製到目標電腦後解壓縮：
+### 4.2 安裝依賴套件
 
-```powershell
-Expand-Archive -Path "C:\Installers\RMS-project.zip" -DestinationPath "C:\RMS"
+```bash
+# 確保在 rms 環境中
+conda activate rms
+
+# 安裝 npm 套件
+npm install
 ```
 
-> ⚠️ 安裝 Docker Desktop 後需重新啟動電腦
+### 4.3 設定環境變數
 
----
+建立 `.env` 檔案：
 
-### 步驟 2：驗證安裝
-
-重新開機後，開啟 PowerShell 驗證：
-
-```powershell
-docker --version    # 應顯示 Docker version 24.x+
-git --version       # 應顯示 git version 2.x+
+```bash
+# 複製範本
+cp .env.example .env
 ```
 
-確認 Docker Desktop 已啟動（系統匣圖示為綠色）。
+編輯 `.env` 內容：
 
----
-
-### 步驟 3：Clone 專案
-
-```powershell
-# 建立專案目錄
-mkdir C:\RMS
-cd C:\RMS
-
-# 從 GitHub Clone 專案
-git clone https://github.com/YOUR_USERNAME/RMS.git .
-```
-
-> 💡 將 `YOUR_USERNAME/RMS` 替換為實際的 GitHub 儲存庫路徑
-
----
-
-### 步驟 4：設定環境變數
-
-```powershell
-# 產生安全密鑰
-$secret = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-Write-Host "NEXTAUTH_SECRET: $secret"
-
-# 建立 .env 檔案
-@"
+```env
 # PostgreSQL Database
-POSTGRES_PASSWORD=rms_secure_password_2026
-DATABASE_URL=postgresql://rms_user:rms_secure_password_2026@postgres:5432/rms_db?schema=public
+DATABASE_URL="postgresql://rms_user:rms_secure_password_2026@localhost:5432/rms_db?schema=public"
 
 # NextAuth
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=$secret
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secure-random-secret-key-here"
 
 # Environment
-NODE_ENV=production
-
-# Puppeteer (Docker 環境已自動設定，開發環境可選填手動安裝的路徑)
-# PUPPETEER_EXECUTABLE_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
-"@ | Out-File -FilePath ".env" -Encoding UTF8
+NODE_ENV="development"
 ```
 
-> ⚠️ **重要**: 請自行修改 `POSTGRES_PASSWORD` 為更安全的密碼，並同步更新 `DATABASE_URL` 中的密碼
+> 💡 **建議**: 使用以下指令產生安全的 NEXTAUTH_SECRET：
+>
+> ```bash
+> openssl rand -base64 32
+> ```
 
 ---
 
-### 步驟 5：建立 SSL 憑證 (選擇性)
+## 5. 初始化資料庫
 
-**內部測試用 (自簽憑證):**
-
-```powershell
-# 安裝 OpenSSL
-choco install openssl -y
-
-# 建立憑證目錄
-mkdir C:\RMS\nginx\ssl
-
-# 產生自簽憑證
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 `
-    -keyout "C:\RMS\nginx\ssl\privkey.pem" `
-    -out "C:\RMS\nginx\ssl\fullchain.pem" `
-    -subj "/CN=localhost"
-```
-
----
-
-### 步驟 6：構建並啟動服務
-
-```powershell
-cd C:\RMS
-
-# 構建 Docker 映像 (首次約 5-10 分鐘)
-docker compose build
-
-# 啟動所有服務
-docker compose up -d
-
-# 檢查容器狀態
-docker compose ps
-```
-
-預期輸出：
-
-```
-NAME              STATUS    PORTS
-rms-postgres      Up        5432/tcp
-rms-application   Up        0.0.0.0:3000->3000/tcp
-rms-nginx         Up        0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
-```
-
----
-
-### 步驟 7：初始化資料庫
-
-```powershell
-# 等待資料庫啟動
-Start-Sleep -Seconds 15
-
-# 執行資料庫遷移
-docker exec rms-application npx prisma migrate deploy
+```bash
+# 確保 PostgreSQL 服務已啟動
+# Conda 安裝: pg_ctl -D ~/postgres_data status
+# 系統安裝: sudo systemctl status postgresql
 
 # 產生 Prisma Client
-docker exec rms-application npx prisma generate
+npx prisma generate
+
+# 執行資料庫遷移 (建立所有資料表)
+npx prisma db push
+
+# 建立預設管理員帳號
+npx prisma db seed
+```
+
+預設管理員帳號：
+
+- **帳號**: `admin`  
+- **密碼**: `adminpassword`
+
+> ⚠️ **重要**: 首次登入後請立即修改密碼！
+
+---
+
+## 6. 啟動系統
+
+### 開發模式
+
+```bash
+conda activate rms
+npm run dev
+```
+
+開啟瀏覽器：<http://localhost:3000>
+
+### 生產模式
+
+```bash
+# 建置專案
+npm run build
+
+# 啟動生產伺服器
+npm start
 ```
 
 ---
 
-### 步驟 8：建立管理員帳號
+## 7. 生產部署
 
-```powershell
-# 進入容器內執行 seed 腳本
-docker exec -it rms-application npx ts-node scripts/seed-admin.ts
+### 7.1 使用 PM2 管理程序
+
+```bash
+# 安裝 PM2
+npm install -g pm2
+
+# 啟動應用程式
+pm2 start npm --name "rms" -- start
+
+# 設定開機自動啟動
+pm2 startup
+pm2 save
+
+# 常用指令
+pm2 status          # 查看狀態
+pm2 logs rms        # 查看日誌
+pm2 restart rms     # 重新啟動
+pm2 stop rms        # 停止
 ```
 
-或手動透過資料庫：
+### 7.2 使用 Nginx 反向代理 (選擇性)
 
-```powershell
-# 進入 PostgreSQL CLI
-docker exec -it rms-postgres psql -U rms_user -d rms_db
+安裝 Nginx：
 
-# 執行 SQL (密碼: admin123，建議登入後立即修改)
-INSERT INTO "User" (id, username, password, role, "isQC", "isPM", "createdAt", "updatedAt")
-VALUES (
-    gen_random_uuid(),
-    'admin',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjQQ.5cvwPwSv8xFN0eTbF8CQkqIRq',
-    'ADMIN',
-    true,
-    true,
-    NOW(),
-    NOW()
-);
-\q
+```bash
+# macOS
+brew install nginx
+
+# Ubuntu/Debian
+sudo apt install nginx -y
 ```
 
----
+建立設定檔 `/etc/nginx/sites-available/rms`：
 
-### 步驟 9：驗證服務
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
 
-在瀏覽器開啟：
-
-- **HTTP**: <http://localhost:3000>
-- **HTTPS**: <https://localhost> (若已設定 SSL)
-
-使用管理員帳號登入：
-
-- 帳號: `admin`
-- 密碼: `admin123` (請立即修改)
-
----
-
-### 步驟 10：設定 Windows 防火牆
-
-```powershell
-# 開放 HTTP/HTTPS 埠
-New-NetFirewallRule -DisplayName "RMS HTTP" -Direction Inbound -Port 80 -Protocol TCP -Action Allow
-New-NetFirewallRule -DisplayName "RMS HTTPS" -Direction Inbound -Port 443 -Protocol TCP -Action Allow
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
 ```
 
----
+啟用設定：
 
-## 每週自動備份設定
-
-### 1. 建立備份目錄
-
-```powershell
-mkdir C:\RMS-Backups
+```bash
+sudo ln -s /etc/nginx/sites-available/rms /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
 ```
 
-### 2. 建立每週備份排程
+### 7.3 設定 HTTPS (Let's Encrypt)
 
-```powershell
-# 建立排程任務 (每週日凌晨 2:00 執行)
-$Action = New-ScheduledTaskAction `
-    -Execute "pwsh.exe" `
-    -Argument "-File C:\RMS\scripts\backup.ps1 -BackupDir C:\RMS-Backups -RetentionDays 60"
+```bash
+# 安裝 Certbot
+sudo apt install certbot python3-certbot-nginx -y
 
-$Trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At "02:00"
-
-$Settings = New-ScheduledTaskSettingsSet `
-    -StartWhenAvailable `
-    -DontStopOnIdleEnd `
-    -WakeToRun
-
-Register-ScheduledTask `
-    -TaskName "RMS-WeeklyBackup" `
-    -Action $Action `
-    -Trigger $Trigger `
-    -Settings $Settings `
-    -Description "RMS 系統每週自動備份 (週日 02:00)"
-
-# 驗證排程任務
-Get-ScheduledTask -TaskName "RMS-WeeklyBackup"
-```
-
-### 3. 手動測試備份
-
-```powershell
-C:\RMS\scripts\backup.ps1 -BackupDir "C:\RMS-Backups"
-```
-
-### 4. 檢視備份檔案
-
-```powershell
-Get-ChildItem C:\RMS-Backups -Filter "*.zip" | Sort-Object LastWriteTime -Descending
+# 取得憑證
+sudo certbot --nginx -d your-domain.com
 ```
 
 ---
 
-## 每日審計日誌匯出設定
+## 8. 備份與排程
 
-系統會將登入審計日誌匯出為 JSON 檔案，存放於 `daily_logs` 資料夾。
+### 8.1 資料庫備份
 
-### 1. 手動匯出
+```bash
+# 手動備份
+pg_dump -U rms_user -d rms_db > backup_$(date +%Y%m%d).sql
 
-```powershell
-# 匯出昨天的日誌
-Invoke-RestMethod -Uri "http://localhost:3000/api/audit/export" -Method GET
-
-# 匯出指定日期的日誌
-Invoke-RestMethod -Uri "http://localhost:3000/api/audit/export?date=2026-01-11" -Method GET
+# 還原備份
+psql -U rms_user -d rms_db < backup_20260120.sql
 ```
 
-### 2. 建立每日匯出排程
+### 8.2 系統管理介面備份
 
-```powershell
-# 建立排程任務 (每日凌晨 1:00 執行)
-$Action = New-ScheduledTaskAction `
-    -Execute "pwsh.exe" `
-    -Argument "-File C:\RMS\scripts\export-daily-logs.ps1"
+系統提供完整的管理介面備份功能：
 
-$Trigger = New-ScheduledTaskTrigger -Daily -At "01:00"
+1. 登入系統管理後台
+2. 前往「系統管理」→「備份與復原」
+3. 可下載：
+   - **資料庫備份** (SQL 格式)
+   - **上傳檔案備份** (ZIP 格式)
+   - **ISO 文件備份** (ZIP 格式)
 
-$Settings = New-ScheduledTaskSettingsSet `
-    -StartWhenAvailable `
-    -DontStopOnIdleEnd
+### 8.3 自動備份排程 (cron)
 
-Register-ScheduledTask `
-    -TaskName "RMS-DailyAuditExport" `
-    -Action $Action `
-    -Trigger $Trigger `
-    -Settings $Settings `
-    -Description "RMS 每日審計日誌匯出 (01:00)"
+```bash
+# 編輯 crontab
+crontab -e
 
-# 驗證排程任務
-Get-ScheduledTask -TaskName "RMS-DailyAuditExport"
-```
-
-### 3. 檢視匯出檔案
-
-```powershell
-Get-ChildItem C:\RMS\daily_logs -Filter "*.json" | Sort-Object LastWriteTime -Descending
+# 新增每週日凌晨 2:00 備份
+0 2 * * 0 pg_dump -U rms_user -d rms_db > /path/to/backups/rms_$(date +\%Y\%m\%d).sql
 ```
 
 ---
 
-## 常用指令
-
-| 操作 | 指令 |
-|------|------|
-| 啟動服務 | `docker compose up -d` |
-| 停止服務 | `docker compose down` |
-| 重啟服務 | `docker compose restart` |
-| 查看日誌 | `docker compose logs -f` |
-| 檢查狀態 | `docker compose ps` |
-| 進入資料庫 | `docker exec -it rms-postgres psql -U rms_user -d rms_db` |
-| 執行驗證 | `C:\RMS\scripts\verify.ps1` |
-| 手動備份 | `C:\RMS\scripts\backup.ps1 -BackupDir C:\RMS-Backups` |
-
----
-
-## 故障排除
+## 9. 故障排除
 
 | 問題 | 解決方案 |
 |------|----------|
-| Docker 無法啟動 | 確認已啟用 WSL 2，重新安裝 Docker Desktop |
-| 資料庫連線失敗 | 檢查 `.env` 中的 `DATABASE_URL` 密碼是否一致 |
-| Port 已被佔用 | 執行 `netstat -an | findstr :3000` 找出佔用程序 |
-| 容器無法啟動 | 執行 `docker compose logs` 檢查錯誤訊息 |
+| `conda: command not found` | 重新開啟終端機，或手動執行 `source ~/miniforge3/bin/activate` |
+| `node: command not found` | 確認已執行 `conda activate rms` |
+| PostgreSQL 連線失敗 | 確認服務已啟動：`pg_ctl -D ~/postgres_data status` |
+| `prisma migrate` 失敗 | 檢查 `.env` 中的 `DATABASE_URL` 是否正確 |
+| Port 3000 已被佔用 | 執行 `lsof -i :3000` 找出佔用程序並終止 |
+| npm install 失敗 | 刪除 `node_modules` 與 `package-lock.json` 後重試 |
+
+### PostgreSQL 服務管理
+
+```bash
+# Conda 安裝
+pg_ctl -D ~/postgres_data start   # 啟動
+pg_ctl -D ~/postgres_data stop    # 停止
+pg_ctl -D ~/postgres_data status  # 狀態
+
+# 系統安裝 (Linux)
+sudo systemctl start postgresql
+sudo systemctl stop postgresql
+sudo systemctl status postgresql
+
+# macOS (Homebrew)
+brew services start postgresql@16
+brew services stop postgresql@16
+```
+
+---
+
+## 常用指令速查
+
+| 操作 | 指令 |
+|------|------|
+| 啟用環境 | `conda activate rms` |
+| 開發模式 | `npm run dev` |
+| 生產建置 | `npm run build && npm start` |
+| 資料庫 GUI | `npx prisma studio` |
+| 更新 Schema | `npx prisma db push` |
+| 重設資料庫 | `npx prisma db push --force-reset` |
+| 備份資料庫 | `pg_dump -U rms_user -d rms_db > backup.sql` |
+| 還原資料庫 | `psql -U rms_user -d rms_db < backup.sql` |
 
 ---
 
 ## 相關文件
 
-- [部署規劃文件](deployment_guide.md)
-- [部署步驟指南](deployment_steps.md)
-- [部署檢驗清單](deployment_checklist.md)
+- [README.md](README.md) - 專案概述與功能說明
+- [docs/tech.md](docs/tech.md) - 技術文件與套件清單
+- [docs/deployment_guide.md](docs/deployment_guide.md) - 進階部署規劃
+- [docs/deployment_steps.md](docs/deployment_steps.md) - Step-by-Step 部署指南
