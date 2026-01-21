@@ -128,34 +128,36 @@ export default function Navbar() {
                             >
                                 ISO文件
                             </Link>
-                            <Link
-                                href="/admin/rejected-requests"
-                                className={`btn btn-outline ${isActive("/admin/rejected-requests") ? "active-link" : ""}`}
-                                style={{ border: "none", padding: "0.5rem 1rem", position: "relative" }}
-                            >
-                                待修改
-                                {rejectedCount > 0 && (
-                                    <span style={{
-                                        position: "absolute",
-                                        top: "0",
-                                        right: "0",
-                                        transform: "translate(30%, -30%)",
-                                        backgroundColor: "#f59e0b",
-                                        color: "white",
-                                        fontSize: "0.7rem",
-                                        fontWeight: "bold",
-                                        minWidth: "18px",
-                                        height: "18px",
-                                        borderRadius: "9px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        padding: "0 4px"
-                                    }}>
-                                        {rejectedCount > 99 ? '99+' : rejectedCount}
-                                    </span>
-                                )}
-                            </Link>
+                            {session.user.role !== "VIEWER" && (
+                                <Link
+                                    href="/admin/rejected-requests"
+                                    className={`btn btn-outline ${isActive("/admin/rejected-requests") ? "active-link" : ""}`}
+                                    style={{ border: "none", padding: "0.5rem 1rem", position: "relative" }}
+                                >
+                                    待修改
+                                    {rejectedCount > 0 && (
+                                        <span style={{
+                                            position: "absolute",
+                                            top: "0",
+                                            right: "0",
+                                            transform: "translate(30%, -30%)",
+                                            backgroundColor: "#f59e0b",
+                                            color: "white",
+                                            fontSize: "0.7rem",
+                                            fontWeight: "bold",
+                                            minWidth: "18px",
+                                            height: "18px",
+                                            borderRadius: "9px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            padding: "0 4px"
+                                        }}>
+                                            {rejectedCount > 99 ? '99+' : rejectedCount}
+                                        </span>
+                                    )}
+                                </Link>
+                            )}
                             {(hasApprovalAccess || ["ADMIN", "INSPECTOR"].includes(session.user.role)) && (
                                 <Link
                                     href="/admin/approval"
@@ -210,7 +212,7 @@ export default function Navbar() {
                             {theme === 'dark' ? '☀️' : '🌙'}
                         </button>
                     )}
-                    {session && <NotificationBell />}
+                    {session && session.user.role !== "VIEWER" && <NotificationBell />}
                     {session ? (
                         <>
                             <span style={{ fontSize: "0.9rem", color: "var(--color-text-muted)" }}>

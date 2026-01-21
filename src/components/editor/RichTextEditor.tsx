@@ -5,6 +5,10 @@ import StarterKit from '@tiptap/starter-kit';
 import ImageResize from 'tiptap-extension-resize-image';
 import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
+import { Color } from '@tiptap/extension-color';
+import { TextStyle } from '@tiptap/extension-text-style';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
@@ -12,6 +16,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { useState, useRef, useEffect } from 'react';
 import { ItemLink } from './extensions/ItemLink';
 import { Indent } from './extensions/Indent';
+import { FontSize } from './extensions/FontSize';
 
 // Helper function to upload a file to the server
 const uploadFile = async (file: File): Promise<string | null> => {
@@ -514,6 +519,22 @@ const MenuBar = ({ editor, onUploadImage }: { editor: any; onUploadImage: (file:
                     Italic
                 </button>
                 <button
+                    onClick={() => editor.chain().focus().toggleSubscript().run()}
+                    className={editor.isActive('subscript') ? 'is-active' : ''}
+                    type="button"
+                    title="下標 (Subscript)"
+                >
+                    X₂
+                </button>
+                <button
+                    onClick={() => editor.chain().focus().toggleSuperscript().run()}
+                    className={editor.isActive('superscript') ? 'is-active' : ''}
+                    type="button"
+                    title="上標 (Superscript)"
+                >
+                    X²
+                </button>
+                <button
                     onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                     className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}
                     type="button"
@@ -636,6 +657,51 @@ const MenuBar = ({ editor, onUploadImage }: { editor: any; onUploadImage: (file:
                     Del Table
                 </button>
 
+                <div style={{ width: '1px', background: 'var(--color-border)', margin: '0 0.5rem', height: '20px' }}></div>
+
+                {/* Color picker */}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '0.85rem' }}>字色</span>
+                    <input
+                        type="color"
+                        value={editor.getAttributes('textStyle').color || '#000000'}
+                        onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+                        style={{ width: '24px', height: '24px', border: 'none', cursor: 'pointer', background: 'transparent' }}
+                    />
+                </label>
+
+                {/* Font size selector */}
+                <select
+                    onChange={(e) => {
+                        const size = e.target.value;
+                        if (size === 'default') {
+                            editor.chain().focus().unsetFontSize().run();
+                        } else {
+                            editor.chain().focus().setFontSize(size).run();
+                        }
+                    }}
+                    style={{
+                        padding: '4px 8px',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        background: 'var(--color-bg-surface)',
+                        color: 'var(--color-text)',
+                        cursor: 'pointer'
+                    }}
+                    defaultValue="default"
+                >
+                    <option value="default">字型大小</option>
+                    <option value="12px">12px</option>
+                    <option value="14px">14px</option>
+                    <option value="16px">16px</option>
+                    <option value="18px">18px</option>
+                    <option value="20px">20px</option>
+                    <option value="24px">24px</option>
+                    <option value="28px">28px</option>
+                    <option value="32px">32px</option>
+                </select>
+
                 <style jsx>{`
             button {
                 background: none;
@@ -700,6 +766,11 @@ const RichTextEditor = ({ content, onChange, editable = true }: RichTextEditorPr
         extensions: [
             StarterKit,
             ImageResize,
+            Subscript,
+            Superscript,
+            TextStyle,
+            Color,
+            FontSize,
             Link.configure({
                 openOnClick: true,
             }),

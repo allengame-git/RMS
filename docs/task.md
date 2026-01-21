@@ -1,6 +1,6 @@
 # 低放射性廢棄物處置管理系統 - 開發進度 (task.md)
 
->> 最後更新: 2026-01-20
+>> 最後更新: 2026-01-21
 
 ## 進度總覽
 
@@ -29,6 +29,7 @@
 | Phase 24 | 刪除流程優化與通知中心 UI 更新 | ✅ 完成 |
 | Phase 25 | 單一專案備份與轉移功能 | ✅ 完成 |
 | Phase 26 | PDF 重構與資料庫還原優化 | ✅ 完成 |
+| Phase 27 | Code Review 與程式碼簡化 | ✅ 完成 |
 
 ---
 
@@ -517,3 +518,27 @@
 - [x] 更新 README.md - PDF 改為 pdf-lib 主要使用
 - [x] 更新 docs/tech.md - 套件清單同步更新
 - [x] 更新 docs/task.md - 新增 Phase 26 紀錄
+
+---
+
+## Phase 27: Code Review 與程式碼簡化 (v2.1.1) ✅
+
+### Phase 27.1: Code Review 修正 ✅
+
+- [x] 路徑遍歷風險修正 (`src/app/api/upload/route.ts`)
+- [x] Role 值白名單驗證 (`src/actions/users.ts`)
+- [x] 使用者刪除改用 `$transaction` 包裝 (`src/actions/users.ts`)
+- [x] 檔案類型白名單擴充 (xlsx, pptx, svg, csv, txt)
+
+### Phase 27.2: 程式碼簡化 ✅
+
+- [x] `approval.ts` - 新增 `canEdit`/`canReview` helper functions (7 處替換)
+- [x] `approval.ts` - 新增 `mapRelationsToSnapshot`/`mapReferencesToSnapshot` (4 處替換)
+- [x] `qc-approval.ts` - 新增 `getUserQualifications` helper (7 處替換)
+- [x] `qc-approval.ts` - 新增 `APPROVAL_INCLUDE` 共用結構
+
+### Phase 27.3: 專案環境更新 ✅
+
+- [x] 更新 `.gitignore` - 新增 IDE, logs, PM2, backup, temp 忽略規則
+- [x] 更新 docs/tech.md - 新增 Phase 27 技術文件
+- [x] 更新 docs/task.md - 新增 Phase 27 任務紀錄

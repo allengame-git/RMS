@@ -1,12 +1,12 @@
 # 技術文件 - 低放射性廢棄物處置管理系統 (tech.md)
 
->> 最後更新: 2026-01-20
+>> 最後更新: 2026-01-21
 
 ## 專案資訊
 
 | 項目 | 說明 | 版本 |
 | :--- | :--- | :--- |
-| **專案名稱** | 低放射性廢棄物處置管理系統 (LLRWD-RMS) | v1.9.2 |
+| **專案名稱** | 低放射性廢棄物處置管理系統 (LLRWD-RMS) | v2.1.1 |
 | **技術棧** | Next.js, TypeScript, Prisma, PostgreSQL, NextAuth.js | - |
 | **樣式方案** | Vanilla CSS + CSS Variables | - |
 | **編輯器** | Tiptap (ProseMirror-based) | ^3.14.0 |
@@ -1233,3 +1233,92 @@ if (user.failedLoginAttempts > 0) {
 - **降級機制 (Fallback)**:
   - 使用 `try-catch` 包裹截圖流程。
   - 若截圖失敗，自動執行 `generateHistorySummaryPages` 生成純文字摘要 PDF 頁面，確保流程不中斷。
+
+---
+
+## Phase 27: Code Review 與程式碼簡化 (v2.1.1)
+
+### 27.1 Code Review 修正
+
+針對 `approval.ts`、`users.ts`、`upload/route.ts` 等進行安全性與效能審查，修正以下問題：
+
+**安全性 (Security)**:
+
+| 問題 | 檔案 | 修正方式 |
+| :--- | :--- | :--- |
+| 路徑遍歷風險 | `src/app/api/upload/route.ts` | 增加 `..` 過濾與 `path.basename` 處理 |
+| Role 值未驗證 | `src/actions/users.ts` | 新增 `VALID_ROLES` 白名單驗證 |
+
+**效能與一致性 (Performance)**:
+
+| 問題 | 檔案 | 修正方式 |
+| :--- | :--- | :--- |
+| 使用者刪除時多個獨立 updateMany | `src/actions/users.ts` | 改用 `prisma.$transaction` 包裝 |
+
+**可維護性擴充**:
+
+| 項目 | 檔案 | 新增內容 |
+| :--- | :--- | :--- |
+| 檔案類型白名單擴充 | `src/app/api/upload/route.ts` | 新增 `.xlsx`, `.pptx`, `.png`, `.jpg`, `.svg`, `.csv`, `.txt` |
+
+### 27.2 程式碼簡化 (Code Simplification)
+
+使用 `code-simplifier` 技術進行重構，消除重複代碼：
+
+**approval.ts 簡化**:
+
+```typescript
+// 新增 Helper Functions
+const EDITABLE_ROLES = ["EDITOR", "INSPECTOR", "ADMIN"];
+const REVIEWER_ROLES = ["INSPECTOR", "ADMIN"];
+const canEdit = (role: string) => EDITABLE_ROLES.includes(role);
+const canReview = (role: string) => REVIEWER_ROLES.includes(role);
+
+const mapRelationsToSnapshot = (relations: any[]) =>
+    relations.map(r => ({ id: r.target.id, fullId: r.target.fullId, ... }));
+
+const mapReferencesToSnapshot = (refs: any[]) =>
+    refs.map(r => ({ fileId: r.file.id, dataCode: r.file.dataCode, ... }));
+```
+
+| 替換項目 | 數量 |
+| :--- | :--- |
+| 角色檢查 (`canEdit`/`canReview`) | 7 處 |
+| Snapshot 映射 | 4 處 |
+
+**qc-approval.ts 簡化**:
+
+```typescript
+// 新增 Helper Functions
+const getUserQualifications = async (userId: string) =>
+    prisma.user.findUnique({ where: { id: userId }, select: { isQC: true, isPM: true, username: true } });
+
+const getSubmissionDate = async (changeRequestId: number | null) => { ... };
+
+const APPROVAL_INCLUDE = { itemHistory: { include: { ... } } };
+```
+
+| 替換項目 | 數量 |
+| :--- | :--- |
+| 使用者資格查詢 (`getUserQualifications`) | 7 處 |
+
+**改善效益**:
+
+- **DRY**: 角色/資格驗證邏輯集中管理
+- **可讀性**: `canEdit(role)` 比長串 `&&` 條件更清晰
+- **維護性**: 映射邏輯統一，減少出錯機會
+- **程式碼減少**: 約 50 行重複代碼
+
+### 27.3 .gitignore 更新
+
+擴充忽略項目清單：
+
+| 類別 | 新增項目 |
+| :--- | :--- |
+| 雜項 | `Thumbs.db` |
+| Debug | `pnpm-debug.log*` |
+| IDE/Editor | `.idea/`, `.vscode/`, `*.swp`, `*.swo`, `*~` |
+| 日誌 | `logs/`, `*.log` |
+| PM2 | `.pm2/` |
+| 備份 | `backups/`, `*.bak` |
+| 暫存 | `tmp/`, `temp/`, `*.tmp` |
