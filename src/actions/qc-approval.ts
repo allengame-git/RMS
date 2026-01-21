@@ -125,7 +125,7 @@ export async function getQCDocumentApprovals() {
 }
 
 /**
- * Approve as QC - Embed QC signature (by regenerating PDF) and advance to PM stage
+ * Approve as QC - Advance to PM stage (PDF will be generated after PM approval)
  */
 export async function approveAsQC(
     approvalId: number,
@@ -148,56 +148,7 @@ export async function approveAsQC(
     if (!approval) return { error: "Approval record not found" };
     if (approval.status !== "PENDING_QC") return { error: "Document is not pending QC approval" };
 
-    // Link ChangeRequest to get submission date
-    let submissionDate: Date | undefined;
-    if (approval.itemHistory.changeRequestId) {
-        const req = await prisma.changeRequest.findUnique({ where: { id: approval.itemHistory.changeRequestId } });
-        if (req?.createdAt) {
-            submissionDate = req.createdAt;
-        }
-    }
-
-    // Regenerate PDF to include QC data
-    try {
-        const fullHistory = await prisma.itemHistory.findUnique({
-            where: { id: approval.itemHistoryId },
-            include: {
-                project: true,
-                submittedBy: { select: { username: true } },
-                reviewedBy: { select: { username: true } }
-            }
-        });
-
-        if (fullHistory) {
-            let reviewChain: any[] = [];
-            if (approval.itemHistory.changeRequestId) {
-                reviewChain = await getRequestChain(approval.itemHistory.changeRequestId);
-            }
-
-            const pdfPath = await generateQCDocument({
-                // @ts-ignore - Prisma types vs Local Interface
-                ...fullHistory,
-                submissionDate: submissionDate,
-                qcNote: note || "同意",
-                qcDate: new Date(),
-                qcUser: user.username, // Passed from session user
-                pmNote: null,
-                pmDate: null,
-                pmUser: null,
-                reviewChain
-            }, null);
-
-            // Update history with new path
-            await prisma.itemHistory.update({
-                where: { id: approval.itemHistoryId },
-                data: { isoDocPath: pdfPath }
-            });
-        }
-    } catch (err) {
-        console.error("Failed to regenerate PDF during QC approval:", err);
-    }
-
-    // Update approval status
+    // Update approval status (PDF will be generated only after PM approval)
     await prisma.qCDocumentApproval.update({
         where: { id: approvalId },
         data: {

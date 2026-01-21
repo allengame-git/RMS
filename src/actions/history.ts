@@ -2,7 +2,6 @@
 
 import { prisma } from "@/lib/prisma";
 import { Item, Prisma } from "@prisma/client";
-import { generateQCDocument } from "@/lib/pdf-generator";
 
 // Define Snapshot structure
 export interface ItemSnapshot {
@@ -96,56 +95,18 @@ export async function createHistoryRecord(
         }
     });
 
+    // Create QC Document Approval record to start the signature workflow
+    // PDF will be generated only after PM approval
     try {
-        console.log('[createHistoryRecord] Fetching full history for PDF generation, historyId:', historyRecord.id);
-        // Fetch full history with relations for PDF generation
-        const fullHistory = await prisma.itemHistory.findUnique({
-            where: { id: historyRecord.id },
-            include: {
-                submittedBy: { select: { username: true } },
-                reviewedBy: { select: { username: true } },
-                project: { select: { title: true, codePrefix: true } }
+        await prisma.qCDocumentApproval.create({
+            data: {
+                itemHistoryId: historyRecord.id,
+                status: "PENDING_QC"
             }
         });
-        console.log('[createHistoryRecord] fullHistory fetched:', fullHistory ? 'OK' : 'NULL');
-
-        if (fullHistory) {
-            console.log('[createHistoryRecord] Calling generateQCDocument...');
-
-            // Get review chain
-            let reviewChain: any[] = [];
-            if (changeRequest.id) {
-                reviewChain = await getRequestChain(changeRequest.id);
-            }
-
-            // @ts-ignore - Types compatibility
-            const pdfPath = await generateQCDocument({
-                ...fullHistory,
-                submissionDate: changeRequest.createdAt,
-                reviewChain
-            }, item);
-            console.log('[createHistoryRecord] PDF generated at:', pdfPath);
-
-            // Save path to history record
-            await prisma.itemHistory.update({
-                where: { id: historyRecord.id },
-                data: { isoDocPath: pdfPath }
-            });
-            console.log('[createHistoryRecord] isoDocPath saved to history');
-
-            // Create QC Document Approval record to start the signature workflow
-            await prisma.qCDocumentApproval.create({
-                data: {
-                    itemHistoryId: historyRecord.id,
-                    status: "PENDING_QC"
-                }
-            });
-            console.log('[createHistoryRecord] QCDocumentApproval record created');
-        }
+        console.log('[createHistoryRecord] QCDocumentApproval record created (PDF deferred to PM approval)');
     } catch (e) {
-        console.error("[createHistoryRecord] Failed to generate QC document:", e);
-        // Don't fail the whole transaction? Or should we?
-        // For now, log error but allow history creation
+        console.error("[createHistoryRecord] Failed to create QCDocumentApproval:", e);
     }
 
     // Increment Item Version (Only if not DELETE - conceptually. Practically, if soft delete, we might want to update version too? 
