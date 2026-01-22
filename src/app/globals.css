@@ -485,3 +485,201 @@ h3 {
   color: #67e8f9;
   font-weight: bold;
 }
+
+/* ========================
+   Project Detail Page Styles
+   ======================== */
+
+/* Project Header Card */
+.project-header {
+  position: relative;
+  padding: 2rem 2.5rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: white;
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.project-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.project-header::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: 20%;
+  width: 200px;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.project-header-content {
+  position: relative;
+  z-index: 1;
+}
+
+.project-header .back-link {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: color var(--transition-fast);
+  margin-bottom: 1rem;
+}
+
+.project-header .back-link:hover {
+  color: white;
+}
+
+.project-header h1 {
+  color: white;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.project-header .code-badge {
+  font-size: 1rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+
+.project-header .description {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  margin: 0;
+  max-width: 600px;
+}
+
+.project-stats {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.project-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.project-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.project-stat-label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Section Title */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.section-title-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+/* Item List Container Enhancement */
+.item-list-container {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.item-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(to bottom, var(--color-bg-surface), rgba(0, 0, 0, 0.02));
+}
+
+.item-list-body {
+  padding: 1.5rem;
+}
+
+/* Empty State Enhancement */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--color-text-muted);
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  opacity: 0.3;
+}
+
+.empty-state-title {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text-main);
+}
+
+.empty-state-text {
+  font-size: 0.875rem;
+  margin: 0;
+  opacity: 0.8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .project-header {
+    padding: 1.5rem;
+  }
+
+  .project-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .project-stats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}

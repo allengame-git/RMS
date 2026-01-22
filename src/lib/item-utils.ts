@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 /**
  * Generates the next hierarchical ID for an item.
@@ -9,8 +10,9 @@ import { prisma } from "@/lib/prisma";
  * Logic covers gaps? No, typically simpler to just take Max + 1 to avoid reuse confusion, 
  * unless user explicitly requests gap filling. We will use Max + 1.
  */
-export async function generateNextItemId(projectId: number, parentId: number | null): Promise<string> {
-    const project = await prisma.project.findUnique({
+export async function generateNextItemId(projectId: number, parentId: number | null, tx?: Prisma.TransactionClient): Promise<string> {
+    const client = tx || prisma;
+    const project = await client.project.findUnique({
         where: { id: projectId },
         select: { codePrefix: true }
     });
@@ -19,7 +21,7 @@ export async function generateNextItemId(projectId: number, parentId: number | n
 
     let parentFullId = "";
     if (parentId) {
-        const parent = await prisma.item.findUnique({
+        const parent = await client.item.findUnique({
             where: { id: parentId },
             select: { fullId: true }
         });
@@ -30,7 +32,7 @@ export async function generateNextItemId(projectId: number, parentId: number | n
     // Find all siblings to determine max sequence
     // We search for items that start with the prefix and have the same depth
     // Ideally, we just check items with same parentId.
-    const siblings = await prisma.item.findMany({
+    const siblings = await client.item.findMany({
         where: {
             projectId,
             parentId

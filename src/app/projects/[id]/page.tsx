@@ -30,83 +30,76 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     const canEdit = session?.user.role === "ADMIN" || session?.user.role === "EDITOR" || session?.user.role === "INSPECTOR";
 
     const rootNodes = buildItemTree(project.items);
+    const rootItemCount = rootNodes.length;
+    const totalItemCount = project.items.length;
 
     return (
         <div className="container" style={{ paddingBottom: "4rem" }}>
-            <div style={{ marginBottom: "2rem" }}>
-                <Link
-                    href="/projects"
-                    style={{
-                        color: "var(--color-text-muted)",
-                        fontSize: "0.9rem",
-                        textDecoration: "none",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.4rem"
-                    }}
-                >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                    返回專案列表
-                </Link>
-                <h1 style={{ marginTop: "0.75rem", marginBottom: "0.5rem" }}>
-                    {project.title}
-                    <span style={{ color: "var(--color-text-muted)", fontSize: "1.25rem", marginLeft: "0.75rem" }}>
-                        ({project.codePrefix})
-                    </span>
-                </h1>
-                {project.description && (
-                    <p style={{ color: "var(--color-text-muted)", margin: 0, fontSize: "0.95rem" }}>
-                        {project.description}
-                    </p>
-                )}
+            {/* Enhanced Project Header */}
+            <div className="project-header">
+                <div className="project-header-content">
+                    <Link href="/projects" className="back-link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                        返回專案列表
+                    </Link>
+                    <h1>
+                        {project.title}
+                        <span className="code-badge">{project.codePrefix}</span>
+                    </h1>
+                    {project.description && (
+                        <p className="description">{project.description}</p>
+                    )}
+                    <div className="project-stats">
+                        <div className="project-stat">
+                            <span className="project-stat-value">{totalItemCount}</span>
+                            <span className="project-stat-label">項目總數</span>
+                        </div>
+                        <div className="project-stat">
+                            <span className="project-stat-value">{rootItemCount}</span>
+                            <span className="project-stat-label">根項目</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Search functionality */}
             <ProjectSearch projectId={projectId} />
 
-            <div className="glass" style={{
-                padding: "2rem",
-                borderRadius: "var(--radius-lg)",
-                minHeight: "200px",
-                border: "1px solid var(--color-border)"
-            }}>
-                <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "1.5rem"
-                }}>
-                    <h2 style={{ margin: 0, fontSize: "1.25rem" }}>項目列表</h2>
+            {/* Item List Container */}
+            <div className="item-list-container">
+                <div className="item-list-header">
+                    <h2 className="section-title">
+                        <span className="section-title-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                            </svg>
+                        </span>
+                        項目列表
+                    </h2>
                     {canEdit && <CreateItemForm projectId={projectId} codePrefix={project.codePrefix} />}
                 </div>
 
-                <div className="flex-col gap-sm">
+                <div className="item-list-body">
                     {project.items.length === 0 ? (
-                        <div style={{
-                            textAlign: "center",
-                            padding: "3rem 2rem",
-                            color: "var(--color-text-muted)",
-                            backgroundColor: "var(--color-bg-elevated)",
-                            borderRadius: "var(--radius-md)",
-                            border: "1px dashed var(--color-border)"
-                        }}>
+                        <div className="empty-state">
                             <svg
-                                width="40"
-                                height="40"
+                                className="empty-state-icon"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="1.5"
-                                style={{ marginBottom: "0.75rem", opacity: 0.4 }}
                             >
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                 <polyline points="14 2 14 8 20 8" />
                             </svg>
-                            <p style={{ margin: 0, fontSize: "0.9rem" }}>尚無項目資料</p>
+                            <p className="empty-state-title">尚無項目資料</p>
                             {canEdit && (
-                                <p style={{ margin: "0.5rem 0 0", fontSize: "0.85rem", opacity: 0.7 }}>
+                                <p className="empty-state-text">
                                     點擊右上角「+ 新增項目」開始建立
                                 </p>
                             )}

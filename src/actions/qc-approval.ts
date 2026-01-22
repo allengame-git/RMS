@@ -165,7 +165,8 @@ export async function approveAsQC(
 }
 
 /**
- * Approve as PM - Embed PM signature (by regenerating PDF) and complete the workflow
+ * Approve as PM - Generate PDF and complete the workflow
+ * PDF must be generated successfully before updating status
  */
 export async function approveAsPM(
     approvalId: number,
@@ -182,73 +183,79 @@ export async function approveAsPM(
         where: { id: approvalId },
         include: {
             itemHistory: true,
-            qcApprovedBy: { select: { username: true } } // Fetch QC approver name
+            qcApprovedBy: { select: { username: true } }
         }
     });
 
     if (!approval) return { error: "Approval record not found" };
     if (approval.status !== "PENDING_PM") return { error: "Document is not pending PM approval" };
 
-    // Link ChangeRequest to get submission date
-    let submissionDate: Date | undefined;
-    if (approval.itemHistory.changeRequestId) {
-        const req = await prisma.changeRequest.findUnique({ where: { id: approval.itemHistory.changeRequestId } });
-        if (req?.createdAt) {
-            submissionDate = req.createdAt;
-        }
-    }
+    // Get submission date using helper
+    const submissionDate = await getSubmissionDate(approval.itemHistory.changeRequestId);
 
-    // Regenerate PDF to include PM data (and keep QC data)
-    try {
-        const fullHistory = await prisma.itemHistory.findUnique({
-            where: { id: approval.itemHistoryId },
-            include: {
-                project: true,
-                submittedBy: { select: { username: true } },
-                reviewedBy: { select: { username: true } }
-            }
-        });
-
-        if (fullHistory) {
-            let reviewChain: any[] = [];
-            if (approval.itemHistory.changeRequestId) {
-                reviewChain = await getRequestChain(approval.itemHistory.changeRequestId);
-            }
-
-            const pdfPath = await generateQCDocument({
-                // @ts-ignore
-                ...fullHistory,
-                submissionDate: submissionDate,
-                qcNote: approval.qcNote,
-                qcDate: approval.qcApprovedAt,
-                qcUser: approval.qcApprovedBy?.username, // Existing QC approver
-                pmNote: note || "同意",
-                pmDate: new Date(),
-                pmUser: user.username, // Current PM approver
-                reviewChain
-            }, null);
-
-            await prisma.itemHistory.update({
-                where: { id: approval.itemHistoryId },
-                data: { isoDocPath: pdfPath }
-            });
-        }
-    } catch (err) {
-        console.error("Failed to regenerate PDF during PM approval:", err);
-    }
-
-    // Update approval status
-    await prisma.qCDocumentApproval.update({
-        where: { id: approvalId },
-        data: {
-            status: "COMPLETED",
-            pmApprovedById: session.user.id,
-            pmApprovedAt: new Date(),
-            pmNote: note || "同意",
+    // Fetch full history for PDF generation
+    const fullHistory = await prisma.itemHistory.findUnique({
+        where: { id: approval.itemHistoryId },
+        include: {
+            project: true,
+            submittedBy: { select: { username: true } },
+            reviewedBy: { select: { username: true } }
         }
     });
 
-    // Send completion notification to original submitter
+    if (!fullHistory) {
+        return { error: "History record not found" };
+    }
+
+    // Get review chain
+    let reviewChain: any[] = [];
+    if (approval.itemHistory.changeRequestId) {
+        reviewChain = await getRequestChain(approval.itemHistory.changeRequestId);
+    }
+
+    // Generate PDF - must succeed before updating status
+    let pdfPath: string;
+    try {
+        pdfPath = await generateQCDocument({
+            // @ts-ignore
+            ...fullHistory,
+            submissionDate: submissionDate,
+            qcNote: approval.qcNote,
+            qcDate: approval.qcApprovedAt,
+            qcUser: approval.qcApprovedBy?.username,
+            pmNote: note || "同意",
+            pmDate: new Date(),
+            pmUser: user.username,
+            reviewChain
+        }, null);
+    } catch (err) {
+        console.error("Failed to generate PDF during PM approval:", err);
+        return { error: "PDF 生成失敗，請稍後再試" };
+    }
+
+    // All DB updates in a single transaction for consistency
+    try {
+        await prisma.$transaction([
+            prisma.itemHistory.update({
+                where: { id: approval.itemHistoryId },
+                data: { isoDocPath: pdfPath }
+            }),
+            prisma.qCDocumentApproval.update({
+                where: { id: approvalId },
+                data: {
+                    status: "COMPLETED",
+                    pmApprovedById: session.user.id,
+                    pmApprovedAt: new Date(),
+                    pmNote: note || "同意",
+                }
+            })
+        ]);
+    } catch (err) {
+        console.error("Failed to update database during PM approval:", err);
+        return { error: "資料庫更新失敗，請稍後再試" };
+    }
+
+    // Send completion notification (non-critical, outside transaction)
     if (approval.itemHistory.submittedById) {
         await createNotification({
             userId: approval.itemHistory.submittedById,
@@ -359,18 +366,6 @@ export async function rejectQCDocument(
 }
 
 
-/**
- * Create a QC Document Approval record for a new ItemHistory
- * Called after PDF generation in history.ts
- */
-export async function createQCDocumentApproval(itemHistoryId: number): Promise<void> {
-    await prisma.qCDocumentApproval.create({
-        data: {
-            itemHistoryId,
-            status: "PENDING_QC"
-        }
-    });
-}
 
 /**
  * Get count of pending QC/PM documents for badge display

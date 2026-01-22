@@ -88,18 +88,23 @@ export async function updateProject(
     }
 }
 
-export async function deleteProject(id: number) {
+export async function deleteProject(id: number): Promise<ProjectState> {
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "ADMIN") {
-        throw new Error("Unauthorized: Only Admins can delete projects.");
+        return { error: "Unauthorized: Only Admins can delete projects." };
     }
 
-    await prisma.project.delete({
-        where: { id },
-    });
+    try {
+        await prisma.project.delete({
+            where: { id },
+        });
 
-    revalidatePath("/projects");
+        revalidatePath("/projects");
+        return { message: "Project deleted successfully" };
+    } catch (e: any) {
+        return { error: "刪除專案失敗: " + (e.message || "未知錯誤") };
+    }
 }
 
 export async function getProjects() {

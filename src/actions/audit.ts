@@ -193,21 +193,29 @@ export async function exportDailyLoginLogs(date?: Date): Promise<{ success: bool
             }))
         };
 
-        // Ensure daily_logs directory exists
-        const logsDir = path.join(process.cwd(), 'daily_logs');
-        await fs.mkdir(logsDir, { recursive: true });
+        let fileWriteSuccess = false;
+        let fileName = "";
 
-        // Write to file
-        const fileName = `login_log_${dateStr}.json`;
-        const filePath = path.join(logsDir, fileName);
-        await fs.writeFile(filePath, JSON.stringify(exportData, null, 2), 'utf-8');
+        try {
+            // Ensure daily_logs directory exists
+            const logsDir = path.join(process.cwd(), 'daily_logs');
+            await fs.mkdir(logsDir, { recursive: true });
 
-        console.log(`[exportDailyLoginLogs] Exported ${logs.length} records to ${filePath}`);
+            // Write to file
+            fileName = `login_log_${dateStr}.json`;
+            const filePath = path.join(logsDir, fileName);
+            await fs.writeFile(filePath, JSON.stringify(exportData, null, 2), 'utf-8');
+            fileWriteSuccess = true;
+            console.log(`[exportDailyLoginLogs] Exported ${logs.length} records to ${filePath}`);
+        } catch (fsError) {
+            console.warn("[exportDailyLoginLogs] File system write failed (likely read-only environment):", fsError);
+        }
 
         return {
             success: true,
-            filePath: fileName,
-            recordCount: logs.length
+            filePath: fileWriteSuccess ? fileName : undefined,
+            recordCount: logs.length,
+            data: exportData // Always return data so client can handle it if FS fails
         };
     } catch (error) {
         console.error("[exportDailyLoginLogs] Export failed:", error);

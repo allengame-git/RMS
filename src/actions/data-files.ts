@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { Prisma } from '@prisma/client';
 
 // ============================================
 // Query Actions
@@ -286,108 +287,115 @@ export async function approveDataFileRequest(requestId: number) {
 
     const data = JSON.parse(request.data);
 
-    if (request.type === 'FILE_CREATE') {
-        // Create new file
-        const file = await prisma.dataFile.create({
-            data: {
-                dataYear: data.dataYear,
-                dataName: data.dataName,
-                dataCode: data.dataCode,
-                author: data.author,
-                description: data.description,
-                fileName: data.fileName,
-                filePath: data.filePath,
-                fileSize: data.fileSize,
-                mimeType: data.mimeType
+    try {
+        await prisma.$transaction(async (tx) => {
+            if (request.type === 'FILE_CREATE') {
+                // Create new file
+                const file = await tx.dataFile.create({
+                    data: {
+                        dataYear: data.dataYear,
+                        dataName: data.dataName,
+                        dataCode: data.dataCode,
+                        author: data.author,
+                        description: data.description,
+                        fileName: data.fileName,
+                        filePath: data.filePath,
+                        fileSize: data.fileSize,
+                        mimeType: data.mimeType
+                    }
+                });
+
+                // Create history
+                await tx.dataFileHistory.create({
+                    data: {
+                        fileId: file.id,
+                        version: 1,
+                        changeType: 'CREATE',
+                        snapshot: JSON.stringify(file),
+                        submittedById: request.submittedById,
+                        reviewedById: session.user.id,
+                        reviewStatus: 'APPROVED',
+                        dataCode: file.dataCode,
+                        dataName: file.dataName,
+                        dataYear: file.dataYear
+                    }
+                });
+            } else if (request.type === 'FILE_UPDATE') {
+                const file = request.file!;
+                const newVersion = file.currentVersion + 1;
+
+                // Update file
+                const updatedFile = await tx.dataFile.update({
+                    where: { id: file.id },
+                    data: {
+                        ...data,
+                        currentVersion: newVersion
+                    }
+                });
+
+                // Create history
+                await tx.dataFileHistory.create({
+                    data: {
+                        fileId: file.id,
+                        version: newVersion,
+                        changeType: 'UPDATE',
+                        snapshot: JSON.stringify(updatedFile),
+                        diff: JSON.stringify(data),
+                        submittedById: request.submittedById,
+                        reviewedById: session.user.id,
+                        reviewStatus: 'APPROVED',
+                        dataCode: updatedFile.dataCode,
+                        dataName: updatedFile.dataName,
+                        dataYear: updatedFile.dataYear
+                    }
+                });
+            } else if (request.type === 'FILE_DELETE') {
+                const file = request.file!;
+                const newVersion = file.currentVersion + 1;
+
+                // Soft delete
+                await tx.dataFile.update({
+                    where: { id: file.id },
+                    data: {
+                        isDeleted: true,
+                        currentVersion: newVersion
+                    }
+                });
+
+                // Create history
+                await tx.dataFileHistory.create({
+                    data: {
+                        fileId: file.id,
+                        version: newVersion,
+                        changeType: 'DELETE',
+                        snapshot: JSON.stringify(file),
+                        submittedById: request.submittedById,
+                        reviewedById: session.user.id,
+                        reviewStatus: 'APPROVED',
+                        dataCode: file.dataCode,
+                        dataName: file.dataName,
+                        dataYear: file.dataYear
+                    }
+                });
             }
+
+            // Update request status
+            await tx.dataFileChangeRequest.update({
+                where: { id: requestId },
+                data: {
+                    status: 'APPROVED',
+                    reviewedById: session.user.id
+                }
+            });
         });
 
-        // Create history
-        await prisma.dataFileHistory.create({
-            data: {
-                fileId: file.id,
-                version: 1,
-                changeType: 'CREATE',
-                snapshot: JSON.stringify(file),
-                submittedById: request.submittedById,
-                reviewedById: session.user.id,
-                reviewStatus: 'APPROVED',
-                dataCode: file.dataCode,
-                dataName: file.dataName,
-                dataYear: file.dataYear
-            }
-        });
-    } else if (request.type === 'FILE_UPDATE') {
-        const file = request.file!;
-        const newVersion = file.currentVersion + 1;
-
-        // Update file
-        const updatedFile = await prisma.dataFile.update({
-            where: { id: file.id },
-            data: {
-                ...data,
-                currentVersion: newVersion
-            }
-        });
-
-        // Create history
-        await prisma.dataFileHistory.create({
-            data: {
-                fileId: file.id,
-                version: newVersion,
-                changeType: 'UPDATE',
-                snapshot: JSON.stringify(updatedFile),
-                diff: JSON.stringify(data),
-                submittedById: request.submittedById,
-                reviewedById: session.user.id,
-                reviewStatus: 'APPROVED',
-                dataCode: updatedFile.dataCode,
-                dataName: updatedFile.dataName,
-                dataYear: updatedFile.dataYear
-            }
-        });
-    } else if (request.type === 'FILE_DELETE') {
-        const file = request.file!;
-        const newVersion = file.currentVersion + 1;
-
-        // Soft delete
-        await prisma.dataFile.update({
-            where: { id: file.id },
-            data: {
-                isDeleted: true,
-                currentVersion: newVersion
-            }
-        });
-
-        // Create history
-        await prisma.dataFileHistory.create({
-            data: {
-                fileId: file.id,
-                version: newVersion,
-                changeType: 'DELETE',
-                snapshot: JSON.stringify(file),
-                submittedById: request.submittedById,
-                reviewedById: session.user.id,
-                reviewStatus: 'APPROVED',
-                dataCode: file.dataCode,
-                dataName: file.dataName,
-                dataYear: file.dataYear
-            }
-        });
+        revalidatePath('/admin/approval');
+        revalidatePath('/datafiles');
+        return { success: true };
+    } catch (e: any) {
+        console.error("Failed to approve data file request", e);
+        throw new Error(`Failed to apply change: ${e.message}`);
     }
-
-    // Update request status
-    await prisma.dataFileChangeRequest.update({
-        where: { id: requestId },
-        data: {
-            status: 'APPROVED',
-            reviewedById: session.user.id
-        }
-    });
-
-    revalidatePath('/admin/approval');
-    revalidatePath('/datafiles');
-    return { success: true };
 }
 
 /**

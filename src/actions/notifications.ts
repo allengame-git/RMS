@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 
 // ============================================
 // Notification Types
@@ -33,8 +34,9 @@ export interface CreateNotificationInput {
 /**
  * 建立通知
  */
-export async function createNotification(input: CreateNotificationInput) {
-    const notification = await prisma.notification.create({
+export async function createNotification(input: CreateNotificationInput, tx?: Prisma.TransactionClient) {
+    const client = tx || prisma;
+    const notification = await client.notification.create({
         data: {
             userId: input.userId,
             type: input.type,

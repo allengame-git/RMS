@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 
 export type CategoryState = {
     message?: string;
@@ -40,17 +41,21 @@ export async function createCategory(name: string, description?: string): Promis
     }
 
     try {
-        // Get max sortOrder for new category
-        const maxOrder = await prisma.projectCategory.aggregate({
-            _max: { sortOrder: true }
-        });
+        await prisma.$transaction(async (tx) => {
+            // Get max sortOrder for new category
+            const maxOrder = await tx.projectCategory.aggregate({
+                _max: { sortOrder: true }
+            });
 
-        await prisma.projectCategory.create({
-            data: {
-                name: name.trim(),
-                description: description?.trim() || null,
-                sortOrder: (maxOrder._max.sortOrder ?? 0) + 1
-            }
+            const nextSortOrder = (maxOrder._max.sortOrder !== null) ? maxOrder._max.sortOrder + 1 : 0;
+
+            await tx.projectCategory.create({
+                data: {
+                    name: name.trim(),
+                    description: description?.trim() || null,
+                    sortOrder: nextSortOrder
+                }
+            });
         });
 
         revalidatePath("/projects");

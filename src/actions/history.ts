@@ -58,8 +58,10 @@ export async function createHistoryRecord(
     changeRequest: { id: number; submittedById: string | null; submitReason?: string | null; reviewNote?: string | null; createdAt: Date },
     changeType: "CREATE" | "UPDATE" | "DELETE" | "RESTORE",
     reviewerId: string,
-    oldSnapshot?: ItemSnapshot
+    oldSnapshot?: ItemSnapshot,
+    tx?: Prisma.TransactionClient
 ) {
+    const client = tx || prisma;
     console.log('=== createHistoryRecord CALLED ===', { itemId: item.id, changeType, changeRequestId: changeRequest.id });
     const diff = (changeType === "UPDATE" && oldSnapshot)
         ? computeDiff(oldSnapshot, snapshotData)
@@ -73,7 +75,7 @@ export async function createHistoryRecord(
     }
 
     // Create History Record
-    const historyRecord = await prisma.itemHistory.create({
+    const historyRecord = await client.itemHistory.create({
         data: {
             itemId: item.id, // Support soft delete linking
             version: newVersion,
@@ -98,7 +100,7 @@ export async function createHistoryRecord(
     // Create QC Document Approval record to start the signature workflow
     // PDF will be generated only after PM approval
     try {
-        await prisma.qCDocumentApproval.create({
+        await client.qCDocumentApproval.create({
             data: {
                 itemHistoryId: historyRecord.id,
                 status: "PENDING_QC"
@@ -116,14 +118,14 @@ export async function createHistoryRecord(
     // Actually, let's update it so currentVersion reflects the 'Deleted' state version.
 
     if (changeType !== "DELETE") {
-        await prisma.item.update({
+        await client.item.update({
             where: { id: item.id },
             data: { currentVersion: newVersion }
         });
     } else {
         // For DELETE (Soft), we also update version to match history?
         // Yes, let's do it to keep consistency.
-        await prisma.item.update({
+        await client.item.update({
             where: { id: item.id },
             data: { currentVersion: newVersion }
         });

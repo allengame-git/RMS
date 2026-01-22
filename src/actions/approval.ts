@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -344,6 +345,257 @@ export async function getPendingRequests() {
     });
 }
 
+// ==================== Approval Handlers (Private) ====================
+
+async function handleItemCreateApproval(
+    tx: Prisma.TransactionClient,
+    request: any,
+    data: any,
+    session: any,
+    reviewNote?: string
+) {
+    if (!request.targetProjectId) throw new Error("Missing target project");
+
+    const fullId = await generateNextItemId(
+        request.targetProjectId,
+        request.targetParentId,
+        tx
+    );
+
+    const newItem = await tx.item.create({
+        data: {
+            fullId,
+            title: data.title,
+            content: data.content,
+            attachments: data.attachments && data.attachments.length > 0
+                ? JSON.stringify(data.attachments)
+                : null,
+            projectId: request.targetProjectId,
+            parentId: request.targetParentId,
+            publishedAt: new Date(),
+        },
+    });
+
+    // Bulk create relations
+    if (data.relatedItems && data.relatedItems.length > 0) {
+        const relationData: any[] = [];
+        for (const rItem of data.relatedItems) {
+            relationData.push({ sourceId: newItem.id, targetId: rItem.id, description: rItem.description || null });
+            relationData.push({ sourceId: rItem.id, targetId: newItem.id, description: rItem.description || null });
+        }
+        await tx.itemRelation.createMany({
+            data: relationData,
+            skipDuplicates: true
+        });
+    }
+
+    // Bulk create references
+    if (data.references && data.references.length > 0) {
+        await tx.itemReference.createMany({
+            data: data.references.map((ref: any) => ({
+                itemId: newItem.id,
+                fileId: ref.fileId,
+                citation: ref.citation || null
+            })),
+            skipDuplicates: true
+        });
+    }
+
+    const relationsForSnapshot = await tx.itemRelation.findMany({
+        where: { sourceId: newItem.id },
+        include: { target: { select: { id: true, fullId: true, title: true } } }
+    });
+    const referencesForSnapshot = await tx.itemReference.findMany({
+        where: { itemId: newItem.id },
+        include: { file: { select: { id: true, dataCode: true, dataName: true, dataYear: true, author: true } } }
+    });
+
+    const snapshot: ItemSnapshot = {
+        title: newItem.title,
+        content: newItem.content,
+        attachments: newItem.attachments,
+        relatedItems: mapRelationsToSnapshot(relationsForSnapshot),
+        references: mapReferencesToSnapshot(referencesForSnapshot)
+    };
+
+    await createHistoryRecord(
+        newItem,
+        snapshot,
+        {
+            id: request.id,
+            submittedById: request.submittedById,
+            submitReason: request.submitReason,
+            reviewNote: reviewNote,
+            createdAt: request.createdAt
+        },
+        "CREATE",
+        session.user.id,
+        undefined,
+        tx
+    );
+}
+
+async function handleItemUpdateApproval(
+    tx: Prisma.TransactionClient,
+    request: any,
+    data: any,
+    session: any,
+    reviewNote?: string
+) {
+    if (!request.itemId) throw new Error("Missing target item ID");
+
+    const originalRelations = await tx.itemRelation.findMany({
+        where: { sourceId: request.itemId },
+        include: { target: { select: { id: true, fullId: true, title: true } } }
+    });
+    const originalReferences = await tx.itemReference.findMany({
+        where: { itemId: request.itemId },
+        include: { file: { select: { id: true, dataCode: true, dataName: true, dataYear: true, author: true } } }
+    });
+    const originalItem = await tx.item.findUnique({
+        where: { id: request.itemId }
+    });
+    if (!originalItem) throw new Error("Original item not found");
+
+    const oldSnapshot: ItemSnapshot = {
+        title: originalItem.title,
+        content: originalItem.content,
+        attachments: originalItem.attachments,
+        relatedItems: mapRelationsToSnapshot(originalRelations),
+        references: mapReferencesToSnapshot(originalReferences)
+    };
+
+    const updatedItem = await tx.item.update({
+        where: { id: request.itemId },
+        data: {
+            title: data.title,
+            content: data.content,
+            attachments: data.attachments ? JSON.stringify(data.attachments) : undefined,
+            updatedAt: new Date()
+        }
+    });
+
+    if (data.relatedItems) {
+        await tx.itemRelation.deleteMany({
+            where: { OR: [{ sourceId: request.itemId }, { targetId: request.itemId }] }
+        });
+
+        const relationData: any[] = [];
+        for (const rItem of data.relatedItems) {
+            relationData.push({ sourceId: request.itemId, targetId: rItem.id, description: rItem.description || null });
+            relationData.push({ sourceId: rItem.id, targetId: request.itemId, description: rItem.description || null });
+        }
+        await tx.itemRelation.createMany({
+            data: relationData,
+            skipDuplicates: true
+        });
+    }
+
+    if (data.references) {
+        await tx.itemReference.deleteMany({ where: { itemId: request.itemId } });
+        await tx.itemReference.createMany({
+            data: data.references.map((ref: any) => ({
+                itemId: request.itemId,
+                fileId: ref.fileId,
+                citation: ref.citation || null
+            })),
+            skipDuplicates: true
+        });
+    }
+
+    const updatedRelations = await tx.itemRelation.findMany({
+        where: { sourceId: request.itemId },
+        include: { target: { select: { id: true, fullId: true, title: true } } }
+    });
+    const updatedReferences = await tx.itemReference.findMany({
+        where: { itemId: request.itemId },
+        include: { file: { select: { id: true, dataCode: true, dataName: true, dataYear: true, author: true } } }
+    });
+
+    const newSnapshot: ItemSnapshot = {
+        title: updatedItem.title,
+        content: updatedItem.content,
+        attachments: updatedItem.attachments,
+        relatedItems: mapRelationsToSnapshot(updatedRelations),
+        references: mapReferencesToSnapshot(updatedReferences)
+    };
+
+    await createHistoryRecord(
+        updatedItem,
+        newSnapshot,
+        {
+            id: request.id,
+            submittedById: request.submittedById,
+            submitReason: request.submitReason,
+            reviewNote: reviewNote,
+            createdAt: request.createdAt
+        },
+        "UPDATE",
+        session.user.id,
+        oldSnapshot,
+        tx
+    );
+}
+
+async function handleItemDeleteApproval(
+    tx: Prisma.TransactionClient,
+    request: any,
+    session: any,
+    reviewNote?: string
+) {
+    if (!request.itemId) throw new Error("Missing target item ID");
+
+    const childCount = await tx.item.count({ where: { parentId: request.itemId, isDeleted: false } });
+    if (childCount > 0) throw new Error("Cannot delete item with children");
+
+    const item = await tx.item.findUnique({ where: { id: request.itemId } });
+    if (!item) throw new Error("Item not found");
+
+    const relations = await tx.itemRelation.findMany({
+        where: { sourceId: request.itemId },
+        include: { target: { select: { id: true, fullId: true, title: true } } }
+    });
+    const itemReferences = await tx.itemReference.findMany({
+        where: { itemId: request.itemId },
+        include: { file: { select: { id: true, dataCode: true, dataName: true, dataYear: true, author: true } } }
+    });
+
+    const lastSnapshot: ItemSnapshot = {
+        title: item.title,
+        content: item.content,
+        attachments: item.attachments,
+        relatedItems: mapRelationsToSnapshot(relations),
+        references: mapReferencesToSnapshot(itemReferences)
+    };
+
+    await tx.itemRelation.deleteMany({
+        where: { OR: [{ sourceId: request.itemId }, { targetId: request.itemId }] }
+    });
+
+    await tx.item.update({
+        where: { id: request.itemId },
+        data: { isDeleted: true }
+    });
+
+    await createHistoryRecord(
+        item,
+        lastSnapshot,
+        {
+            id: request.id,
+            submittedById: request.submittedById,
+            submitReason: request.submitReason,
+            reviewNote: reviewNote,
+            createdAt: request.createdAt
+        },
+        "DELETE",
+        session.user.id,
+        undefined,
+        tx
+    );
+}
+
+// ==================== Public Actions ====================
+
 export async function approveRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
     if (!session || !canReview(session.user.role)) throw new Error("Unauthorized");
@@ -359,294 +611,63 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
 
     if (!request || request.status !== "PENDING") throw new Error("Invalid request");
 
-    // Prevent self-approval (except for ADMIN)
     if (session.user.role !== "ADMIN" && request.submittedById === session.user.id) {
         throw new Error("You cannot approve your own change request");
     }
 
     const data = JSON.parse(request.data);
 
-    // LOGIC: Apply Change
     try {
-        if (request.type === "CREATE") {
-            // Generate ID
-            if (!request.targetProjectId) throw new Error("Missing target project");
-
-            const fullId = await generateNextItemId(
-                request.targetProjectId,
-                request.targetParentId
-            );
-
-            // Capture the created item
-            const newItem = await prisma.item.create({
-                data: {
-                    fullId,
-                    title: data.title,
-                    content: data.content,
-                    attachments: data.attachments && data.attachments.length > 0
-                        ? JSON.stringify(data.attachments)
-                        : null,
-                    projectId: request.targetProjectId,
-                    parentId: request.targetParentId,
-                    publishedAt: new Date(),
-                },
-                include: { relationsFrom: { include: { target: { select: { id: true, fullId: true } } } } }
-            });
-
-            // Handle related items via ItemRelation table
-            if (data.relatedItems && data.relatedItems.length > 0) {
-                for (const rItem of data.relatedItems) {
-                    // Create bidirectional relations
-                    try {
-                        await prisma.itemRelation.create({
-                            data: { sourceId: newItem.id, targetId: rItem.id, description: rItem.description || null }
-                        });
-                    } catch (e) { /* ignore duplicate */ }
-                    try {
-                        await prisma.itemRelation.create({
-                            data: { sourceId: rItem.id, targetId: newItem.id, description: rItem.description || null }
-                        });
-                    } catch (e) { /* ignore duplicate */ }
-                }
-            }
-
-            // Handle references via ItemReference table
-            if (data.references && data.references.length > 0) {
-                for (const ref of data.references) {
-                    try {
-                        await prisma.itemReference.create({
-                            data: {
-                                itemId: newItem.id,
-                                fileId: ref.fileId,
-                                citation: ref.citation || null
-                            }
-                        });
-                    } catch (e) { /* ignore duplicate */ }
-                }
-            }
-
-            // HISTORY RECORD
-            const relationsForSnapshot = await prisma.itemRelation.findMany({
-                where: { sourceId: newItem.id },
-                include: { target: { select: { id: true, fullId: true, title: true } } }
-            });
-            const referencesForSnapshot = await prisma.itemReference.findMany({
-                where: { itemId: newItem.id },
-                include: { file: { select: { id: true, dataCode: true, dataName: true, dataYear: true, author: true } } }
-            });
-            const snapshot: ItemSnapshot = {
-                title: newItem.title,
-                content: newItem.content,
-                attachments: newItem.attachments,
-                relatedItems: mapRelationsToSnapshot(relationsForSnapshot),
-                references: mapReferencesToSnapshot(referencesForSnapshot)
-            };
-
-            await createHistoryRecord(newItem, snapshot, { id: request.id, submittedById: request.submittedById, submitReason: request.submitReason, reviewNote: reviewNote, createdAt: request.createdAt }, "CREATE", session.user.id);
-        }
-        else if (request.type === "UPDATE") {
-            if (!request.itemId) throw new Error("Missing target item ID");
-
-            // Fetch original for history
-            const originalRelations = await prisma.itemRelation.findMany({
-                where: { sourceId: request.itemId },
-                include: { target: { select: { id: true, fullId: true, title: true } } }
-            });
-            const originalReferences = await prisma.itemReference.findMany({
-                where: { itemId: request.itemId },
-                include: { file: { select: { id: true, dataCode: true, dataName: true, dataYear: true, author: true } } }
-            });
-            const originalItem = await prisma.item.findUnique({
-                where: { id: request.itemId }
-            });
-            if (!originalItem) throw new Error("Original item not found");
-
-            const oldSnapshot: ItemSnapshot = {
-                title: originalItem.title,
-                content: originalItem.content,
-                attachments: originalItem.attachments,
-                relatedItems: mapRelationsToSnapshot(originalRelations),
-                references: mapReferencesToSnapshot(originalReferences)
-            };
-
-            await prisma.item.update({
-                where: { id: request.itemId },
-                data: {
-                    title: data.title,
-                    content: data.content,
-                    attachments: data.attachments ? JSON.stringify(data.attachments) : undefined,
-                    updatedAt: new Date()
-                }
-            });
-
-            // Handle related items via ItemRelation table if provided
-            if (data.relatedItems) {
-                // Delete existing relations
-                await prisma.itemRelation.deleteMany({
-                    where: {
-                        OR: [
-                            { sourceId: request.itemId },
-                            { targetId: request.itemId }
-                        ]
+        await prisma.$transaction(async (tx) => {
+            if (request.type === "CREATE") {
+                await handleItemCreateApproval(tx, request, data, session, reviewNote);
+            } else if (request.type === "UPDATE") {
+                await handleItemUpdateApproval(tx, request, data, session, reviewNote);
+            } else if (request.type === "DELETE") {
+                await handleItemDeleteApproval(tx, request, session, reviewNote);
+            } else if (request.type === "PROJECT_UPDATE") {
+                if (!request.targetProjectId) throw new Error("Missing target project ID");
+                await tx.project.update({
+                    where: { id: request.targetProjectId },
+                    data: {
+                        title: data.title,
+                        description: data.description || null,
+                        updatedAt: new Date()
                     }
                 });
-
-                // Create new relations
-                for (const rItem of data.relatedItems) {
-                    try {
-                        await prisma.itemRelation.create({
-                            data: { sourceId: request.itemId, targetId: rItem.id, description: rItem.description || null }
-                        });
-                    } catch (e) { /* ignore duplicate */ }
-                    try {
-                        await prisma.itemRelation.create({
-                            data: { sourceId: rItem.id, targetId: request.itemId, description: rItem.description || null }
-                        });
-                    } catch (e) { /* ignore duplicate */ }
-                }
+            } else if (request.type === "PROJECT_DELETE") {
+                if (!request.targetProjectId) throw new Error("Missing target project ID");
+                const itemCount = await tx.item.count({ where: { projectId: request.targetProjectId } });
+                if (itemCount > 0) throw new Error("Cannot delete project with existing items");
+                await tx.project.delete({ where: { id: request.targetProjectId } });
             }
 
-            // Handle references via ItemReference table if provided
-            if (data.references) {
-                // Delete existing references
-                await prisma.itemReference.deleteMany({
-                    where: { itemId: request.itemId }
-                });
-
-                // Create new references
-                for (const ref of data.references) {
-                    try {
-                        await prisma.itemReference.create({
-                            data: {
-                                itemId: request.itemId,
-                                fileId: ref.fileId,
-                                citation: ref.citation || null
-                            }
-                        });
-                    } catch (e) { /* ignore duplicate */ }
-                }
-            }
-
-            // Get Updated Relations
-            const updatedRelations = await prisma.itemRelation.findMany({
-                where: { sourceId: request.itemId },
-                include: { target: { select: { id: true, fullId: true, title: true } } }
-            });
-            const updatedReferences = await prisma.itemReference.findMany({
-                where: { itemId: request.itemId },
-                include: { file: { select: { id: true, dataCode: true, dataName: true, dataYear: true, author: true } } }
-            });
-            const updatedItem = await prisma.item.findUnique({
-                where: { id: request.itemId }
-            });
-            if (updatedItem) {
-                const newSnapshot: ItemSnapshot = {
-                    title: updatedItem.title,
-                    content: updatedItem.content,
-                    attachments: updatedItem.attachments,
-                    relatedItems: mapRelationsToSnapshot(updatedRelations),
-                    references: mapReferencesToSnapshot(updatedReferences)
-                };
-
-                await createHistoryRecord(updatedItem, newSnapshot, { id: request.id, submittedById: request.submittedById, submitReason: request.submitReason, reviewNote: reviewNote, createdAt: request.createdAt }, "UPDATE", session.user.id, oldSnapshot);
-            }
-        }
-        else if (request.type === "DELETE") {
-            if (!request.itemId) throw new Error("Missing target item ID");
-
-            // Double check children count
-            const childCount = await prisma.item.count({ where: { parentId: request.itemId, isDeleted: false } });
-            if (childCount > 0) throw new Error("Cannot delete item with children");
-
-            // Fetch for history
-            const item = await prisma.item.findUnique({
-                where: { id: request.itemId }
-            });
-            if (!item) throw new Error("Item not found");
-
-            const relations = await prisma.itemRelation.findMany({
-                where: { sourceId: request.itemId },
-                include: { target: { select: { id: true, fullId: true, title: true } } }
-            });
-            const itemReferences = await prisma.itemReference.findMany({
-                where: { itemId: request.itemId },
-                include: { file: { select: { id: true, dataCode: true, dataName: true, dataYear: true, author: true } } }
-            });
-
-            const lastSnapshot: ItemSnapshot = {
-                title: item.title,
-                content: item.content,
-                attachments: item.attachments,
-                relatedItems: mapRelationsToSnapshot(relations),
-                references: mapReferencesToSnapshot(itemReferences)
-            };
-
-            // Delete relations first
-            await prisma.itemRelation.deleteMany({
-                where: {
-                    OR: [
-                        { sourceId: request.itemId },
-                        { targetId: request.itemId }
-                    ]
-                }
-            });
-
-            await prisma.item.update({
-                where: { id: request.itemId },
-                data: { isDeleted: true }
-            });
-
-            await createHistoryRecord(item, lastSnapshot, { id: request.id, submittedById: request.submittedById, submitReason: request.submitReason, reviewNote: reviewNote, createdAt: request.createdAt }, "DELETE", session.user.id);
-        }
-        else if (request.type === "PROJECT_UPDATE") {
-            if (!request.targetProjectId) throw new Error("Missing target project ID");
-
-            await prisma.project.update({
-                where: { id: request.targetProjectId },
+            // Update Request Status
+            await tx.changeRequest.update({
+                where: { id: requestId },
                 data: {
-                    title: data.title,
-                    description: data.description || null,
+                    status: "APPROVED",
+                    reviewedById: session.user.id,
+                    reviewNote: reviewNote || "同意",
                     updatedAt: new Date()
                 }
             });
-        }
-        else if (request.type === "PROJECT_DELETE") {
-            if (!request.targetProjectId) throw new Error("Missing target project ID");
 
-            // Double check that project has no items
-            const itemCount = await prisma.item.count({ where: { projectId: request.targetProjectId } });
-            if (itemCount > 0) throw new Error("Cannot delete project with existing items");
+            // Send notification
+            if (request.submittedById) {
+                const itemId = request.item?.fullId || request.targetProject?.codePrefix || "項目";
+                const itemTitle = request.item?.title || request.targetProject?.title || "";
 
-            await prisma.project.delete({
-                where: { id: request.targetProjectId }
-            });
-        }
-
-        // Update Request Status
-        await prisma.changeRequest.update({
-            where: { id: requestId },
-            data: {
-                status: "APPROVED",
-                reviewedById: session.user.id,
-                reviewNote: reviewNote || "同意",
-                updatedAt: new Date()
+                await createNotification({
+                    userId: request.submittedById,
+                    type: "APPROVAL",
+                    title: `變更申請已核准`,
+                    message: `${itemId} ${itemTitle} - 已通過審核`,
+                    link: request.itemId ? `/items/${request.itemId}` : `/projects/${request.targetProjectId}`,
+                    changeRequestId: requestId,
+                }, tx);
             }
         });
-
-        // Send approval notification to submitter
-        if (request.submittedById) {
-            const itemId = request.item?.fullId || request.targetProject?.codePrefix || "項目";
-            const itemTitle = request.item?.title || request.targetProject?.title || "";
-
-            await createNotification({
-                userId: request.submittedById,
-                type: "APPROVAL",
-                title: `變更申請已核准`,
-                message: `${itemId} ${itemTitle} - 已通過審核`,
-                link: request.itemId ? `/items/${request.itemId}` : `/projects/${request.targetProjectId}`,
-                changeRequestId: requestId,
-            });
-        }
 
         revalidatePath("/admin/approval");
         if (request.targetProjectId) revalidatePath(`/projects/${request.targetProjectId}`);
@@ -654,8 +675,6 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
 
     } catch (e: any) {
         console.error("Failed to approve request", e);
-        console.error("Request data:", request);
-        console.error("Parsed data:", data);
         throw new Error(`Failed to apply change: ${e.message}`);
     }
 }
