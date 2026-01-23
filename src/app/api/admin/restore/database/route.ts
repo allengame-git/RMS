@@ -10,13 +10,6 @@ import os from 'os';
 
 export const dynamic = 'force-dynamic';
 
-// 設定較大的 body size limit
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
-
 export async function POST(request: NextRequest) {
     try {
         // 1. 權限驗證
