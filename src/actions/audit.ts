@@ -145,7 +145,7 @@ export async function getRecentFailedAttempts(username: string, minutes: number 
  * @param date - The date to export logs for (defaults to yesterday)
  * @returns Path to the exported file
  */
-export async function exportDailyLoginLogs(date?: Date): Promise<{ success: boolean; filePath?: string; recordCount?: number; error?: string }> {
+export async function exportDailyLoginLogs(date?: Date): Promise<{ success: boolean; filePath?: string; recordCount?: number; error?: string; data?: object }> {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") {
         return { success: false, error: "Unauthorized: Admin access required" };
