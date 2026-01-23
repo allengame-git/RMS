@@ -1,4 +1,4 @@
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument } from "pdf-lib";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -47,7 +47,7 @@ export async function embedSignatureInPDF(
     // Get the first page (signature blocks are on the last page typically)
     const pages = pdfDoc.getPages();
     const lastPage = pages[pages.length - 1];
-    const { width, height } = lastPage.getSize();
+    const { width, height: _height } = lastPage.getSize();
 
     // Define signature positions (based on the PDF layout from pdf-generator.ts)
     // The PDF is A4: 595.28 x 841.89 points
@@ -97,7 +97,7 @@ export async function embedSignatureInPDF(
     });
 
     // Add signer name and timestamp below signature
-    const timestamp = new Date().toLocaleString("zh-TW", {
+    const _timestamp = new Date().toLocaleString("zh-TW", {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",

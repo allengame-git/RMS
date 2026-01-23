@@ -66,7 +66,7 @@ const generateHistorySummaryPages = async (
     const red = rgb(0.8, 0.2, 0.2);
 
     // Date Formatter
-    const formatDate = (date: Date | string) => {
+    const _formatDate = (date: Date | string) => {
         const d = new Date(date);
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -235,7 +235,7 @@ const generateHistorySummaryPages = async (
 
 export const generateQCDocument = async (
     history: ItemHistory,
-    item: Item | null
+    _item: Item | null
 ): Promise<string> => {
     console.log('[generateQCDocument] Starting PDF generation for history:', history.id);
 

@@ -103,7 +103,7 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                 } else {
                     setError(result.error || '移除失敗');
                 }
-            } catch (err) {
+            } catch {
                 setError('發生錯誤');
             } finally {
                 setIsLoading(false);
@@ -142,7 +142,7 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                 } else {
                     setError(result.error || '更新失敗');
                 }
-            } catch (err) {
+            } catch {
                 setError('發生錯誤');
             } finally {
                 setIsLoading(false);

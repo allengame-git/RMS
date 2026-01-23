@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getUsers, createUser, updateUser, deleteUser, unlockUser, getUsersWithLockStatus } from "@/actions/users";
+import { createUser, updateUser, deleteUser, unlockUser, getUsersWithLockStatus } from "@/actions/users";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import PasswordStrengthIndicator from "@/components/auth/PasswordStrengthIndicator";
@@ -27,7 +27,7 @@ interface Project {
 
 export default function UserManagementPage() {
     const { data: session } = useSession();
-    const router = useRouter();
+    const _router = useRouter();
     const [users, setUsers] = useState<User[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
@@ -74,7 +74,7 @@ export default function UserManagementPage() {
             const response = await fetch('/api/projects');
             if (response.ok) {
                 const data = await response.json();
-                setProjects(data.map((p: any) => ({
+                setProjects(data.map((p: { id: number; title: string; codePrefix: string }) => ({
                     id: p.id,
                     title: p.title,
                     codePrefix: p.codePrefix,
@@ -109,7 +109,7 @@ export default function UserManagementPage() {
                 setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false, signaturePath: '' });
                 fetchUsers();
             }
-        } catch (err) {
+        } catch (_err) {
             setFormError('發生錯誤');
         } finally {
             setIsSubmitting(false);
@@ -138,7 +138,7 @@ export default function UserManagementPage() {
         setIsSubmitting(true);
 
         // Prepare update data
-        const updateData: any = {};
+        const updateData: { username?: string; password?: string; role?: string; isQC?: boolean; isPM?: boolean; signaturePath?: string } = {};
         if (formData.username !== editingUser.username) updateData.username = formData.username;
         if (formData.password) updateData.password = formData.password;
         if (formData.role !== editingUser.role) updateData.role = formData.role;
@@ -156,7 +156,7 @@ export default function UserManagementPage() {
                 setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false, signaturePath: '' });
                 fetchUsers();
             }
-        } catch (err) {
+        } catch (_err) {
             setFormError('發生錯誤');
         } finally {
             setIsSubmitting(false);
@@ -168,9 +168,10 @@ export default function UserManagementPage() {
         try {
             await deleteUser(userId);
             fetchUsers();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Delete user error:', err);
-            alert('刪除使用者失敗: ' + (err?.message || '未知錯誤'));
+            const message = err instanceof Error ? err.message : '未知錯誤';
+            alert('刪除使用者失敗: ' + message);
         }
     };
 
@@ -182,9 +183,10 @@ export default function UserManagementPage() {
             } else {
                 fetchUsers();
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Unlock user error:', err);
-            alert('解鎖失敗: ' + (err?.message || '未知錯誤'));
+            const message = err instanceof Error ? err.message : '未知錯誤';
+            alert('解鎖失敗: ' + message);
         }
     };
 

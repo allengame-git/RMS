@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { updateProject } from "@/actions/project";
 
 interface Category {
@@ -66,7 +65,7 @@ export default function EditProjectButton({ project, categories }: EditProjectBu
                     window.location.reload();
                 }, 1000);
             }
-        } catch (err) {
+        } catch {
             setStatus({ error: "發生未預期的錯誤。" });
         } finally {
             setIsSubmitting(false);

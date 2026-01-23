@@ -156,7 +156,7 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
                     setStatus(null);
                 }, 1500);
             }
-        } catch (err) {
+        } catch {
             setStatus({ error: "An unexpected error occurred." });
         } finally {
             setIsSubmitting(false);

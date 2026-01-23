@@ -75,7 +75,7 @@ function SubmitButton() {
     );
 }
 
-interface FileInfo {
+interface _FileInfo {
     name: string;
     path: string;
     size: number;

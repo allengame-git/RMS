@@ -1,6 +1,13 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 
-const cache = new Map<string, any>();
+interface CachedItemData {
+    error?: boolean;
+    id?: number;
+    title?: string;
+    projectTitle?: string;
+}
+
+const cache = new Map<string, CachedItemData>();
 const pending = new Set<string>();
 
 export const itemLinkValidationPlugin = new Plugin({
@@ -14,7 +21,7 @@ export const itemLinkValidationPlugin = new Plugin({
         if (!docChanged && !fetchTriggered) return null;
 
         const { doc } = newState;
-        let tr = newState.tr;
+        const tr = newState.tr;
         let modified = false;
 
         doc.descendants((node, pos) => {
@@ -64,14 +71,14 @@ export const itemLinkValidationPlugin = new Plugin({
         return null;
     },
 
-    view(editorView) {
+    view(_editorView) {
         return {
-            update(view, prevState) {
+            update(view, _prevState) {
                 const { state } = view;
                 const { doc } = state;
 
                 // Only scan for missing data to initiate fetches
-                doc.descendants((node, pos) => {
+                doc.descendants((node, _pos) => {
                     if (!node.isText) return;
                     const mark = node.marks.find((m) => m.type.name === 'itemLink');
                     if (mark) {

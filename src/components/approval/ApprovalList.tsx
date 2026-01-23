@@ -805,7 +805,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
             {/* Confirmation Dialog */}
             {confirmDialog && (() => {
                 const req = requests.find(r => r.id === confirmDialog.id);
-                const submitReason = req ? JSON.parse(req.data)?.submitReason : null;
+                const _submitReason = req ? JSON.parse(req.data)?.submitReason : null;
                 return (
                     <div style={{
                         position: 'fixed',

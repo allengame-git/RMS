@@ -99,7 +99,14 @@ export async function updateUser(
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
 
-    const updates: any = {};
+    const updates: {
+        username?: string;
+        password?: string;
+        role?: string;
+        isQC?: boolean;
+        isPM?: boolean;
+        signaturePath?: string | null;
+    } = {};
 
     // 1. Handle Username Update
     if (data.username) {

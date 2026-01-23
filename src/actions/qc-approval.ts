@@ -208,7 +208,7 @@ export async function approveAsPM(
     }
 
     // Get review chain
-    let reviewChain: any[] = [];
+    let reviewChain: unknown[] = [];
     if (approval.itemHistory.changeRequestId) {
         reviewChain = await getRequestChain(approval.itemHistory.changeRequestId);
     }
@@ -217,7 +217,6 @@ export async function approveAsPM(
     let pdfPath: string;
     try {
         pdfPath = await generateQCDocument({
-            // @ts-ignore
             ...fullHistory,
             submissionDate: submissionDate,
             qcNote: approval.qcNote,
@@ -315,7 +314,15 @@ export async function rejectQCDocument(
     }
 
     // Update approval status to REJECTED
-    const updateData: any = {
+    const updateData: {
+        status: string;
+        qcApprovedById?: string;
+        qcApprovedAt?: Date;
+        qcNote?: string;
+        pmApprovedById?: string;
+        pmApprovedAt?: Date;
+        pmNote?: string;
+    } = {
         status: "REJECTED",
     };
 

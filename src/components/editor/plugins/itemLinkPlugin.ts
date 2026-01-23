@@ -68,7 +68,7 @@ export const itemLinkPlugin = new Plugin({
             // Actually, we can use the same logic as decorations to find the exact match at this pos.
 
             const $pos = view.state.doc.resolve(pos);
-            const node = $pos.parent.child($pos.index()); // This gets the node at index in parent
+            const _node = $pos.parent.child($pos.index()); // This gets the node at index in parent
 
             // Wait, resolving text node is tricky.
             // Let's try to just use input rule for conversion for now to avoid complexity and bugs.
@@ -79,7 +79,7 @@ export const itemLinkPlugin = new Plugin({
 
             // Let's implement a quick scan.
             // Start of the block
-            let start = $pos.start();
+            const start = $pos.start();
             let foundFrom = -1;
             let foundTo = -1;
 

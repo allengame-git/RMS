@@ -44,8 +44,9 @@ export async function createProject(prevState: ProjectState, formData: FormData)
 
         revalidatePath("/projects");
         return { message: "Project created successfully!" };
-    } catch (e: any) {
-        if (e.code === 'P2002') { // Prisma unique constraint error
+    } catch (e: unknown) {
+        const err = e as { code?: string };
+        if (err.code === 'P2002') {
             return { error: "Code Prefix already exists." };
         }
         return { error: "Failed to create project." };
@@ -83,8 +84,9 @@ export async function updateProject(
 
         revalidatePath("/projects");
         return { message: "專案更新成功" };
-    } catch (e: any) {
-        return { error: "更新失敗: " + (e.message || "未知錯誤") };
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "未知錯誤";
+        return { error: "更新失敗: " + message };
     }
 }
 
@@ -102,8 +104,9 @@ export async function deleteProject(id: number): Promise<ProjectState> {
 
         revalidatePath("/projects");
         return { message: "Project deleted successfully" };
-    } catch (e: any) {
-        return { error: "刪除專案失敗: " + (e.message || "未知錯誤") };
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "未知錯誤";
+        return { error: "刪除專案失敗: " + message };
     }
 }
 
@@ -237,12 +240,13 @@ export async function copyProject(
 
         revalidatePath("/projects");
         return { message: `專案已複製為 ${normalizedPrefix}` };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Copy project error:", e);
-        if (e.code === 'P2002') {
+        const err = e as { code?: string; message?: string };
+        if (err.code === 'P2002') {
             return { error: "專案代碼或項目編號重複" };
         }
-        return { error: "複製專案失敗: " + (e.message || "未知錯誤") };
+        return { error: "複製專案失敗: " + (err.message || "未知錯誤") };
     }
 }
 

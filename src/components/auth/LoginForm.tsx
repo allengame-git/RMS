@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function LoginForm() {
-    const router = useRouter();
+    const _router = useRouter();
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -35,7 +35,7 @@ export default function LoginForm() {
                 // Force full reload to ensure session is picked up
                 window.location.href = "/";
             }
-        } catch (err) {
+        } catch {
             setError("發生未預期的錯誤");
         } finally {
             setLoading(false);

@@ -14,6 +14,54 @@ export type ApprovalState = {
     error?: string;
 };
 
+// ==================== Type Definitions ====================
+
+interface RelationWithTarget {
+    description: string | null;
+    target: { id: number; fullId: string; title: string };
+}
+
+interface ReferenceWithFile {
+    citation: string | null;
+    file: { id: number; dataCode: string; dataName: string; dataYear: number | null; author: string | null };
+}
+
+// Flexible type for ChangeRequest with partial includes - avoids strict Item type requirement
+interface ChangeRequestWithIncludes {
+    id: number;
+    type: string;
+    status: string;
+    data: string;
+    itemId: number | null;
+    targetProjectId: number | null;
+    targetParentId: number | null;
+    submittedById: string | null;
+    reviewedById?: string | null;
+    reviewNote?: string | null;
+    submitReason?: string | null;
+    createdAt: Date;
+    updatedAt?: Date;
+    reviewedAt?: Date | null;
+    previousRequestId?: number | null;
+    item?: { id?: number; fullId: string; title: string } | null;
+    targetProject?: { id?: number; title: string; codePrefix: string } | null;
+    submittedBy?: { id: string } | null;
+}
+
+interface ApprovalData {
+    title: string;
+    content: string | null;
+    attachments?: { name: string; path: string; size: number; type: string }[];
+    relatedItems?: { id: number; description?: string }[];
+    references?: { fileId: number; citation?: string }[];
+}
+
+interface SessionUser {
+    id: string;
+    role: string;
+    username: string;
+}
+
 // ==================== Helper Functions ====================
 
 /** 可編輯角色列表 */
@@ -29,7 +77,7 @@ const canEdit = (role: string) => EDITABLE_ROLES.includes(role);
 const canReview = (role: string) => REVIEWER_ROLES.includes(role);
 
 /** 將 ItemRelation 陣列映射為 snapshot 格式 */
-const mapRelationsToSnapshot = (relations: any[]) =>
+const mapRelationsToSnapshot = (relations: RelationWithTarget[]) =>
     relations.map(r => ({
         id: r.target.id,
         fullId: r.target.fullId,
@@ -38,7 +86,7 @@ const mapRelationsToSnapshot = (relations: any[]) =>
     }));
 
 /** 將 ItemReference 陣列映射為 snapshot 格式 */
-const mapReferencesToSnapshot = (refs: any[]) =>
+const mapReferencesToSnapshot = (refs: ReferenceWithFile[]) =>
     refs.map(r => ({
         fileId: r.file.id,
         dataCode: r.file.dataCode,
@@ -151,9 +199,10 @@ export async function submitUpdateItemRequest(
 
         revalidatePath(`/items/${itemId}`);
         return { message: "Update request submitted successfully! Waiting for approval." };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Submission Error:", e);
-        return { error: `Failed to submit request: ${e.message || "Unknown error"}` };
+        const message = e instanceof Error ? e.message : "Unknown error";
+        return { error: `Failed to submit request: ${message}` };
     }
 }
 
@@ -349,9 +398,9 @@ export async function getPendingRequests() {
 
 async function handleItemCreateApproval(
     tx: Prisma.TransactionClient,
-    request: any,
-    data: any,
-    session: any,
+    request: ChangeRequestWithIncludes,
+    data: ApprovalData,
+    session: { user: SessionUser },
     reviewNote?: string
 ) {
     if (!request.targetProjectId) throw new Error("Missing target project");
@@ -378,7 +427,7 @@ async function handleItemCreateApproval(
 
     // Bulk create relations
     if (data.relatedItems && data.relatedItems.length > 0) {
-        const relationData: any[] = [];
+        const relationData: { sourceId: number; targetId: number; description: string | null }[] = [];
         for (const rItem of data.relatedItems) {
             relationData.push({ sourceId: newItem.id, targetId: rItem.id, description: rItem.description || null });
             relationData.push({ sourceId: rItem.id, targetId: newItem.id, description: rItem.description || null });
@@ -392,7 +441,7 @@ async function handleItemCreateApproval(
     // Bulk create references
     if (data.references && data.references.length > 0) {
         await tx.itemReference.createMany({
-            data: data.references.map((ref: any) => ({
+            data: data.references.map((ref: { fileId: number; citation?: string }) => ({
                 itemId: newItem.id,
                 fileId: ref.fileId,
                 citation: ref.citation || null
@@ -437,9 +486,9 @@ async function handleItemCreateApproval(
 
 async function handleItemUpdateApproval(
     tx: Prisma.TransactionClient,
-    request: any,
-    data: any,
-    session: any,
+    request: ChangeRequestWithIncludes,
+    data: ApprovalData,
+    session: { user: SessionUser },
     reviewNote?: string
 ) {
     if (!request.itemId) throw new Error("Missing target item ID");
@@ -480,7 +529,7 @@ async function handleItemUpdateApproval(
             where: { OR: [{ sourceId: request.itemId }, { targetId: request.itemId }] }
         });
 
-        const relationData: any[] = [];
+        const relationData: { sourceId: number; targetId: number; description: string | null }[] = [];
         for (const rItem of data.relatedItems) {
             relationData.push({ sourceId: request.itemId, targetId: rItem.id, description: rItem.description || null });
             relationData.push({ sourceId: rItem.id, targetId: request.itemId, description: rItem.description || null });
@@ -494,8 +543,8 @@ async function handleItemUpdateApproval(
     if (data.references) {
         await tx.itemReference.deleteMany({ where: { itemId: request.itemId } });
         await tx.itemReference.createMany({
-            data: data.references.map((ref: any) => ({
-                itemId: request.itemId,
+            data: data.references.map((ref: { fileId: number; citation?: string }) => ({
+                itemId: request.itemId!,
                 fileId: ref.fileId,
                 citation: ref.citation || null
             })),
@@ -539,8 +588,8 @@ async function handleItemUpdateApproval(
 
 async function handleItemDeleteApproval(
     tx: Prisma.TransactionClient,
-    request: any,
-    session: any,
+    request: ChangeRequestWithIncludes,
+    session: { user: SessionUser },
     reviewNote?: string
 ) {
     if (!request.itemId) throw new Error("Missing target item ID");
@@ -673,9 +722,10 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
         if (request.targetProjectId) revalidatePath(`/projects/${request.targetProjectId}`);
         if (request.itemId) revalidatePath(`/items/${request.itemId}`);
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Failed to approve request", e);
-        throw new Error(`Failed to apply change: ${e.message}`);
+        const message = e instanceof Error ? e.message : "Unknown error";
+        throw new Error(`Failed to apply change: ${message}`);
     }
 }
 

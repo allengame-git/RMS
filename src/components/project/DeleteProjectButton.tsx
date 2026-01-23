@@ -56,7 +56,7 @@ export default function DeleteProjectButton({ project, onSuccess }: DeleteProjec
                     }
                 }, 1500);
             }
-        } catch (err) {
+        } catch {
             setStatus({ error: "發生未預期的錯誤" });
         } finally {
             setIsSubmitting(false);
@@ -193,7 +193,7 @@ export default function DeleteProjectButton({ project, onSuccess }: DeleteProjec
                             fontSize: "0.85rem",
                             color: "var(--color-text-muted)"
                         }}>
-                            請正確輸入 "delete"
+                            請正確輸入 &quot;delete&quot;
                         </p>
                     )}
                 </div>

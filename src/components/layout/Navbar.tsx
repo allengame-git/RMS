@@ -32,7 +32,7 @@ export default function Navbar() {
                     const hasAccess = (data.count > 0) ||
                         ["ADMIN", "INSPECTOR"].includes(session.user.role);
                     setHasApprovalAccess(hasAccess || data.hasApprovalAccess);
-                } catch (e) {
+                } catch {
                     console.error('Failed to fetch pending count');
                 }
             };
@@ -52,7 +52,7 @@ export default function Navbar() {
                     const res = await fetch('/api/rejected-count');
                     const data = await res.json();
                     setRejectedCount(data.count || 0);
-                } catch (e) {
+                } catch {
                     console.error('Failed to fetch rejected count');
                 }
             };

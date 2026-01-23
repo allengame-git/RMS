@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
 
 export type CategoryState = {
     message?: string;
@@ -60,11 +59,12 @@ export async function createCategory(name: string, description?: string): Promis
 
         revalidatePath("/projects");
         return { message: "分區建立成功" };
-    } catch (e: any) {
-        if (e.code === 'P2002') {
+    } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        if (err.code === 'P2002') {
             return { error: "分區名稱已存在" };
         }
-        return { error: "建立分區失敗: " + (e.message || "未知錯誤") };
+        return { error: "建立分區失敗: " + (err.message || "未知錯誤") };
     }
 }
 
@@ -97,11 +97,12 @@ export async function updateCategory(
 
         revalidatePath("/projects");
         return { message: "分區更新成功" };
-    } catch (e: any) {
-        if (e.code === 'P2002') {
+    } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        if (err.code === 'P2002') {
             return { error: "分區名稱已存在" };
         }
-        return { error: "更新分區失敗: " + (e.message || "未知錯誤") };
+        return { error: "更新分區失敗: " + (err.message || "未知錯誤") };
     }
 }
 
@@ -129,8 +130,9 @@ export async function deleteCategory(id: number): Promise<CategoryState> {
 
         revalidatePath("/projects");
         return { message: "分區刪除成功" };
-    } catch (e: any) {
-        return { error: "刪除分區失敗: " + (e.message || "未知錯誤") };
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "未知錯誤";
+        return { error: "刪除分區失敗: " + message };
     }
 }
 
@@ -157,7 +159,8 @@ export async function reorderCategories(orderedIds: number[]): Promise<CategoryS
 
         revalidatePath("/projects");
         return { message: "排序更新成功" };
-    } catch (e: any) {
-        return { error: "排序更新失敗: " + (e.message || "未知錯誤") };
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "未知錯誤";
+        return { error: "排序更新失敗: " + message };
     }
 }

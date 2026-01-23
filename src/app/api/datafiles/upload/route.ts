@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         const formData = await request.formData();
         const file = formData.get('file') as File;
         const dataYear = formData.get('dataYear') as string;
-        const dataCode = formData.get('dataCode') as string | null;
+        const _dataCode = formData.get('dataCode') as string | null;
 
         if (!file) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });

@@ -262,7 +262,7 @@ export async function importProjectData(
         qcRevision: new Map(),
     };
 
-    let filesRestored = 0;
+    const filesRestored = 0;
     const oldCodePrefix = data.project.codePrefix;
     let newCodePrefix = oldCodePrefix;
 

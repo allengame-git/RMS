@@ -9,7 +9,7 @@ interface ProjectSearchBarProps {
     onResultsChange: (results: SearchResult[], loading: boolean) => void;
 }
 
-export default function ProjectSearchBar({ projectId, onSearch, onResultsChange }: ProjectSearchBarProps) {
+export default function ProjectSearchBar({ projectId: _projectId, onSearch, onResultsChange }: ProjectSearchBarProps) {
     const [query, setQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
 

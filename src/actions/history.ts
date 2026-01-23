@@ -9,14 +9,14 @@ export interface ItemSnapshot {
     content: string | null;
     attachments: string | null;
     relatedItems: { id: number; fullId: string; title?: string; description?: string | null }[];
-    references?: { fileId: number; dataCode: string; dataName: string; dataYear: number; author: string; citation?: string | null }[];
+    references?: { fileId: number; dataCode: string; dataName: string; dataYear: number | null; author: string | null; citation?: string | null }[];
 }
 
 /**
  * Computes difference between two snapshots.
  */
 function computeDiff(oldData: ItemSnapshot, newData: ItemSnapshot) {
-    const diff: Record<string, { old: any; new: any }> = {};
+    const diff: Record<string, { old: unknown; new: unknown }> = {};
 
     // Compare basic fields
     for (const key of ['title', 'content', 'attachments'] as const) {
@@ -152,11 +152,14 @@ export async function getItemHistory(itemId: number) {
  * Get the chain of previous change requests for a given request ID
  */
 export async function getRequestChain(requestId: number) {
-    const chain: any[] = [];
+    type RequestWithUsers = Prisma.ChangeRequestGetPayload<{
+        include: { submittedBy: { select: { username: true } }; reviewedBy: { select: { username: true } } }
+    }>;
+    const chain: RequestWithUsers[] = [];
     let currentId: number | null = requestId;
 
     while (currentId) {
-        const req: any = await prisma.changeRequest.findUnique({
+        const req: RequestWithUsers | null = await prisma.changeRequest.findUnique({
             where: { id: currentId },
             include: {
                 submittedBy: { select: { username: true } },
@@ -166,7 +169,7 @@ export async function getRequestChain(requestId: number) {
 
         if (!req) break;
         chain.push(req);
-        currentId = (req as any).previousRequestId;
+        currentId = req.previousRequestId;
     }
 
     return chain;
@@ -202,7 +205,7 @@ export async function getHistoryDetail(historyId: number) {
     // Fetch the FULL chain of ChangeRequests for this ItemHistory
     // The entire review cycle (submit -> reject -> resubmit -> approve) 
     // should be displayed as one unified flow
-    let reviewChain: any[] = [];
+    let reviewChain: unknown[] = [];
     if (history.changeRequestId) {
         reviewChain = await getRequestChain(history.changeRequestId);
     }
@@ -417,7 +420,7 @@ export async function getIsoDocsGroupedByProject(query?: string) {
     const whereHistory: Prisma.ItemHistoryWhereInput = { isoDocPath: { not: null } };
 
     if (query) {
-        const lowerQuery = query.toLowerCase();
+        const _lowerQuery = query.toLowerCase();
         // If query exists, we want projects that MATCH the query OR contain docs matching the query
         // BUT straightforward approach:
         // Find projects where Title/Code matches query

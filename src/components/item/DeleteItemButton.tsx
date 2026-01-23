@@ -29,7 +29,7 @@ export default function DeleteItemButton({ itemId, childCount, isDisabled = fals
             } else {
                 alert(result.message);
             }
-        } catch (err) {
+        } catch {
             alert("An unexpected error occurred.");
         } finally {
             setIsSubmitting(false);

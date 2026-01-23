@@ -396,7 +396,7 @@ const TableSizeDialog = ({
     );
 };
 
-const MenuBar = ({ editor, onUploadImage }: { editor: any; onUploadImage: (file: File) => void }) => {
+const MenuBar = ({ editor, onUploadImage: _onUploadImage }: { editor: any; onUploadImage: (file: File) => void }) => {
     const [dialogState, setDialogState] = useState<{
         isOpen: boolean;
         type: 'image' | 'table' | null;
@@ -412,7 +412,7 @@ const MenuBar = ({ editor, onUploadImage }: { editor: any; onUploadImage: (file:
         return null;
     }
 
-    const openImageDialog = (e: React.MouseEvent) => {
+    const _openImageDialog = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         setDialogState({ isOpen: true, type: 'image' });
@@ -759,7 +759,7 @@ interface RichTextEditorProps {
 }
 
 const RichTextEditor = ({ content, onChange, editable = true }: RichTextEditorProps) => {
-    const [isUploading, setIsUploading] = useState(false);
+    const [_isUploading, setIsUploading] = useState(false);
     const editorRef = useRef<any>(null);
 
     const editor = useEditor({

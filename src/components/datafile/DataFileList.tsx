@@ -70,7 +70,7 @@ const FileTypeIcon = ({ mimeType }: { mimeType: string }) => {
 
 export default function DataFileList({
     files,
-    canEdit
+    canEdit: _canEdit
 }: {
     files: DataFile[];
     canEdit: boolean;

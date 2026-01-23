@@ -19,7 +19,7 @@ const TABLES = [
     'LoginLog',
 ] as const;
 
-type TableName = (typeof TABLES)[number];
+type _TableName = (typeof TABLES)[number];
 
 /**
  * 將值轉換為 SQL 字串格式

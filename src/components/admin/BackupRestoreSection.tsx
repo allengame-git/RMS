@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { signOut } from 'next-auth/react';
 import ProjectBackupSection from './ProjectBackupSection';
 
@@ -210,7 +210,7 @@ export default function BackupRestoreSection({ projects = [] }: BackupRestoreSec
     };
 
     // ==================== UI Helpers ====================
-    const getButtonStyle = (status: 'idle' | 'loading' | 'success' | 'error'): React.CSSProperties => {
+    const _getButtonStyle = (status: 'idle' | 'loading' | 'success' | 'error'): React.CSSProperties => {
         const base: React.CSSProperties = {
             padding: '0.5rem 1rem',
             borderRadius: '0.5rem',
@@ -235,7 +235,7 @@ export default function BackupRestoreSection({ projects = [] }: BackupRestoreSec
         }
     };
 
-    const getRestoreButtonStyle = (status: 'idle' | 'loading' | 'success' | 'error'): React.CSSProperties => {
+    const _getRestoreButtonStyle = (status: 'idle' | 'loading' | 'success' | 'error'): React.CSSProperties => {
         const base: React.CSSProperties = {
             padding: '0.5rem 1rem',
             borderRadius: '0.5rem',
@@ -257,7 +257,7 @@ export default function BackupRestoreSection({ projects = [] }: BackupRestoreSec
         }
     };
 
-    const getBackupButtonText = (status: 'idle' | 'loading' | 'success' | 'error') => {
+    const _getBackupButtonText = (status: 'idle' | 'loading' | 'success' | 'error') => {
         switch (status) {
             case 'loading': return '備份中...';
             case 'success': return '✓ 完成';
@@ -266,7 +266,7 @@ export default function BackupRestoreSection({ projects = [] }: BackupRestoreSec
         }
     };
 
-    const getRestoreButtonText = (status: 'idle' | 'loading' | 'success' | 'error') => {
+    const _getRestoreButtonText = (status: 'idle' | 'loading' | 'success' | 'error') => {
         switch (status) {
             case 'loading': return '復原中...';
             case 'success': return '✓ 完成';

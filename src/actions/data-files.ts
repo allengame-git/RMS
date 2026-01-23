@@ -4,7 +4,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { Prisma } from '@prisma/client';
 
 // ============================================
 // Query Actions
@@ -392,9 +391,10 @@ export async function approveDataFileRequest(requestId: number) {
         revalidatePath('/admin/approval');
         revalidatePath('/datafiles');
         return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Failed to approve data file request", e);
-        throw new Error(`Failed to apply change: ${e.message}`);
+        const message = e instanceof Error ? e.message : "Unknown error";
+        throw new Error(`Failed to apply change: ${message}`);
     }
 }
 
