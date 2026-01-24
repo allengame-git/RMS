@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
- * GET /api/datafiles/search
- * Search data files by code, name, filename, or author
- * Query params:
- *   - q: search query (required)
- *   - limit: max results (optional, default 20)
+ * @file route.ts (api/datafiles/search)
+ * @description 資料檔案搜尋 API 路由
+ *
+ * 提供對已上架資料檔案的全文檢索功能。
+ *
+ * ## 核心功能
+ * - 搜尋範圍：資料編碼、名稱、原始檔名、作者、以及年份
+ * - 支援不分大小寫的模糊搜尋 (Case-insensitive)
+ * - 分頁限制 (預設取前 20 筆)
+ * - 回傳基本元資料與下載路徑
+ *
+ * ## 使用場景
+ * - 在編輯器新增「參考文獻」時的即時搜尋
+ *
+ * @see /src/components/item/ReferencesManager.tsx - 呼叫此 API
  */
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);

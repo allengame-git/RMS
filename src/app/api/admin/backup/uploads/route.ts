@@ -1,3 +1,19 @@
+/**
+ * @file route.ts (api/admin/backup/uploads)
+ * @description 管理員 - 使用者上傳附件備份 API 路由
+ *
+ * 打包伺服器上所有使用者上傳的附件 (`public/uploads`) 以及根目錄的靜態圖片資源。
+ *
+ * ## 核心功能
+ * - 遞迴收集上傳目錄的所有層級檔案
+ * - 額外收錄 public 根目錄的圖片 (Logo 等)
+ * - 生成完整備份清單
+ * - ZIP 壓縮並串流下載
+ *
+ * ## 備註
+ * 為加速大型附件備份，壓縮等級設為 6。
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';

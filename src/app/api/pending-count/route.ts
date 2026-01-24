@@ -1,3 +1,22 @@
+/**
+ * @file route.ts (api/pending-count)
+ * @description 待辦事項計數 API 路由
+ *
+ * 供導航列 (Navbar) 呼叫，用以顯示當前使用者需要處理的審核申請數量。
+ * 數量統計採權限隔離，使用者只會看到其職責範圍內的待辦。
+ *
+ * ## 統計邏輯
+ * 1. **ADMIN/INSPECTOR**: 統計 PENDING 狀態的 `ChangeRequest` 與 `DataFileChangeRequest`。
+ * 2. **QC 資格者**: 統計 PENDING_QC 狀態的 `QCDocumentApproval`。
+ * 3. **PM 資格者**: 統計 PENDING_PM 狀態的 `QCDocumentApproval`。
+ *
+ * ## 回傳格式
+ * - `count`: 總待辦數量
+ * - `hasApprovalAccess`: 是否具有進入審批頁面的權限
+ *
+ * @see /src/components/layout/Navbar.tsx - 呼叫此 API 顯示紅點徽章
+ */
+
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";

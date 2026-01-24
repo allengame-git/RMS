@@ -1,3 +1,27 @@
+/**
+ * @file route.ts (api/upload)
+ * @description 一般檔案上傳 API 路由
+ *
+ * 處理系統中的通用檔案上傳，主要用於：
+ * 1. 富文本編輯器中的圖片與附件上傳
+ * 2. 項目變更申請中的隨附檔案
+ *
+ * ## 核心功能
+ * - 驗證使用者權限（僅限 ADMIN, EDITOR, INSPECTOR）
+ * - 驗證檔案大小（最大 20MB）
+ * - 驗證檔案類型（PDF, Word, Excel, PPT, 圖片, 文字）
+ * - 自動建立按年/月分類的儲存目錄
+ * - 生成安全檔名並儲存至伺服器
+ *
+ * ## 技術細節
+ * - 儲存路徑：`/public/uploads/${year}/${month}/`
+ * - 防範路徑穿越攻擊 (Path Traversal)
+ * - 回傳檔案在系統中的相對路徑以供資料庫儲存
+ *
+ * @see /src/components/editor/RichTextEditor.tsx - 呼叫此 API 上傳圖片
+ * @see /src/components/upload/FileUploader.tsx - 項目附件上傳
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';

@@ -1,3 +1,15 @@
+/**
+ * @file route.ts (api/admin/restore/iso-docs)
+ * @description 管理員 - ISO 文件實體還原 API 路由
+ *
+ * 解壓縮備份包並將 PDF 文件還原至 `public/iso_doc` 目錄。
+ *
+ * ## 核心功能
+ * - 解壓縮 ZIP 檔案
+ * - 驗證 `manifest.json` 類型 (必須為 iso-docs)
+ * - 覆蓋式還原實體檔案
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';

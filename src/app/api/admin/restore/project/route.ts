@@ -1,6 +1,18 @@
 /**
- * 專案復原 API
- * POST /api/admin/restore/project
+ * @file route.ts (api/admin/restore/project)
+ * @description 管理員 - 專案匯入與復原 API 路由
+ *
+ * 將先前匯出的專案 ZIP 備份擋重新匯入系統。
+ *
+ * ## 核心功能
+ * - **匯入前自動備份**：在修改資料庫前，將現有狀態備份至 `backups/` 目錄
+ * - **衝突處理**：支援「重新命名衝突專案」或「跳過重複」
+ * - **資料對照**：自動建立舊 ID 與新 ID 的對照關係，並修正導航樹結構
+ * - **檔案還原**：將專案關聯的附件實體檔案解壓回對應的 public 目錄
+ *
+ * ## API 方法
+ * - `POST`: 執行匯入
+ * - `PUT`: 執行衝突檢查 (Pre-scan)
  */
 
 import { getServerSession } from 'next-auth';

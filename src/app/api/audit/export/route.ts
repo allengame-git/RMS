@@ -4,10 +4,18 @@ import { authOptions } from "@/lib/auth";
 import { exportDailyLoginLogs } from "@/actions/audit";
 
 /**
- * GET /api/audit/export
- * Export login audit logs for a specific date
- * Query params:
- *   - date: YYYY-MM-DD format (optional, defaults to yesterday)
+ * @file route.ts (api/audit/export)
+ * @description 管理員 - 登入稽核日誌匯出 API 路由
+ *
+ * 將指定日期的使用者登入事件匯出為 CSV 格式檔案，供安全性審核使用。
+ *
+ * ## 核心功能
+ * - 輸入: `date` (YYYY-MM-DD 格式，選填，預設為昨天)
+ * - 驗證管理員身份
+ * - 調用 `exportDailyLoginLogs` Server Action
+ * - 回傳成功訊息與生成的檔案路徑
+ *
+ * @see /src/actions/audit.ts - 匯出實作
  */
 export async function GET(request: NextRequest) {
     // Check authentication

@@ -1,3 +1,14 @@
+/**
+ * @file route.ts (api/health)
+ * @description 系統健康檢查 API 路由
+ *
+ * 提供自動化監控工具檢測系統可用性。
+ *
+ * ## 測試項目
+ * 1. API 運行狀態
+ * 2. Prisma/PostgreSQL 資料庫連線檢測 (SELECT 1)
+ */
+
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 

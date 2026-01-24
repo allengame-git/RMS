@@ -1,3 +1,15 @@
+/**
+ * @file route.ts (api/admin/restore/uploads)
+ * @description 管理員 - 使用者附件還原 API 路由
+ *
+ * 解壓縮備份包並將附件還原至 `public/uploads` 目錄。
+ *
+ * ## 核心功能
+ * - 支援多階層目錄還原
+ * - 自動修正 `static/` 資源位置
+ * - 驗證 `manifest.json` 類型
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';

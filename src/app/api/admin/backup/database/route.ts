@@ -1,3 +1,23 @@
+/**
+ * @file route.ts (api/admin/backup/database)
+ * @description 管理員 - 資料庫全機備份 API 路由
+ *
+ * 將整個系統的 PostgreSQL 資料庫匯出為 SQL 指令碼，並打包成 ZIP 下載。
+ *
+ * ## 核心功能
+ * - 驗證管理員身份 (ADMIN)
+ * - 調用 `exportDatabaseToSQL` 生成資料庫映像
+ * - 打包 `rms_db.sql` 與 `manifest.json` 為 ZIP 格式
+ * - 以串流 (Web Stream) 方式回傳檔案下載，支援大容量傳輸
+ *
+ * ## 輸出結構 (ZIP)
+ * - `rms_db.sql`: 原始 SQL 指令碼 (含結構與資料)
+ * - `manifest.json`: 備份元資料、時間與統計資訊
+ *
+ * @see /src/lib/backup-utils.ts - 核心匯出實作
+ * @see /src/app/admin/backup - 備份管理介面
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';

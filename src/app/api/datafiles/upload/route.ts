@@ -1,3 +1,23 @@
+/**
+ * @file route.ts (api/datafiles/upload)
+ * @description 資料檔案 (參考文獻) 上傳 API 路由
+ *
+ * 專門處理「資料檔案」模組的檔案上傳，相較於一般上傳，此處擁有更高的容量限制。
+ *
+ * ## 核心功能
+ * - 驗證使用者權限（非 VIEWER 即可上傳）
+ * - 驗證檔案大小（最大 100MB）
+ * - 依年份 (dataYear) 與隨機生成的子目錄分類儲存
+ * - 保持原始檔名（經安全過濾）
+ *
+ * ## 技術細節
+ * - 儲存路徑：`/public/uploads/datafiles/${dataYear}/${random_subdir}/${filename}`
+ * - 檔案清單儲存於 `DataFile` 資料表，需經審核後才正式上架
+ *
+ * @see /src/components/datafile/UploadDataFileForm.tsx - 上傳表單
+ * @see /src/actions/data-files.ts - 後續建立申請的 Server Action
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';

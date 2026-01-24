@@ -1,3 +1,17 @@
+/**
+ * @file route.ts (api/admin/backup/iso-docs)
+ * @description 管理員 - ISO 文件實體檔案備份 API 路由
+ *
+ * 將伺服器上 `public/iso_doc` 目錄下的所有 PDF 文件打包成 ZIP 下載。
+ *
+ * ## 核心功能
+ * - 計算目錄總大小與檔案總數
+ * - 打包整個 ISO 存放路徑
+ * - 生成帶有檔案指紋 (checksum) 的清單 (Manifest)
+ *
+ * @see /src/lib/backup-utils.ts - 生成 Manifest 工具
+ */
+
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -10,7 +24,8 @@ import fs from 'fs';
 export const dynamic = 'force-dynamic';
 
 /**
- * 遞迴計算目錄大小與檔案數
+ * 遞迴計算目錄統計資訊（大小與檔案數）
+ * @param dirPath 目錄絕對路徑
  */
 function getDirectoryStats(dirPath: string): { fileCount: number; totalSize: number } {
     let fileCount = 0;

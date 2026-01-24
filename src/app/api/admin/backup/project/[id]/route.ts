@@ -1,6 +1,21 @@
 /**
- * 單一專案備份 API
- * POST /api/admin/backup/project/[id]
+ * @file route.ts (api/admin/backup/project/[id])
+ * @description 管理員 - 單一專案匯出 API 路由
+ *
+ * 將指定專案的所有資料（含項目、關聯、參考、歷史紀錄）與附件實體檔案打包匯出。
+ *
+ * ## 核心功能
+ * - 驗證管理員權限
+ * - 檢查專案是否存在
+ * - 調用 `exportProjectToZip` 收集所有關聯資源
+ * - 生成包含資料 JSON 與附件目錄的 ZIP 檔案
+ *
+ * ## 應用場景
+ * - 專案跨系統遷移
+ * - 離線存檔與查閱
+ * - 重要專案定期備份
+ *
+ * @see /src/lib/backup/export-service.ts - 專案匯出核心服務
  */
 
 import { getServerSession } from 'next-auth';

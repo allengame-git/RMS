@@ -1,3 +1,17 @@
+/**
+ * @file route.ts (api/items/lookup)
+ * @description 項目資訊反查 API 路由
+ *
+ * 根據項目的完整編號 (fullId) 查詢其基本資訊。主要用於富文本編輯器中的「項目連結」功能。
+ *
+ * ## 核心功能
+ * - 輸入: `fullId` (例如: RMS-1-2)
+ * - 回傳: 項目 ID、標題、專案 ID 與專案標題
+ * - 僅查詢未被刪除的項目
+ *
+ * @see /src/components/editor/plugins/itemLinkValidationPlugin.ts - 編輯器輸入時自動呼叫進行有效性檢查
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 

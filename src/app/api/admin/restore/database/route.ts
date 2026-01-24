@@ -1,3 +1,21 @@
+/**
+ * @file route.ts (api/admin/restore/database)
+ * @description 管理員 - 資料庫全機復原 API 路由
+ *
+ * 提供系統災難復原功能，支援從 SQL 或 ZIP 備份檔重建整個資料庫。
+ *
+ * ## 核心功能
+ * - 支援多格式：`.sql` (純文本) 或 `.zip` (帶清單的壓縮包)
+ * - **安全預檢**：嚴格檢查 SQL 內容，確保至少包含一個 ADMIN 帳號及足夠的使用者資料，防止復原空資料庫導致鎖死
+ * - **原子化更新**：解析 SQL 語句並逐行執行
+ * - **強制同步**：復原完成後強制登出所有線上使用者，確保 Session 與新資料庫一致
+ *
+ * ## 警告
+ * 此操作具備破壞性，會覆蓋當前所有資料庫內容。
+ *
+ * @see /src/lib/backup-utils.ts - 登出實作
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
