@@ -1,7 +1,39 @@
 /**
- * Project Import Service
+ * @file import-service.ts
+ * @description 專案匯入服務模組
  *
- * 處理專案備份的匯入，包含 ID 對照、衝突處理與檔案還原
+ * 此模組處理專案備份的匯入，支援 ID 對照、衝突處理與檔案還原。
+ *
+ * ## 核心功能
+ * - `previewProjectImport`：預覽匯入內容（不寫入資料庫）
+ * - `importProjectFromZip`：執行完整匯入
+ *
+ * ## 匯入策略
+ * ### ID 對照 (ID Mapping)
+ * 由於匯入時可能與現有資料 ID 衝突，系統會：
+ * 1. 為所有實體分配新 ID
+ * 2. 維護舊 ID → 新 ID 的對照表
+ * 3. 更新所有關聯參照
+ *
+ * ### 衝突處理
+ * - 專案代碼重複：自動加上時間戳後綴
+ * - 分區名稱重複：使用現有分區
+ * - 資料檔案代碼重複：使用現有檔案或建立新版本
+ *
+ * ## 匯入步驟
+ * 1. 解壓縮 ZIP 並驗證結構
+ * 2. 檢查版本相容性
+ * 3. 預覽/確認匯入內容
+ * 4. 在事務中建立所有資料
+ * 5. 還原檔案資源
+ *
+ * ## 安全考量
+ * - 所有操作在單一事務中執行
+ * - 失敗時自動回滾
+ * - 驗證 manifest.json 的完整性
+ *
+ * @see /src/lib/backup/export-service.ts - 對應的匯出服務
+ * @see /src/app/api/projects/import - 匯入 API 路由
  */
 
 import { prisma } from '@/lib/prisma';

@@ -1,3 +1,42 @@
+/**
+ * @file pdf-generator.ts
+ * @description 品質管制文件 (QC Document) PDF 生成模組
+ *
+ * 此模組負責生成 RMS 系統的品質管制文件 PDF，
+ * 記錄項目變更的完整審核歷程。
+ *
+ * ## 核心功能
+ * - `generateQCDocument`：生成 QC 文件 PDF
+ * - `generateHistorySummaryPages`：生成歷史版本摘要頁面
+ *
+ * ## PDF 內容結構
+ * 1. **封面資訊**：文件編號、專案名稱、項目資訊、版本號
+ * 2. **審核歷程**：
+ *    - 提交人員與編輯意見
+ *    - 核准人員與審查意見
+ *    - QC 審核簽名區塊
+ *    - PM 核定簽名區塊
+ * 3. **歷史詳情**（PM 核定後附加）：
+ *    - 變更內容比對（新舊版本差異）
+ *    - 快照摘要
+ *
+ * ## 技術實作
+ * - 使用 `pdf-lib` 純 JavaScript 庫生成 PDF
+ * - 支援中文字體（Arial Unicode）
+ * - 檔案輸出至 `/public/iso_doc/` 目錄
+ *
+ * ## 文件命名規則
+ * `QC-{專案代碼}-{歷史ID}.pdf`
+ * 例如：`QC-RMS-123.pdf`
+ *
+ * ## 生成時機
+ * - 僅在 PM 核定後才會生成 PDF
+ * - 可透過 `regenerateQCDocument` 重新生成
+ *
+ * @see /src/actions/qc-approval.ts - QC 審查流程（觸發 PDF 生成）
+ * @see /src/actions/history.ts - 歷史紀錄管理
+ */
+
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import * as fs from 'fs';

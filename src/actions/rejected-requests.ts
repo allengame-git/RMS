@@ -1,3 +1,26 @@
+/**
+ * @file rejected-requests.ts
+ * @description 被拒絕申請處理模組
+ *
+ * 此模組負責處理被拒絕的變更申請的後續操作。
+ *
+ * ## 核心功能
+ * - `markRejectedAsResubmitted`：標記被拒絕的申請為「已重新提交」
+ *
+ * ## 狀態流轉
+ * PENDING → REJECTED → RESUBMITTED
+ *
+ * ## 使用場景
+ * 當使用者修改被拒絕的申請並重新提交後，
+ * 系統會建立新的 ChangeRequest，同時將舊的標記為 RESUBMITTED。
+ *
+ * ## 通知同步
+ * 標記時會同時將相關通知標為已讀，避免重複提醒。
+ *
+ * @see /src/app/notifications - 通知頁面（可重新提交被拒絕的申請）
+ * @see /src/actions/approval.ts - 審批流程
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";

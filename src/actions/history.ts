@@ -1,3 +1,42 @@
+/**
+ * @file history.ts
+ * @description 項目歷史紀錄管理模組
+ *
+ * 此模組負責管理 RMS 系統中所有項目 (Item) 的歷史版本紀錄。
+ * 每當項目發生變更（新增、修改、刪除、還原），系統會自動建立一筆 ItemHistory。
+ *
+ * ## 核心功能
+ * - `createHistoryRecord`：建立歷史紀錄（含快照和差異比對）
+ * - `getItemHistory`：取得項目的歷史版本列表
+ * - `getHistoryDetail`：取得單筆歷史的詳細資訊
+ * - `regenerateQCDocument`：重新生成品質管制文件 (PDF)
+ *
+ * ## 資料結構
+ * ### ItemSnapshot（項目快照）
+ * 記錄項目在某時間點的完整狀態，包含：
+ * - 標題、內容、附件
+ * - 關聯項目 (relatedItems)
+ * - 參考文獻 (references)
+ *
+ * ### Diff（差異紀錄）
+ * 對於 UPDATE 類型的變更，會計算新舊快照的差異：
+ * - 記錄哪些欄位被修改
+ * - 保留修改前後的值，供審計追蹤
+ *
+ * ## 版本號邏輯
+ * - CREATE：版本號從 1 開始
+ * - UPDATE/DELETE：版本號遞增
+ * - 版本號存儲於 `Item.currentVersion`
+ *
+ * ## 與 QC 流程的整合
+ * 歷史紀錄建立後，會自動觸發 QC 審查流程（透過 `initializeQCApproval`），
+ * 確保所有變更都經過品質管制審核。
+ *
+ * @see /src/actions/approval.ts - 審批流程（呼叫此模組建立歷史）
+ * @see /src/actions/qc-approval.ts - QC 審查流程
+ * @see /src/lib/pdf-generator.ts - 品質文件 PDF 生成
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";

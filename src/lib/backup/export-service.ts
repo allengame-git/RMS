@@ -1,7 +1,43 @@
 /**
- * Project Export Service
- * 
- * 處理單一專案的完整匯出，包含所有關聯資料與檔案
+ * @file export-service.ts
+ * @description 專案匯出服務模組
+ *
+ * 此模組處理單一專案的完整匯出，生成包含所有資料和檔案的 ZIP 壓縮包。
+ *
+ * ## 核心功能
+ * - `exportProjectData`：收集專案的所有相關資料
+ * - `exportProjectToZip`：生成完整的 ZIP 備份檔
+ *
+ * ## 匯出內容
+ * ### 資料庫資料 (data.json)
+ * - 專案基本資訊
+ * - 所有項目 (Items)
+ * - 項目關聯 (ItemRelations)
+ * - 參考文獻 (DataFiles) 及其引用
+ * - 變更請求 (ChangeRequests)
+ * - 歷史紀錄 (ItemHistories)
+ * - QC 審核記錄
+ *
+ * ### 檔案 (assets/)
+ * - 項目附件 (uploads/)
+ * - QC 文件 PDF (iso_doc/)
+ * - 資料檔案 (uploads/datafiles/)
+ *
+ * ## ZIP 結構
+ * ```
+ * project_backup.zip
+ * ├── manifest.json    # 備份元資料與檔案清單
+ * ├── data.json        # 資料庫資料（JSON 格式）
+ * └── assets/          # 檔案資源
+ *     ├── uploads/
+ *     └── iso_doc/
+ * ```
+ *
+ * ## 相容性
+ * 使用版本號 (SYSTEM_VERSION) 確保匯入時的相容性檢查
+ *
+ * @see /src/lib/backup/import-service.ts - 對應的匯入服務
+ * @see /src/app/api/projects/[id]/export - 匯出 API 路由
  */
 
 import { prisma } from '@/lib/prisma';

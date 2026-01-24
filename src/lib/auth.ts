@@ -1,3 +1,39 @@
+/**
+ * @file auth.ts
+ * @description NextAuth.js 認證配置模組
+ *
+ * 此模組定義了 RMS 系統的使用者認證邏輯，使用 Credentials Provider。
+ *
+ * ## 認證流程
+ * 1. 使用者輸入帳號密碼
+ * 2. 系統驗證帳號存在性
+ * 3. 檢查帳號鎖定狀態
+ * 4. 驗證密碼（bcrypt）
+ * 5. 成功則發放 JWT Token
+ *
+ * ## 安全機制
+ * ### 帳號鎖定 (Account Lockout)
+ * - 連續 5 次密碼錯誤 → 鎖定 15 分鐘
+ * - 成功登入後重置錯誤次數
+ *
+ * ### 登入日誌 (LoginLog)
+ * 記錄每次登入嘗試，包含：
+ * - IP 地址、User Agent
+ * - 成功/失敗狀態
+ * - 失敗原因
+ *
+ * ## Session 結構
+ * JWT Token 包含以下使用者資訊：
+ * - `id`：使用者 ID
+ * - `username`：使用者名稱
+ * - `role`：角色（VIEWER/EDITOR/INSPECTOR/ADMIN）
+ * - `isQC`：QC 資格
+ * - `isPM`：PM 資格
+ *
+ * @see /src/types/next-auth.d.ts - Session 類型擴展
+ * @see /src/actions/users.ts - 使用者管理
+ */
+
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";

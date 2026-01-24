@@ -1,3 +1,31 @@
+/**
+ * @file project-category.ts
+ * @description 專案分區管理模組
+ *
+ * 此模組負責管理 RMS 系統的專案分區 (ProjectCategory)。
+ * 分區用於組織和分類專案，支援自訂排序。
+ *
+ * ## 核心功能
+ * - `getCategories`：取得所有分區（含專案數量統計）
+ * - `createCategory`：建立新分區
+ * - `updateCategory`：更新分區名稱和描述
+ * - `deleteCategory`：刪除分區（僅限無專案時）
+ * - `reorderCategories`：重新排序分區
+ *
+ * ## 資料結構
+ * - `name`：分區名稱
+ * - `description`：分區描述
+ * - `sortOrder`：排序順序（數字越小越前）
+ *
+ * ## 使用限制
+ * - 僅 INSPECTOR 和 ADMIN 可管理分區
+ * - 分區名稱必須唯一
+ * - 刪除分區前必須移除所有關聯專案
+ *
+ * @see /src/app/admin/categories - 分區管理頁面
+ * @see /src/actions/project.ts - 專案建立時關聯分區
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";

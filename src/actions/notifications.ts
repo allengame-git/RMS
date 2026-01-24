@@ -1,3 +1,33 @@
+/**
+ * @file notifications.ts
+ * @description 系統通知模組
+ *
+ * 此模組負責 RMS 系統的通知功能，用於通知使用者重要事件。
+ *
+ * ## 核心功能
+ * - `createNotification`：建立通知（支援事務處理）
+ * - `getNotifications`：取得使用者的通知列表
+ * - `markAsRead`：標記通知為已讀
+ * - `markAllAsRead`：標記所有通知為已讀
+ * - `getUnreadCount`：取得未讀通知數量
+ *
+ * ## 通知類型 (NotificationType)
+ * - `REJECTION`：變更申請被拒絕
+ * - `REVISION_REQUEST`：QC/PM 要求修訂
+ * - `APPROVAL`：變更申請已核准
+ * - `COMPLETED`：品質文件審核完成
+ *
+ * ## 通知觸發時機
+ * - 審批流程中（approval.ts）
+ * - QC 審查流程中（qc-approval.ts）
+ *
+ * ## 通知連結
+ * 每個通知可附帶 `link` 欄位，點擊後導向相關頁面
+ *
+ * @see /src/app/notifications - 通知列表頁面
+ * @see /src/components/layout/Navbar.tsx - 通知 Badge 顯示
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";

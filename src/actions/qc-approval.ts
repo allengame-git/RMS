@@ -1,3 +1,43 @@
+/**
+ * @file qc-approval.ts
+ * @description 品質管制 (QC) 審查流程模組
+ *
+ * 此模組負責管理 RMS 系統的二階段品質審查流程。
+ * 當項目變更被批准並建立歷史紀錄後，會自動進入 QC → PM 的審查流程。
+ *
+ * ## 審查流程狀態 (QCDocumentApproval.status)
+ * 1. `PENDING_QC`：等待品質管制人員 (QC) 審核
+ * 2. `PENDING_PM`：QC 已通過，等待計畫主管 (PM) 審核
+ * 3. `REVISION_REQUESTED`：PM 要求修訂（可多次）
+ * 4. `COMPLETED`：審查完成
+ * 5. `REJECTED`：審查被拒絕
+ *
+ * ## 核心功能
+ * - `initializeQCApproval`：初始化審查流程（由 history.ts 呼叫）
+ * - `approveQC` / `rejectQC`：QC 審核操作
+ * - `approvePM` / `requestRevision`：PM 審核操作
+ * - `submitRevision`：編輯者提交修訂版本
+ *
+ * ## 修訂機制
+ * PM 可要求無限次修訂，每次修訂會：
+ * - 建立 QCDocumentRevision 記錄
+ * - 遞增 revisionCount
+ * - 通知原編輯者
+ *
+ * ## PDF 生成時機
+ * 品質文件 (QC Document) 僅在 **PM 核定後** 才會生成，
+ * 確保文件反映最終的審核結果。
+ *
+ * ## 使用者資格
+ * - QC 資格：`User.isQC = true`
+ * - PM 資格：`User.isPM = true`
+ * - 一個使用者可同時擁有 QC 和 PM 資格
+ *
+ * @see /src/actions/history.ts - 歷史紀錄（呼叫 initializeQCApproval）
+ * @see /src/lib/pdf-generator.ts - PDF 文件生成
+ * @see /src/components/approval/QCDocumentApprovalList.tsx - 前端審核介面
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";

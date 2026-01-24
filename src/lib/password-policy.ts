@@ -1,5 +1,27 @@
 /**
- * Password Policy Configuration and Validation
+ * @file password-policy.ts
+ * @description 密碼政策與驗證模組
+ *
+ * 此模組定義 RMS 系統的密碼安全政策和驗證邏輯。
+ *
+ * ## 核心功能
+ * - `validatePassword`：驗證密碼是否符合政策
+ * - `getPasswordRequirements`：取得密碼要求列表（供 UI 顯示）
+ *
+ * ## 預設政策 (PASSWORD_POLICY)
+ * - 最短長度：8 字元
+ * - 需包含大寫字母：是
+ * - 需包含小寫字母：是
+ * - 需包含數字：是
+ * - 需包含特殊字元：否（可設定啟用）
+ *
+ * ## 密碼強度評估
+ * - `weak`：滿足少於 3 項要求
+ * - `medium`：滿足 3-4 項要求
+ * - `strong`：滿足 5 項要求，或 4 項且長度 >= 12
+ *
+ * @see /src/actions/users.ts - 使用者管理（呼叫 validatePassword）
+ * @see /src/components/admin/UserForm.tsx - 密碼輸入 UI
  */
 
 export const PASSWORD_POLICY = {

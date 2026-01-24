@@ -1,3 +1,30 @@
+/**
+ * @file search-utils.ts
+ * @description 搜尋工具函式模組
+ *
+ * 此模組提供搜尋功能所需的各種輔助函式。
+ *
+ * ## 核心功能
+ * - `naturalSort`：自然排序（處理混合英數字）
+ * - `stripHtmlTags`：移除 HTML 標籤並解碼實體
+ * - `generateSnippets`：生成帶高亮的搜尋片段
+ *
+ * ## 自然排序 (Natural Sort)
+ * 正確處理 `RMS-1-2` vs `RMS-1-10` 的排序問題，
+ * 確保數字部分以數值方式比較而非字串。
+ *
+ * ## HTML 處理
+ * 由於內容可能包含 HTML 標籤（富文本編輯器），
+ * 搜尋時需先移除標籤、解碼實體。
+ *
+ * ## 搜尋片段 (Snippets)
+ * 顯示搜尋結果時，會產生包含關鍵字前後文的片段，
+ * 並標記關鍵字位置供 UI 高亮顯示。
+ *
+ * @see /src/actions/search.ts - 搜尋 Server Action
+ * @see /src/components/search/ProjectSearchBar.tsx - 搜尋 UI
+ */
+
 // Search utility functions
 
 /**

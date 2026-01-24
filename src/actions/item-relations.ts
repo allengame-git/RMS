@@ -1,3 +1,35 @@
+/**
+ * @file item-relations.ts
+ * @description 項目關聯管理模組
+ *
+ * 此模組負責管理 RMS 系統中項目之間的關聯關係。
+ * 項目可以雙向關聯其他項目，用於表達依賴、參照等關係。
+ *
+ * ## 核心功能
+ * - `addRelatedItem`：新增關聯項目
+ * - `removeRelatedItem`：移除關聯項目
+ * - `updateRelationDescription`：更新關聯說明
+ *
+ * ## 關聯結構
+ * - 使用 `ItemRelation` 資料表
+ * - `sourceId`：來源項目 ID
+ * - `targetId`：目標項目 ID
+ * - `description`：關聯說明（選填）
+ *
+ * ## 關聯行為
+ * - 關聯是有方向性的（source → target）
+ * - 同一對項目只能有一個關聯
+ * - 不允許自我關聯
+ *
+ * ## 使用場景
+ * - 法規項目參照其他法規
+ * - 文件之間的依賴關係
+ * - 版本之間的繼承關係
+ *
+ * @see /src/components/item/RelatedItemsManager.tsx - 關聯項目管理 UI
+ * @see /src/actions/approval.ts - 審批時處理關聯資料
+ */
+
 'use server';
 
 import { prisma } from '@/lib/prisma';

@@ -1,3 +1,34 @@
+/**
+ * @file users.ts
+ * @description 使用者管理模組
+ *
+ * 此模組負責 RMS 系統的使用者帳號管理，僅限 ADMIN 角色操作。
+ *
+ * ## 核心功能
+ * - `getUsers`：取得所有使用者列表
+ * - `createUser`：建立新使用者帳號
+ * - `updateUser`：更新使用者資料（含角色、QC/PM 資格）
+ * - `deleteUser`：刪除使用者帳號
+ * - `resetUserPassword`：重置使用者密碼
+ * - `uploadSignature`：上傳電子簽名圖片
+ *
+ * ## 角色定義
+ * - `VIEWER`：僅能檢視，無編輯權限
+ * - `EDITOR`：可編輯項目，提交變更申請
+ * - `INSPECTOR`：可審核變更申請 + EDITOR 權限
+ * - `ADMIN`：完整系統管理權限
+ *
+ * ## 特殊資格
+ * - `isQC`：品質管制人員資格，可進行 QC 審核
+ * - `isPM`：計畫主管資格，可進行 PM 審核
+ *
+ * ## 密碼政策
+ * 使用者密碼須符合 `/src/lib/password-policy.ts` 定義的規則
+ *
+ * @see /src/lib/auth.ts - 認證配置
+ * @see /src/lib/password-policy.ts - 密碼驗證規則
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";

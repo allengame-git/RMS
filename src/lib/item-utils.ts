@@ -1,3 +1,32 @@
+/**
+ * @file item-utils.ts
+ * @description 項目工具函式模組
+ *
+ * 此模組提供項目 (Item) 相關的工具函式。
+ *
+ * ## 核心功能
+ * ### `generateNextItemId`
+ * 生成下一個項目的階層式編號。
+ *
+ * ## 編號規則
+ * - 根項目：`{專案代碼}-{序號}`，如 `RMS-1`, `RMS-2`
+ * - 子項目：`{父項目編號}-{序號}`，如 `RMS-1-1`, `RMS-1-2`
+ *
+ * ## 序號邏輯
+ * - 取同層級最大序號 + 1
+ * - 不填補已刪除的序號空隙
+ *
+ * @example
+ * // 專案 RMS 下已有 RMS-1, RMS-2
+ * const nextId = await generateNextItemId(projectId, null);
+ * // 返回 "RMS-3"
+ *
+ * @example
+ * // RMS-1 下已有 RMS-1-1
+ * const nextId = await generateNextItemId(projectId, parentId);
+ * // 返回 "RMS-1-2"
+ */
+
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 

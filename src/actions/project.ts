@@ -1,3 +1,33 @@
+/**
+ * @file project.ts
+ * @description 專案管理模組
+ *
+ * 此模組負責 RMS 系統的專案 (Project) 基本操作。
+ * 專案是項目 (Item) 的容器，定義了項目編號的前綴。
+ *
+ * ## 核心功能
+ * - `createProject`：建立新專案
+ * - `updateProject`：更新專案資訊（需經審批流程）
+ * - `getProjects`：取得專案列表
+ * - `copyProject`：複製專案結構（含所有項目）
+ *
+ * ## 專案代碼 (codePrefix)
+ * - 格式：大寫英數字，可用連字號分隔
+ * - 範例：`PROJ-A`, `2024-MAIN`
+ * - 用途：作為項目 fullId 的前綴（如 `PROJ-A-001`）
+ *
+ * ## 專案分區 (ProjectCategory)
+ * 專案可歸屬於特定分區，用於組織和篩選
+ *
+ * ## 刪除限制
+ * - 僅 ADMIN 可申請刪除專案
+ * - 專案必須不包含任何項目才能刪除
+ * - 刪除申請需經審批流程
+ *
+ * @see /src/actions/approval.ts - 專案變更審批
+ * @see /src/actions/project-category.ts - 專案分區管理
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";

@@ -1,3 +1,38 @@
+/**
+ * @file data-files.ts
+ * @description 參考文獻/資料檔案管理模組
+ *
+ * 此模組負責管理 RMS 系統中的參考文獻 (DataFile)。
+ * DataFile 是獨立於項目的資料檔案，可被多個項目引用。
+ *
+ * ## 核心功能
+ * - `getDataFiles`：取得資料檔案列表（可依年份篩選）
+ * - `getDataFileById`：取得單一檔案詳情
+ * - `submitCreateDataFile`：提交新增申請
+ * - `submitUpdateDataFile`：提交更新申請
+ * - `submitDeleteDataFile`：提交刪除申請
+ * - `handleDataFileApproval`：處理審批結果
+ *
+ * ## 資料結構
+ * - `dataYear`：資料年份
+ * - `dataCode`：唯一識別碼（如 `2024-REF-001`）
+ * - `dataName`：檔案名稱/標題
+ * - `author`：作者
+ * - `description`：描述
+ * - `filePath`：實際檔案路徑
+ *
+ * ## 審批流程
+ * DataFile 的新增/修改/刪除都需經過審批流程，
+ * 使用獨立的 `DataFileChangeRequest` 資料表追蹤。
+ *
+ * ## 與項目的關聯
+ * 透過 `ItemReference` 資料表，項目可引用 DataFile，
+ * 並附加引用說明 (citation)。
+ *
+ * @see /src/app/datafiles - 前端資料檔案頁面
+ * @see /src/components/datafile - 相關 UI 元件
+ */
+
 'use server';
 
 import { getServerSession } from 'next-auth';

@@ -1,3 +1,36 @@
+/**
+ * @file audit.ts
+ * @description 稽核與日誌模組
+ *
+ * 此模組負責 RMS 系統的稽核功能，包括登入日誌和系統活動追蹤。
+ *
+ * ## 核心功能
+ * - `logLoginAttempt`：記錄登入嘗試
+ * - `getAuditLogs`：取得稽核記錄（含篩選）
+ * - `checkQCDocumentFile`：檢查 QC 文件是否存在
+ * - `countItemsByProject`：統計專案項目數量
+ *
+ * ## 日誌類型
+ * ### LoginLog（登入日誌）
+ * - 記錄所有登入嘗試（成功/失敗）
+ * - 包含 IP 地址、User Agent
+ * - 失敗時記錄原因
+ *
+ * ### ItemHistory（變更日誌）
+ * - 記錄項目的所有變更
+ * - 包含變更類型、快照、差異
+ * - 由 history.ts 管理
+ *
+ * ## 資料保留
+ * 日誌資料依據系統政策保留，可用於：
+ * - 安全稽核
+ * - 問題追蹤
+ * - 合規報告
+ *
+ * @see /src/app/admin/audit - 稽核記錄頁面
+ * @see /src/lib/auth.ts - 登入時呼叫 logLoginAttempt
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";

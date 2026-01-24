@@ -143,7 +143,7 @@ export default function RejectedRequestEditForm({ request }: Props) {
                     router.refresh();
                 }, 1500);
             }
-        } catch (err) {
+        } catch {
             setStatus({ error: "發生未預期的錯誤" });
         } finally {
             setIsSubmitting(false);

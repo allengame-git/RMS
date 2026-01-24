@@ -1,3 +1,39 @@
+/**
+ * @file backup-utils.ts
+ * @description 資料庫備份與還原工具模組
+ *
+ * 此模組提供 RMS 系統的資料庫備份與還原功能。
+ *
+ * ## 核心功能
+ * - `exportDatabaseToSQL`：將整個資料庫匯出為 SQL INSERT 語句
+ * - `importDatabaseFromSQL`：執行 SQL 語句還原資料
+ * - `generateDatabaseManifest`：生成備份清單（含統計資訊）
+ * - `generateFileManifest`：生成檔案備份清單
+ * - `forceLogoutAllUsers`：強制登出所有使用者
+ *
+ * ## 備份順序
+ * 資料表依據外鍵關聯順序匯出/還原：
+ * 1. User（基礎資料）
+ * 2. ProjectCategory → Project → Item
+ * 3. 關聯資料（ItemRelation, ItemReference）
+ * 4. 審批資料（ChangeRequest, ItemHistory）
+ * 5. QC 資料（QCDocumentApproval, QCDocumentRevision）
+ * 6. DataFile 相關
+ * 7. 日誌資料（Notification, LoginLog）
+ *
+ * ## 安全注意事項
+ * - `importDatabaseFromSQL` 使用 `$executeRawUnsafe`
+ * - 僅限管理員操作，且 SQL 應來自可信來源
+ * - 還原前會停用外鍵檢查，還原後重新啟用
+ *
+ * ## 備份檔案格式
+ * - `rms_db.sql`：SQL 語句檔案
+ * - `manifest.json`：備份元資料
+ *
+ * @see /src/app/api/admin/backup - 備份 API 路由
+ * @see /src/app/api/admin/restore - 還原 API 路由
+ */
+
 import { prisma } from '@/lib/prisma';
 
 // 所有需要備份的資料表 (依據外鍵關聯順序)

@@ -1,3 +1,35 @@
+/**
+ * @file pdf-signature.ts
+ * @description 電子簽名嵌入模組
+ *
+ * 此模組負責將電子簽名圖片嵌入到 QC 文件 PDF 中。
+ *
+ * ## 核心功能
+ * - `embedSignatureInPDF`：將簽名圖片嵌入到 PDF 指定位置
+ *
+ * ## 簽名位置
+ * - `qc`：QC 審核者簽名區塊
+ * - `pm`：PM 核定者簽名區塊
+ *
+ * ## 技術實作
+ * - 使用 pdf-lib 操作 PDF 文件
+ * - 支援 PNG 格式的簽名圖片
+ * - 簽名會被縮放以符合預設區塊大小
+ *
+ * ## 檔案路徑
+ * - PDF 路徑：相對於 `/public` 目錄
+ * - 簽名路徑：相對於 `/public` 目錄
+ *
+ * ## 使用場景
+ * 當 QC/PM 執行審核操作時，系統會：
+ * 1. 取得該使用者的簽名圖片路徑
+ * 2. 呼叫此函式將簽名嵌入 PDF
+ * 3. 儲存修改後的 PDF
+ *
+ * @see /src/actions/qc-approval.ts - 呼叫此模組嵌入簽名
+ * @see /src/actions/users.ts - 使用者簽名上傳
+ */
+
 import { PDFDocument } from "pdf-lib";
 import * as fs from "fs";
 import * as path from "path";

@@ -109,7 +109,7 @@ export default function UserManagementPage() {
                 setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false, signaturePath: '' });
                 fetchUsers();
             }
-        } catch (_err) {
+        } catch {
             setFormError('發生錯誤');
         } finally {
             setIsSubmitting(false);
@@ -156,7 +156,7 @@ export default function UserManagementPage() {
                 setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false, signaturePath: '' });
                 fetchUsers();
             }
-        } catch (_err) {
+        } catch {
             setFormError('發生錯誤');
         } finally {
             setIsSubmitting(false);

@@ -1,3 +1,36 @@
+/**
+ * @file tree-utils.ts
+ * @description 樹狀結構工具模組
+ *
+ * 此模組提供將扁平的項目資料轉換為樹狀結構的功能。
+ *
+ * ## 核心功能
+ * - `buildItemTree`：將項目陣列轉換為樹狀結構
+ *
+ * ## 樹狀結構 (ItemNode)
+ * ```typescript
+ * interface ItemNode {
+ *   id: number;
+ *   fullId: string;
+ *   title: string;
+ *   parentId: number | null;
+ *   children: ItemNode[];
+ * }
+ * ```
+ *
+ * ## 排序邏輯
+ * 使用自然排序確保子項目正確排列：
+ * - `RMS-1-1`, `RMS-1-2`, ..., `RMS-1-10`
+ * - 而非字串排序的 `RMS-1-1`, `RMS-1-10`, `RMS-1-2`
+ *
+ * ## 使用場景
+ * - 專案頁面的項目樹狀導航
+ * - 項目選擇器的層級顯示
+ *
+ * @see /src/app/projects/[id]/page.tsx - 專案頁面
+ * @see /src/components/project/ItemTree.tsx - 樹狀顯示元件
+ */
+
 export interface ItemNode {
     id: number;
     fullId: string;

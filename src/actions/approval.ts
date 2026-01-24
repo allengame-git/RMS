@@ -1,3 +1,39 @@
+/**
+ * @file approval.ts
+ * @description 審批工作流程核心模組
+ *
+ * 此檔案是 RMS (Records Management System) 的核心 Server Actions 模組，
+ * 負責處理所有與變更請求 (ChangeRequest) 相關的工作流程。
+ *
+ * ## 核心概念
+ * RMS 採用「先申請、後審核」的變更管理機制：
+ * 1. 使用者（Editor 以上）提交變更申請 → 建立 ChangeRequest（狀態：PENDING）
+ * 2. 審核者（Inspector/Admin）審核申請 → 批准或拒絕
+ * 3. 批准後系統自動執行變更，並建立歷史紀錄 (ItemHistory)
+ *
+ * ## 變更類型 (ChangeRequest.type)
+ * - `CREATE`：新增項目
+ * - `UPDATE`：修改項目
+ * - `DELETE`：刪除項目（軟刪除）
+ * - `PROJECT_UPDATE`：修改專案基本資料
+ * - `PROJECT_DELETE`：刪除專案
+ *
+ * ## 角色權限定義
+ * - VIEWER：僅能檢視
+ * - EDITOR：可提交變更申請
+ * - INSPECTOR：可審核申請 + EDITOR 權限
+ * - ADMIN：完整權限，包含專案刪除等敏感操作
+ *
+ * ## 重要注意事項
+ * - 所有資料庫操作使用 Prisma Transaction 確保一致性
+ * - 審批通過後會觸發：建立歷史紀錄 → 建立通知 → 觸發 QC 審查流程（若適用）
+ * - 項目刪除前會檢查：子項目、待審核申請、未完成的 QC 流程
+ *
+ * @see /src/lib/prisma.ts - Prisma Client 實例
+ * @see /src/actions/history.ts - 歷史紀錄相關邏輯
+ * @see /src/actions/qc-approval.ts - QC 審查流程
+ */
+
 "use server";
 
 import { prisma } from "@/lib/prisma";
