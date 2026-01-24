@@ -1,3 +1,39 @@
+/**
+ * @file CopyProjectButton.tsx
+ * @description 複製專案按鈕元件
+ *
+ * 提供專案複製功能，將現有專案（含所有項目）複製到新專案。
+ *
+ * ## 核心功能
+ * - 複製按鈕觸發 Modal
+ * - 新專案標題輸入
+ * - 新專案代碼輸入
+ * - 分區選擇
+ * - 描述輸入
+ *
+ * ## Props
+ * - `project`：來源專案資料
+ * - `categories`：可選分區列表
+ *
+ * ## 複製內容
+ * - 專案基本資訊
+ * - 所有項目（Item）結構
+ * - 項目內容和附件
+ * - 項目階層關係
+ *
+ * ## 複製限制
+ * - 新專案代碼不可重複
+ * - 複製後的項目 fullId 會以新代碼為前綴
+ *
+ * ## 使用場景
+ * - 建立年度版本
+ * - 建立範本專案
+ * - 快速建立相似專案
+ *
+ * @see /src/actions/project.ts - copyProject
+ * @see /src/components/project/ProjectList.tsx - 專案列表
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

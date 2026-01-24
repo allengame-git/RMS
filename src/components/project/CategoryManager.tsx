@@ -1,3 +1,35 @@
+/**
+ * @file CategoryManager.tsx
+ * @description 專案分區管理元件
+ *
+ * 提供專案分區的完整 CRUD 管理功能。
+ *
+ * ## 核心功能
+ * - 顯示分區列表
+ * - 新增分區
+ * - 編輯分區名稱和描述
+ * - 刪除分區
+ * - 顯示各分區專案數量
+ *
+ * ## Props
+ * - `categories`：分區資料陣列
+ * - `onUpdate`：更新完成後回調
+ *
+ * ## 刪除行為
+ * 刪除分區時，該分區內的專案會變為「未分類」，不會被刪除。
+ *
+ * ## Modal 設計
+ * - Portal 渲染到 body
+ * - 可點擊背景關閉
+ * - 表單內聯於分區列表下方
+ *
+ * ## 權限控制
+ * 此元件僅對 INSPECTOR/ADMIN 角色顯示（由父元件控制）
+ *
+ * @see /src/actions/project-category.ts - 分區管理 Server Actions
+ * @see /src/app/projects/page.tsx - 專案列表頁面
+ */
+
 "use client";
 
 import { useState } from "react";

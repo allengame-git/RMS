@@ -1,3 +1,37 @@
+/**
+ * @file DeleteProjectButton.tsx
+ * @description 刪除專案按鈕元件
+ *
+ * 提供專案刪除申請功能，需輸入專案名稱確認。
+ *
+ * ## 核心功能
+ * - 刪除按鈕（紅色警示樣式）
+ * - 確認對話框
+ * - 輸入專案名稱確認
+ * - 提交刪除申請
+ *
+ * ## Props
+ * - `project`：專案資料（id, title）
+ * - `onSuccess`：刪除成功後回調
+ *
+ * ## 安全機制
+ * 使用者必須輸入完整專案名稱才能提交刪除申請，
+ * 避免誤操作。
+ *
+ * ## 刪除限制
+ * - 專案必須不包含任何項目
+ * - 需經審核流程核准
+ *
+ * ## 提交流程
+ * 1. 點擊刪除按鈕
+ * 2. 輸入專案名稱確認
+ * 3. 呼叫 `submitDeleteProjectRequest`
+ * 4. 建立 PROJECT_DELETE 類型的 ChangeRequest
+ * 5. 等待 ADMIN 審核
+ *
+ * @see /src/actions/approval.ts - submitDeleteProjectRequest
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

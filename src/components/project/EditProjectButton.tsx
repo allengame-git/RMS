@@ -1,3 +1,34 @@
+/**
+ * @file EditProjectButton.tsx
+ * @description 編輯專案按鈕元件
+ *
+ * 提供專案編輯功能的按鈕，點擊後開啟編輯 Modal。
+ *
+ * ## 核心功能
+ * - 編輯按鈕觸發 Modal
+ * - 專案標題編輯
+ * - 專案描述編輯
+ * - 分區選擇
+ * - 提交變更申請
+ *
+ * ## Props
+ * - `project`：當前專案資料
+ * - `categories`：可選分區列表
+ *
+ * ## 提交流程
+ * 1. 編輯專案資訊
+ * 2. 點擊提交
+ * 3. 呼叫 `updateProject` Server Action
+ * 4. 建立 PROJECT_UPDATE 類型的 ChangeRequest
+ * 5. 等待審核通過
+ *
+ * ## 權限控制
+ * 此按鈕僅對 ADMIN 或 PM 顯示（由父元件控制）
+ *
+ * @see /src/actions/project.ts - updateProject
+ * @see /src/components/project/ProjectList.tsx - 專案列表
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

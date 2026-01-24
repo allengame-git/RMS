@@ -1,3 +1,36 @@
+/**
+ * @file RecentUpdatesTable.tsx
+ * @description 最近更新紀錄表格元件
+ *
+ * 顯示系統中最近的項目和檔案變更紀錄。
+ *
+ * ## 核心功能
+ * - 表格式顯示更新紀錄
+ * - 項目/檔案類型過濾
+ * - 操作類型標籤（新增/編輯/刪除/還原）
+ * - 相對時間顯示
+ * - 點擊導航到詳情
+ *
+ * ## Props
+ * - `updates`：更新紀錄陣列
+ *
+ * ## 紀錄結構
+ * - `type`：ITEM 或 FILE
+ * - `changeType`：CREATE, UPDATE, DELETE, RESTORE
+ * - `identifier`：項目編號或檔案編碼
+ * - `name`：項目標題或檔案名稱
+ * - `submittedBy`：提交者
+ * - `reviewedBy`：核准者
+ *
+ * ## 過濾選項
+ * - 全部
+ * - 僅項目
+ * - 僅檔案
+ *
+ * @see /src/app/page.tsx - 首頁（使用此元件）
+ * @see /src/actions/history.ts - 取得更新紀錄
+ */
+
 'use client';
 
 import Link from 'next/link';
