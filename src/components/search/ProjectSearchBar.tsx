@@ -1,3 +1,32 @@
+/**
+ * @file ProjectSearchBar.tsx
+ * @description 專案內搜尋列元件
+ *
+ * 提供專案內項目的即時搜尋功能。
+ *
+ * ## 核心功能
+ * - 即時搜尋輸入
+ * - 防抖動處理（300ms）
+ * - 搜尋結果回調
+ * - 清除搜尋
+ *
+ * ## Props
+ * - `projectId`：專案 ID
+ * - `onSearch`：搜尋觸發回調
+ * - `onResultsChange`：搜尋結果變更回調
+ *
+ * ## 搜尋邏輯
+ * - 最少輸入 2 個字元才觸發搜尋
+ * - 300ms 防抖動避免頻繁請求
+ * - 清空輸入時自動清除結果
+ *
+ * ## 使用情境
+ * 嵌入專案頁面，用於快速定位項目。
+ *
+ * @see /src/actions/search.ts - searchProjectItems Server Action
+ * @see /src/components/search/SearchResults.tsx - 搜尋結果顯示元件
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';

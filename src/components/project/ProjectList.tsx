@@ -1,3 +1,35 @@
+/**
+ * @file ProjectList.tsx
+ * @description 專案列表元件
+ *
+ * 以卡片形式顯示所有專案，支援按分區分組和摺疊。
+ *
+ * ## 核心功能
+ * - 按分區分組顯示專案
+ * - 分區可展開/摺疊
+ * - 專案卡片顯示基本資訊
+ * - 編輯/刪除/複製操作按鈕
+ *
+ * ## Props
+ * - `projects`：專案資料陣列
+ * - `categories`：分區資料陣列
+ *
+ * ## 權限控制
+ * - 編輯按鈕：ADMIN 或 PM 可見
+ * - 刪除按鈕：僅 ADMIN 可見
+ *
+ * ## 專案卡片資訊
+ * - 專案名稱（連結到專案頁面）
+ * - 代碼前綴
+ * - 描述
+ * - 項目數量
+ * - 更新日期
+ *
+ * @see /src/app/projects/page.tsx - 專案列表頁面
+ * @see /src/components/project/EditProjectButton.tsx - 編輯按鈕
+ * @see /src/components/project/DeleteProjectButton.tsx - 刪除按鈕
+ */
+
 "use client";
 
 import { useState } from "react";

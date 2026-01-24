@@ -1,3 +1,32 @@
+/**
+ * @file CreateProjectForm.tsx
+ * @description 新增專案表單元件
+ *
+ * 用於建立新專案的表單，包含專案基本資訊輸入。
+ *
+ * ## 核心功能
+ * - 專案名稱輸入（必填）
+ * - 代碼前綴輸入（必填，格式驗證）
+ * - 分區選擇
+ * - 描述輸入
+ *
+ * ## 代碼前綴規則
+ * - 僅允許大寫英文字母、數字
+ * - 可使用連字號分隔
+ * - 範例：`WEB`, `Q4`, `DAREN-SI`
+ *
+ * ## 表單行為
+ * - 初始為收合的「新增專案」按鈕
+ * - 點擊後展開表單
+ * - 提交成功後自動收合
+ *
+ * ## 權限控制
+ * 此表單僅對 ADMIN/EDITOR 以上角色顯示（由父元件控制）
+ *
+ * @see /src/actions/project.ts - createProject Server Action
+ * @see /src/app/projects/page.tsx - 專案列表頁面
+ */
+
 "use client";
 
 import { useFormStatus, useFormState } from "react-dom";

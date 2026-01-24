@@ -1,3 +1,39 @@
+/**
+ * @file DataFileList.tsx
+ * @description 資料檔案列表元件
+ *
+ * 顯示系統中的參考文獻/資料檔案列表，支援多種檢視模式。
+ *
+ * ## 核心功能
+ * - 卡片/列表雙模式檢視
+ * - 搜尋過濾
+ * - 多欄位排序
+ * - 年份篩選
+ * - 檔案類型標籤
+ *
+ * ## 顯示資訊
+ * - 檔案名稱/標題
+ * - 資料代碼
+ * - 資料年份
+ * - 作者
+ * - 檔案大小
+ * - 上傳日期
+ *
+ * ## 排序選項
+ * - 檔案名稱 (dataName)
+ * - 資料代碼 (dataCode)
+ * - 年份 (dataYear)
+ * - 作者 (author)
+ * - 檔案大小 (fileSize)
+ * - 建立日期 (createdAt)
+ *
+ * ## 待審核標示
+ * 若檔案有待審核的變更申請，會顯示狀態標籤。
+ *
+ * @see /src/app/datafiles/page.tsx - 資料檔案列表頁面
+ * @see /src/actions/data-files.ts - 資料檔案 Server Actions
+ */
+
 'use client';
 
 import { useState, useMemo } from 'react';

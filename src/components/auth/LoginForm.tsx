@@ -1,3 +1,33 @@
+/**
+ * @file LoginForm.tsx
+ * @description 登入表單元件
+ *
+ * 系統登入頁面的主要表單，處理使用者認證。
+ *
+ * ## 核心功能
+ * - 帳號密碼輸入
+ * - 登入驗證
+ * - 錯誤訊息顯示
+ * - 帳號鎖定提示
+ *
+ * ## 安全機制
+ * - 連續登入失敗會觸發帳號鎖定
+ * - 鎖定時顯示剩餘時間
+ * - 登入成功後記錄日誌
+ *
+ * ## 錯誤處理
+ * - 帳號不存在
+ * - 密碼錯誤
+ * - 帳號已鎖定
+ * - 網路錯誤
+ *
+ * ## 認證流程
+ * 使用 NextAuth.js 的 Credentials Provider 進行認證。
+ *
+ * @see /src/lib/auth.ts - 認證配置
+ * @see /src/app/auth/login/page.tsx - 登入頁面
+ */
+
 "use client";
 
 import { useState } from "react";
