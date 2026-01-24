@@ -1,3 +1,28 @@
+/**
+ * @file itemLinkPlugin.ts
+ * @description Tiptap 項目連結裝飾 Plugin
+ *
+ * ProseMirror Plugin，用於在編輯器中高亮顯示潛在的項目連結。
+ *
+ * ## 核心功能
+ * - 掃描文字中的項目編號格式
+ * - 為尚未轉換為連結的編號添加裝飾
+ * - 提供視覺提示讓使用者知道可以建立連結
+ *
+ * ## 裝飾邏輯
+ * - 使用正規表達式識別項目編號
+ * - 跳過已有 `itemLink` Mark 的文字
+ * - 為符合格式的文字添加 `item-link-suggestion` class
+ *
+ * ## 編號格式
+ * `/\b([A-Z]+-\d+(?:-\d+)*)\b/g`
+ *
+ * ## 使用方式
+ * 此 Plugin 由 `ItemLink` 擴充功能自動載入。
+ *
+ * @see /src/components/editor/extensions/ItemLink.ts - ItemLink 擴充功能
+ */
+
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 

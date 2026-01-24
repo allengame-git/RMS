@@ -1,5 +1,38 @@
+/**
+ * @file ItemLink.ts
+ * @description Tiptap 項目連結擴充功能
+ *
+ * 自訂的 Tiptap Mark 擴充，用於在富文本編輯器中建立項目內部連結。
+ *
+ * ## 核心功能
+ * - 自動識別項目編號格式（如 `RMS-1-2`）
+ * - 輸入時自動轉換為連結
+ * - 連結驗證（有效性檢查）
+ * - 點擊連結在新分頁開啟
+ *
+ * ## 編號格式
+ * - 正規表達式：`/[A-Z]+-\d+(-\d+)*\/`
+ * - 範例：`RMS-1`, `PROJ-A-1-2`
+ *
+ * ## 連結屬性
+ * - `fullId`：項目完整編號
+ * - `itemId`：項目資料庫 ID
+ * - `title`：項目標題（用於 tooltip）
+ * - `valid`：是否為有效連結
+ *
+ * ## 輸入規則
+ * 輸入項目編號後按空格，自動轉換為連結。
+ *
+ * ## 驗證機制
+ * 使用 `itemLinkValidationPlugin` 在背景驗證連結有效性，
+ * 無效連結會標記為紅色。
+ *
+ * @see /src/components/editor/plugins/itemLinkPlugin.ts - 裝飾 Plugin
+ * @see /src/components/editor/plugins/itemLinkValidationPlugin.ts - 驗證 Plugin
+ */
 
 import { Mark, mergeAttributes, InputRule } from '@tiptap/core';
+
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { itemLinkPlugin } from '../plugins/itemLinkPlugin';
 import { itemLinkValidationPlugin } from '../plugins/itemLinkValidationPlugin';

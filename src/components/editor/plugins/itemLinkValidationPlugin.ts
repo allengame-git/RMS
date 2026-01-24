@@ -1,3 +1,35 @@
+/**
+ * @file itemLinkValidationPlugin.ts
+ * @description Tiptap 項目連結驗證 Plugin
+ *
+ * ProseMirror Plugin，用於驗證編輯器中項目連結的有效性。
+ *
+ * ## 核心功能
+ * - 掃描文件中的 `itemLink` Mark
+ * - 非同步向 API 驗證連結有效性
+ * - 更新連結的 `valid`、`itemId`、`title` 屬性
+ * - 快取驗證結果避免重複請求
+ *
+ * ## 驗證流程
+ * 1. 偵測到新的項目連結 Mark
+ * 2. 檢查快取是否已有結果
+ * 3. 若無，發送 API 請求驗證
+ * 4. 收到回應後更新 Mark 屬性
+ *
+ * ## 快取機制
+ * - 使用 `Map<fullId, CachedItemData>` 儲存
+ * - 減少重複的 API 請求
+ * - 編輯器關閉時快取不會持久化
+ *
+ * ## 視覺反饋
+ * - 有效連結：綠色樣式
+ * - 無效連結：紅色樣式
+ * - 載入中：預設樣式
+ *
+ * @see /src/components/editor/extensions/ItemLink.ts - ItemLink 擴充功能
+ * @see /src/app/api/items/validate - 驗證 API
+ */
+
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 
 interface CachedItemData {
