@@ -1,3 +1,41 @@
+/**
+ * @file RichTextEditor.tsx
+ * @description 富文本編輯器元件
+ *
+ * 基於 Tiptap 編輯器框架的客製化富文本編輯器，
+ * 提供類似 Word 的編輯體驗。
+ *
+ * ## 核心功能
+ * - 基本格式：粗體、斜體、底線、刪除線
+ * - 標題層級：H1 ~ H6
+ * - 列表：有序、無序
+ * - 對齊：左、中、右、兩端
+ * - 縮排：增加、減少
+ * - 連結：網址連結、項目連結（ItemLink）
+ * - 圖片：拖拽上傳、調整大小
+ * - 表格：新增、編輯、合併儲存格
+ * - 上下標：數學公式、化學式
+ * - 顏色：文字顏色選擇
+ * - 字體大小：自訂字體大小
+ *
+ * ## 自訂擴充功能
+ * - `ItemLink`：項目內部連結（可驗證有效性）
+ * - `Indent`：段落縮排
+ * - `FontSize`：自訂字體大小
+ *
+ * ## Props
+ * - `content`：初始 HTML 內容
+ * - `onChange`：內容變更回調
+ * - `onUploadImage`：圖片上傳回調（選填）
+ * - `editable`：是否可編輯（預設 true）
+ *
+ * ## 圖片處理
+ * 支援拖拽上傳和貼上圖片，自動上傳到伺服器。
+ *
+ * @see /src/components/editor/extensions - 自訂 Tiptap 擴充
+ * @see /src/api/upload - 圖片上傳 API
+ */
+
 "use client";
 
 import { useEditor, EditorContent } from '@tiptap/react';

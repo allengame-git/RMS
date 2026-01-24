@@ -1,3 +1,28 @@
+/**
+ * @file Navbar.tsx
+ * @description 導航列元件
+ *
+ * 系統的主要導航列，顯示於所有頁面頂部。
+ *
+ * ## 核心功能
+ * - 品牌標誌與首頁連結
+ * - 主要導航連結（專案、資料檔案）
+ * - 審批入口（根據權限顯示）
+ * - 通知鈴鐺（未讀數量徽章）
+ * - 使用者選單（個人資訊、登出）
+ * - 主題切換（明/暗模式）
+ *
+ * ## 權限控制
+ * - 審批入口：僅 INSPECTOR/ADMIN 或具有 QC/PM 資格者可見
+ * - 待審核數量徽章：動態從 API 取得
+ *
+ * ## 響應式設計
+ * 支援桌面和行動裝置的不同佈局
+ *
+ * @see /src/app/api/pending-count - 待審核數量 API
+ * @see /src/components/layout/NotificationBell.tsx - 通知鈴鐺元件
+ */
+
 "use client";
 
 import Link from "next/link";

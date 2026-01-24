@@ -1,3 +1,36 @@
+/**
+ * @file RelatedItemsManager.tsx
+ * @description 關聯項目管理元件
+ *
+ * 管理項目之間的關聯關係，支援新增、編輯和刪除關聯。
+ *
+ * ## 核心功能
+ * - 新增關聯項目（輸入項目編號）
+ * - 編輯關聯說明
+ * - 移除關聯
+ * - 顯示已關聯項目列表
+ *
+ * ## Props
+ * - `sourceItemId`：來源項目 ID（若為 undefined 則為新增模式）
+ * - `initialRelatedItems`：初始關聯項目列表
+ * - `onChange`：關聯變更回調（用於表單模式）
+ * - `canEdit`：是否允許編輯（預設 true）
+ *
+ * ## 操作模式
+ * ### 表單模式（sourceItemId 為空）
+ * - 用於新增/編輯項目表單
+ * - 變更不會立即寫入資料庫
+ * - 透過 `onChange` 回調傳遞給父元件
+ *
+ * ### 即時模式（sourceItemId 存在）
+ * - 用於項目詳情頁面
+ * - 變更會立即寫入資料庫
+ * - 呼叫 Server Actions 執行操作
+ *
+ * @see /src/actions/item-relations.ts - 關聯項目 Server Actions
+ * @see /src/components/item/CreateItemForm.tsx - 在新增表單中使用
+ */
+
 'use client';
 
 import { useState } from 'react';

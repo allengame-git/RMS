@@ -1,3 +1,35 @@
+/**
+ * @file CreateItemForm.tsx
+ * @description 新增項目表單元件
+ *
+ * 用於在專案中新增項目（Item）的表單元件。
+ * 提交後會建立 ChangeRequest，等待審核通過。
+ *
+ * ## 核心功能
+ * - 標題輸入（必填）
+ * - 內容編輯（富文本編輯器）
+ * - 附件上傳（支援多檔案）
+ * - 關聯項目管理
+ * - 參考文獻管理
+ * - 提交理由說明
+ *
+ * ## 表單狀態
+ * - 使用 React 的 `useFormState` 管理提交狀態
+ * - 支援提交中的 loading 狀態
+ * - 顯示成功/錯誤訊息
+ *
+ * ## 提交流程
+ * 1. 驗證必填欄位
+ * 2. 收集表單資料（含附件、關聯項目等）
+ * 3. 呼叫 `submitCreateItemRequest` Server Action
+ * 4. 建立 PENDING 狀態的 ChangeRequest
+ * 5. 等待 INSPECTOR/ADMIN 審核
+ *
+ * @see /src/actions/approval.ts - submitCreateItemRequest
+ * @see /src/components/editor/RichTextEditor.tsx - 富文本編輯器
+ * @see /src/components/item/RelatedItemsManager.tsx - 關聯項目管理
+ */
+
 "use client";
 
 import { useFormStatus, useFormState } from "react-dom";

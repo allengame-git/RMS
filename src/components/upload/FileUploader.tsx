@@ -1,3 +1,39 @@
+/**
+ * @file FileUploader.tsx
+ * @description 檔案上傳元件
+ *
+ * 提供拖放式的多檔案上傳功能，用於項目附件上傳。
+ *
+ * ## 核心功能
+ * - 點擊選擇檔案
+ * - 拖放上傳
+ * - 多檔案同時上傳
+ * - 已上傳檔案列表顯示
+ * - 檔案移除功能
+ *
+ * ## Props
+ * - `onFilesChange`：檔案列表變更回調
+ * - `initialFiles`：初始已上傳的檔案列表
+ *
+ * ## 支援的檔案類型
+ * - PDF 文件
+ * - Word 文件 (.doc, .docx)
+ * - 圖片 (.jpg, .jpeg, .png, .gif, .webp)
+ *
+ * ## 檔案大小限制
+ * 單檔最大 20MB（在 API 端控制）
+ *
+ * ## 使用方式
+ * ```tsx
+ * <FileUploader
+ *   initialFiles={existingFiles}
+ *   onFilesChange={(files) => setAttachments(files)}
+ * />
+ * ```
+ *
+ * @see /src/app/api/upload - 檔案上傳 API
+ */
+
 "use client";
 
 import { useState, useRef } from 'react';

@@ -1,3 +1,41 @@
+/**
+ * @file ApprovalList.tsx
+ * @description 變更申請審核列表元件
+ *
+ * 顯示所有待審核的變更申請（ChangeRequest），
+ * 供 INSPECTOR/ADMIN 進行審核操作。
+ *
+ * ## 核心功能
+ * - 顯示待審核的變更申請列表
+ * - 支援展開查看申請詳情
+ * - 新舊內容比對（Diff 顯示）
+ * - 審核通過/拒絕操作
+ * - 審查意見輸入
+ *
+ * ## 支援的申請類型
+ * - `CREATE`：新增項目
+ * - `UPDATE`：修改項目
+ * - `DELETE`：刪除項目
+ * - `PROJECT_UPDATE`：修改專案
+ * - `PROJECT_DELETE`：刪除專案
+ *
+ * ## 審核流程
+ * 1. 展開申請查看詳細內容
+ * 2. 檢視變更差異（修改類型）
+ * 3. 輸入審查意見（可選）
+ * 4. 點擊「核准」或「拒絕」
+ *
+ * ## 狀態更新
+ * 審核後會：
+ * - 更新 ChangeRequest 狀態
+ * - 建立 ItemHistory（若通過）
+ * - 發送通知給提交者
+ * - 觸發 QC 審查流程（若通過）
+ *
+ * @see /src/actions/approval.ts - approveRequest, rejectRequest
+ * @see /src/app/admin/approval - 審核頁面
+ */
+
 "use client";
 
 import { approveRequest, rejectRequest } from "@/actions/approval";

@@ -1,3 +1,33 @@
+/**
+ * @file QCDocumentApprovalList.tsx
+ * @description 品質管制文件審核列表元件
+ *
+ * 顯示待審核的 QC 文件（QCDocumentApproval），
+ * 供具有 QC/PM 資格的使用者進行審核。
+ *
+ * ## 核心功能
+ * - 顯示待審核的 QC 文件列表
+ * - 根據使用者資格過濾顯示內容
+ * - QC 審核操作（通過/拒絕）
+ * - PM 核定操作（通過/要求修訂）
+ * - 審查意見輸入
+ *
+ * ## 審核狀態
+ * - `PENDING_QC`：等待 QC 審核
+ * - `PENDING_PM`：等待 PM 核定
+ * - `REVISION_REQUESTED`：已要求修訂
+ *
+ * ## 權限控制
+ * - QC 審核：需要 `isQC = true`
+ * - PM 核定：需要 `isPM = true`
+ *
+ * ## 修訂流程
+ * PM 可要求修訂，編輯者需提交修訂版本後重新進入審核流程。
+ *
+ * @see /src/actions/qc-approval.ts - QC 審核相關 Server Actions
+ * @see /src/app/admin/approval - 審核頁面（包含此元件）
+ */
+
 "use client";
 
 import React, { useState } from "react";
