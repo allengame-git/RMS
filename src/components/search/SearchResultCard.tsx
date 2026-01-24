@@ -1,3 +1,15 @@
+/**
+ * @file SearchResultCard.tsx
+ * @description 單筆搜尋結果展示卡片
+ *
+ * 在搜尋結果列表中，用於顯示單個匹配項目的摘要資訊。
+ *
+ * ## 核心功能
+ * - **項目識別**：顯示項目的 fullId 與標題。
+ * - **關鍵字摘要**：調用 `HighlightedSnippet` 顯示匹配的文字內容及高亮。
+ * - **詳情跳轉**：提供指向該項目詳情的直接連結。
+ */
+
 'use client';
 
 import Link from 'next/link';

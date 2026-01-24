@@ -1,3 +1,14 @@
+/**
+ * @file page.tsx (app/notifications)
+ * @description 個人通知中心頁面
+ *
+ * 供使用者查看其相關的所有通知紀錄（按時間倒序）。
+ *
+ * ## 呈現內容
+ * - **通知清單**：串接 `NotificationList` 元件顯示詳細通知內容。
+ * - **效能優化**：預設僅讀取最近 100 筆通知。
+ */
+
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";

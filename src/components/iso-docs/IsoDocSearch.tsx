@@ -1,3 +1,15 @@
+/**
+ * @file IsoDocSearch.tsx
+ * @description 品質文件模組專用搜尋條
+ *
+ * 採用 URL Query Params 機制的搜尋輸入框，支援對品質文件列表進行即時篩選。
+ *
+ * ## 核心功能
+ * - **URL 即時同步**：鍵入內容時自動更新 URL 中的 `q` 參數。
+ * - **過渡狀態**：使用 React `useTransition` 確保輸入過程流暢不卡頓。
+ * - **視覺反饋**：提供搜尋中的 Loading 動畫。
+ */
+
 'use client';
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';

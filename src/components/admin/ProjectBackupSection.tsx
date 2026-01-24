@@ -1,3 +1,23 @@
+/**
+ * @file ProjectBackupSection.tsx
+ * @description 單一專案匯出與匯入元件
+ *
+ * 提供針對單一專案的資料遷移功能，包含完整的項目結構與關聯檔案。
+ *
+ * ## 核心功能
+ * - **單一專案匯出**：選擇專案並打包成 ZIP，包含元資料、附件、及關聯參考。
+ * - **單一專案匯入**：上傳專案 ZIP 檔，自動掃描衝突並重建專案樹。
+ * - **安全校驗**：匯入前需手動輸入「IMPORT」確認，系統會自動先建立資料庫備份。
+ * - **統計回報**：匯入成功後顯示導入的項目總數與還原的檔案數。
+ *
+ * ## 使用場景
+ * - 專案版本歸檔。
+ * - 跨環境專案遷移。
+ *
+ * @see /src/app/api/admin/backup/project/[id]/route.ts - 匯出 API
+ * @see /src/app/api/admin/restore/project/route.ts - 匯入 API
+ */
+
 'use client';
 
 import { useState, useRef } from 'react';

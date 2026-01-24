@@ -1,3 +1,25 @@
+/**
+ * @file BackupRestoreSection.tsx
+ * @description 系統備份與復原管理元件
+ *
+ * 管理員後台的核心維護工具，支援資料庫、附件檔案、ISO 文件的備份與災難復原。
+ *
+ * ## 核心功能
+ * - **分類備份**：系統級（資料庫、上傳、ISO）與單一專案備份。
+ * - **進度顯示**：模擬備份/復原進度條與狀態提示。
+ * - **安全機制**：
+ *   - 執行復原前需輸入「RESTORE」進行關鍵確認。
+ *   - 資料庫復原後自動執行強制登出。
+ * - **串流下載**：支援大型 ZIP 檔案的非同步生成與下載。
+ *
+ * ## 技術細節
+ * - 使用 `fetch` 呼叫 `/api/admin/backup/*` 與 `/api/admin/restore/*`。
+ * - 使用 `activeTab` 區分「系統級」與「單一專案」操作。
+ *
+ * @see /src/app/api/admin/backup/ - 後端備份 API
+ * @see /src/components/admin/ProjectBackupSection.tsx - 專案級備份子元件
+ */
+
 'use client';
 
 import { useState, useRef } from 'react';

@@ -1,3 +1,24 @@
+/**
+ * @file NotificationBell.tsx
+ * @description 導航列通知鈴鐺元件
+ *
+ * 提供系統通知的即時提醒與快速預覽選單。
+ *
+ * ## 核心功能
+ * - **未讀計數**：自動輪詢後端同步未讀通知數量。
+ * - **預覽下拉選單**：顯示最近的 10 筆通知，包含圖示、標題與簡介。
+ * - **即時標記已讀**：點擊單筆或使用「全部標記已讀」。
+ * - **路由跳轉**：點擊通知可直接導向相關聯的業務頁面。
+ *
+ * ## 通知類型
+ * - `REJECTION`：申請遭駁回。
+ * - `REVISION_REQUEST`：品質文件需修訂。
+ * - `APPROVAL`：申請獲准。
+ * - `COMPLETED`：流程完成。
+ *
+ * @see /src/actions/notifications.ts - 後端通知處理授權
+ */
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";

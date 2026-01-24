@@ -1,3 +1,19 @@
+/**
+ * @file page.tsx (app/admin/approval)
+ * @description 系統審核中心管理頁面
+ *
+ * 管理員與審核員 (INSPECTOR/QC/PM) 的核心工作區，集中處理各類變更申請與品質文件簽核。
+ *
+ * ## 審核類別
+ * 1. **項目變更申請**：項目的新增、修改、與刪除。
+ * 2. **檔案變更申請**：資料檔案模組的參考文獻管理。
+ * 3. **品質文件簽核 (QC/PM)**：PDF 品質文件的多階段簽署。
+ *
+ * ## 權限控制
+ * - 僅限 ADMIN 與 INSPECTOR 進入。
+ * - 內部元件進一步細分 QC 與 PM 資格者的操作範圍。
+ */
+
 import { getPendingRequests } from "@/actions/approval";
 import { getPendingDataFileRequests } from "@/actions/data-files";
 import { getQCDocumentApprovals } from "@/actions/qc-approval";

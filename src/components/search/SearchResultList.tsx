@@ -1,3 +1,21 @@
+/**
+ * @file SearchResultList.tsx
+ * @description 全域搜尋結果列表元件
+ *
+ * 展示全系統項目全文檢索的結果清單。
+ *
+ * ## 核心功能
+ * - **狀態處理**：處理「載入中」、「無結果」與「關鍵字太短」等邊界狀態。
+ * - **結果摘要**：顯示符合條件的總筆數。
+ * - **結果映射**：將搜尋結果映射為 `SearchResultCard` 進行精緻展現。
+ *
+ * ## 搜尋邏輯
+ * - 僅在關鍵字長度 >= 2 時顯示結果。
+ * - 配合 `actions/search.ts` 實現 Server-side 搜尋。
+ *
+ * @see /src/components/search/SearchResultCard.tsx - 單筆結果元件
+ */
+
 'use client';
 
 import type { SearchResult } from '@/actions/search';
