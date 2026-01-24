@@ -1,3 +1,37 @@
+/**
+ * @file ItemTree.tsx
+ * @description 項目樹狀結構元件
+ *
+ * 以樹狀結構顯示專案中的項目層級關係。
+ *
+ * ## 核心功能
+ * - 階層式項目顯示
+ * - 可摺疊/展開的節點
+ * - 當前項目高亮
+ * - 新增子項目表單
+ * - 點擊導航到項目詳情
+ *
+ * ## Props
+ * - `nodes`：樹狀節點資料（ItemNode[]）
+ * - `level`：當前層級（用於縮排）
+ * - `canEdit`：是否可編輯
+ * - `projectId`：專案 ID
+ * - `currentItemId`：當前檢視的項目 ID
+ *
+ * ## 視覺設計
+ * - 層級縮排
+ * - 展開/摺疊箭頭
+ * - 當前項目藍色背景
+ * - hover 效果
+ *
+ * ## 使用場景
+ * - 專案頁面的側邊欄導航
+ * - 項目詳情頁的相關項目導航
+ *
+ * @see /src/lib/tree-utils.ts - buildItemTree 函式
+ * @see /src/app/projects/[id]/page.tsx - 專案頁面
+ */
+
 'use client';
 
 import { ItemNode } from '@/lib/tree-utils';

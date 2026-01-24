@@ -1,3 +1,35 @@
+/**
+ * @file DeleteItemButton.tsx
+ * @description 刪除項目按鈕元件
+ *
+ * 提供項目刪除申請功能的按鈕，支援確認對話框。
+ *
+ * ## 核心功能
+ * - 刪除按鈕（紅色警示樣式）
+ * - 確認對話框
+ * - 子項目檢查
+ * - 提交刪除申請
+ *
+ * ## Props
+ * - `itemId`：項目 ID
+ * - `childCount`：子項目數量
+ * - `isDisabled`：是否禁用（有待審核申請時）
+ *
+ * ## 刪除限制
+ * - 有子項目時無法刪除
+ * - 有待審核申請時無法刪除
+ * - 有未完成的 QC 流程時無法刪除
+ *
+ * ## 提交流程
+ * 1. 點擊刪除按鈕
+ * 2. 顯示確認對話框
+ * 3. 確認後呼叫 `submitDeleteItemRequest`
+ * 4. 建立 DELETE 類型的 ChangeRequest
+ * 5. 等待審核通過後軟刪除
+ *
+ * @see /src/actions/approval.ts - submitDeleteItemRequest
+ */
+
 "use client";
 
 import { useState } from "react";

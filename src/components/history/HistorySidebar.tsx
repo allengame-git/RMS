@@ -1,3 +1,35 @@
+/**
+ * @file HistorySidebar.tsx
+ * @description 歷史記錄側邊欄元件
+ *
+ * 歷史查詢頁面的項目導航側邊欄，顯示專案內所有項目的變更歷史概覽。
+ *
+ * ## 核心功能
+ * - 樹狀結構項目列表
+ * - 搜尋過濾
+ * - 可展開/摺疊層級
+ * - 顯示變更次數
+ * - 已刪除項目標示
+ *
+ * ## Props
+ * - `items`：項目歷史摘要資料
+ * - `projectId`：專案 ID
+ *
+ * ## 樹狀結構
+ * 根據 fullId 自動建構父子關係：
+ * - `WQ-1` → Level 1 (root)
+ * - `WQ-1-1` → Level 2 (child of WQ-1)
+ * - `WQ-1-1-1` → Level 3 (child of WQ-1-1)
+ *
+ * ## 視覺設計
+ * - 當前項目高亮
+ * - 已刪除項目刪除線
+ * - 子項目數量徽章
+ *
+ * @see /src/app/admin/history/[projectId] - 歷史瀏覽頁面
+ * @see /src/actions/history.ts - 歷史查詢相關 API
+ */
+
 "use client";
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';

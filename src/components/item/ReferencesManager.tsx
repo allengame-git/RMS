@@ -1,3 +1,37 @@
+/**
+ * @file ReferencesManager.tsx
+ * @description 參考文獻管理元件
+ *
+ * 管理項目的參考文獻引用，支援搜尋、新增和編輯。
+ *
+ * ## 核心功能
+ * - 搜尋資料檔案
+ * - 新增參考引用
+ * - 編輯引用說明 (citation)
+ * - 移除引用
+ * - 按年份分組顯示
+ *
+ * ## Props
+ * - `initialReferences`：初始引用列表
+ * - `onChange`：引用變更回調
+ * - `canEdit`：是否允許編輯
+ *
+ * ## 搜尋功能
+ * - 支援按編碼、名稱、作者、年份搜尋
+ * - 即時顯示搜尋結果
+ * - 防止重複引用同一檔案
+ *
+ * ## 引用說明
+ * 每個引用可附加「引用說明」，解釋該參考文獻在此項目中的關聯。
+ *
+ * ## 使用場景
+ * - 新增/編輯項目表單
+ * - 項目詳情頁面
+ *
+ * @see /src/actions/data-files.ts - 資料檔案相關 API
+ * @see /src/app/api/datafiles/search - 搜尋 API
+ */
+
 'use client';
 
 import { useState } from 'react';

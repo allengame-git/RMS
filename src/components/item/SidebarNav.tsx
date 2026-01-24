@@ -1,3 +1,33 @@
+/**
+ * @file SidebarNav.tsx
+ * @description 側邊欄導航元件
+ *
+ * 項目詳情頁面的精簡樹狀導航，採用緊湊的設計風格。
+ *
+ * ## 核心功能
+ * - 緊湊的樹狀項目顯示
+ * - 當前項目高亮
+ * - 可展開/摺疊節點
+ * - 新增子項目按鈕
+ *
+ * ## 與 ItemTree 的差異
+ * | 特性 | SidebarNav | ItemTree |
+ * |------|-----------|----------|
+ * | 設計風格 | 緊湊精簡 | 完整手風琴 |
+ * | 使用場景 | 項目詳情左側 | 專案頁面 |
+ * | 間距 | 較小 | 較大 |
+ *
+ * ## Props
+ * - `nodes`：樹狀節點資料
+ * - `level`：當前層級
+ * - `currentItemId`：當前項目 ID（高亮顯示）
+ * - `canEdit`：是否可編輯
+ * - `projectId`：專案 ID
+ *
+ * @see /src/components/item/ItemTree.tsx - 完整版樹狀元件
+ * @see /src/app/items/[id]/page.tsx - 項目詳情頁面
+ */
+
 'use client';
 
 import { ItemNode } from '@/lib/tree-utils';

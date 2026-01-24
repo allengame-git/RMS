@@ -1,3 +1,35 @@
+/**
+ * @file UploadDataFileForm.tsx
+ * @description 上傳資料檔案表單元件
+ *
+ * 提供資料檔案新增功能，包含檔案上傳和元資料輸入。
+ *
+ * ## 核心功能
+ * - 拖放式檔案上傳
+ * - 元資料表單輸入
+ * - 驗證必填欄位
+ * - 提交審核流程
+ *
+ * ## 表單欄位
+ * - 資料年份（必填）
+ * - 資料名稱（必填）
+ * - 資料編碼（選填，格式驗證）
+ * - 作者（必填）
+ * - 內容簡介（選填）
+ * - 檔案（必填）
+ *
+ * ## 上傳流程
+ * 1. 先上傳檔案到 `/api/datafiles/upload`
+ * 2. 取得檔案路徑後呼叫 `submitCreateDataFileRequest`
+ * 3. 建立待審核的變更申請
+ *
+ * ## 檔案限制
+ * - 最大 100MB
+ *
+ * @see /src/actions/data-files.ts - submitCreateDataFileRequest
+ * @see /src/app/api/datafiles/upload - 檔案上傳 API
+ */
+
 'use client';
 
 import { useState } from 'react';

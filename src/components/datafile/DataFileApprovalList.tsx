@@ -1,3 +1,37 @@
+/**
+ * @file DataFileApprovalList.tsx
+ * @description 資料檔案審核列表元件
+ *
+ * 顯示待審核的資料檔案變更申請（DataFileChangeRequest），
+ * 供 INSPECTOR/ADMIN 進行審核操作。
+ *
+ * ## 核心功能
+ * - 卡片式申請列表
+ * - 申請詳情展開
+ * - 新舊內容比對
+ * - 審核通過/拒絕操作
+ * - 確認對話框
+ *
+ * ## 申請類型
+ * - `FILE_CREATE`：新增資料檔案
+ * - `FILE_UPDATE`：修改資料檔案
+ * - `FILE_DELETE`：刪除資料檔案
+ *
+ * ## 比對欄位
+ * - 資料名稱 (dataName)
+ * - 資料編碼 (dataCode)
+ * - 資料年份 (dataYear)
+ * - 作者 (author)
+ * - 簡介 (description)
+ *
+ * ## 權限控制
+ * - 不能審核自己的申請（除非 ADMIN）
+ * - 可拒絕自己的申請
+ *
+ * @see /src/actions/data-files.ts - approveDataFileRequest, rejectDataFileRequest
+ * @see /src/app/admin/approval - 審核頁面
+ */
+
 'use client';
 
 import { useState } from 'react';

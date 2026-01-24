@@ -1,3 +1,37 @@
+/**
+ * @file EditItemButton.tsx
+ * @description 編輯項目按鈕元件
+ *
+ * 提供項目編輯功能的按鈕，點擊後開啟編輯 Modal。
+ *
+ * ## 核心功能
+ * - 編輯按鈕觸發 Modal
+ * - 標題編輯
+ * - 內容編輯（富文本編輯器）
+ * - 附件管理
+ * - 關聯項目管理
+ * - 參考文獻管理
+ * - 提交理由輸入
+ *
+ * ## Props
+ * - `item`：當前項目資料
+ * - `relatedItems`：已關聯項目列表
+ * - `references`：已引用文獻列表
+ *
+ * ## 提交流程
+ * 1. 編輯表單內容
+ * 2. 點擊提交
+ * 3. 呼叫 `submitUpdateItemRequest`
+ * 4. 建立 PENDING 狀態的 ChangeRequest
+ * 5. 等待審核通過
+ *
+ * ## 權限控制
+ * 此按鈕僅對 EDITOR 以上角色顯示（由父元件控制）
+ *
+ * @see /src/actions/approval.ts - submitUpdateItemRequest
+ * @see /src/components/editor/RichTextEditor.tsx - 富文本編輯器
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
