@@ -38,7 +38,7 @@
 
 "use client";
 
-import { approveRequest, rejectRequest } from "@/actions/approval";
+import { approveRequest, rejectRequest, cancelChangeRequest } from "@/actions/approval";
 import { useState } from "react";
 import { formatDate, formatDateTime } from "@/lib/date-utils";
 
@@ -58,15 +58,15 @@ type Reference = {
     citation?: string | null;
 };
 
-type Request = {
+type ApprovalRequest = {
     id: number;
     type: string;
     status: string;
     data: string;
     createdAt: Date;
     submittedBy: { username: string } | null;
-    submitterName?: string | null;  // Fallback when user is deleted
-    submitReason?: string | null;   // 提交者說明編輯原因
+    submitterName?: string | null;
+    submitReason?: string | null;
     targetProject: { title: string; codePrefix: string } | null;
     targetParent: { fullId: string } | null;
     item: {
@@ -86,7 +86,7 @@ type Request = {
 };
 
 // Helper to transform relationsFrom to relatedItems format
-const getItemRelatedItems = (item: Request['item']): RelatedItem[] => {
+const getItemRelatedItems = (item: ApprovalRequest['item']): RelatedItem[] => {
     if (!item?.relationsFrom) return [];
     return item.relationsFrom.map(r => ({
         id: r.target.id,
@@ -97,7 +97,7 @@ const getItemRelatedItems = (item: Request['item']): RelatedItem[] => {
 };
 
 // Helper to transform references
-const getItemReferences = (item: Request['item']): Reference[] => {
+const getItemReferences = (item: ApprovalRequest['item']): Reference[] => {
     if (!item?.references) return [];
     return item.references.map(r => ({
         fileId: r.file.id,
@@ -121,10 +121,10 @@ const getComparableReferences = (refs: Reference[]) => {
         .sort((a, b) => a.fileId - b.fileId);
 };
 
-export default function ApprovalList({ requests, currentUsername, currentUserRole }: { requests: Request[]; currentUsername: string; currentUserRole: string }) {
+export default function ApprovalList({ requests, currentUsername, currentUserRole }: { requests: ApprovalRequest[]; currentUsername: string; currentUserRole: string }) {
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [loading, setLoading] = useState<number | null>(null);
-    const [confirmDialog, setConfirmDialog] = useState<{ id: number; action: 'approve' | 'reject' } | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{ id: number; action: 'approve' | 'reject' | 'cancel' } | null>(null);
     const [errorDialog, setErrorDialog] = useState<string | null>(null);
     const [reviewNote, setReviewNote] = useState('');
 
@@ -148,10 +148,16 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
 
     const handleRejectClick = (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
-        // 允許使用者拒絕自己的申請
+        // 允許使用者拒絕自己的申請 (但建議用撤回)
         setReviewNote('');
         setConfirmDialog({ id, action: 'reject' });
     };
+
+    const handleCancelRequestClick = (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        setReviewNote('');
+        setConfirmDialog({ id, action: 'cancel' });
+    }
 
     const handleConfirm = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -166,8 +172,10 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
         try {
             if (action === 'approve') {
                 await approveRequest(id, reviewNote || undefined);
-            } else {
+            } else if (action === 'reject') {
                 await rejectRequest(id, reviewNote || undefined);
+            } else if (action === 'cancel') {
+                await cancelChangeRequest(id);
             }
             setReviewNote('');
             // Success - reload page
@@ -811,30 +819,65 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                             paddingTop: "1rem",
                             borderTop: "1px solid var(--color-border)"
                         }}>
-                            <button
-                                onClick={(e) => handleRejectClick(e, req.id)}
-                                className="btn btn-outline"
-                                disabled={loading !== null}
-                                style={{
-                                    color: "var(--color-danger)",
-                                    borderColor: "var(--color-danger)",
-                                    padding: "0.75rem 2rem"
-                                }}
-                            >
-                                {loading === req.id ? '處理中...' : '拒絕'}
-                            </button>
-                            <button
-                                onClick={(e) => handleApproveClick(e, req.id)}
-                                className="btn btn-primary"
-                                disabled={loading !== null}
-                                style={{
-                                    backgroundColor: "var(--color-success)",
-                                    border: "none",
-                                    padding: "0.75rem 2rem"
-                                }}
-                            >
-                                {loading === req.id ? '處理中...' : '批准'}
-                            </button>
+                            {/* Submitter Actions: Cancel Request */}
+                            {(req.submittedBy?.username === currentUsername) && (
+                                <button
+                                    onClick={(e) => handleCancelRequestClick(e, req.id)}
+                                    className="btn"
+                                    disabled={loading === req.id}
+                                    style={{
+                                        marginRight: "auto", // Push to left
+                                        backgroundColor: "var(--color-bg-base)",
+                                        color: "var(--color-danger)",
+                                        border: "1px solid var(--color-danger)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.5rem"
+                                    }}
+                                >
+                                    {loading === req.id ? (
+                                        "處理中..."
+                                    ) : (
+                                        <>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M3 6h18" />
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            </svg>
+                                            撤回申請
+                                        </>
+                                    )}
+                                </button>
+                            )}
+
+                            {/* Reviewer Actions */}
+                            {['INSPECTOR', 'ADMIN'].includes(currentUserRole) && (!req.submittedBy?.username || req.submittedBy.username !== currentUsername || currentUserRole === 'ADMIN') && (
+                                <>
+                                    <button
+                                        onClick={(e) => handleRejectClick(e, req.id)}
+                                        className="btn btn-outline"
+                                        disabled={loading !== null}
+                                        style={{
+                                            color: "var(--color-danger)",
+                                            borderColor: "var(--color-danger)",
+                                            padding: "0.75rem 2rem"
+                                        }}
+                                    >
+                                        {loading === req.id ? '處理中...' : '拒絕'}
+                                    </button>
+                                    <button
+                                        onClick={(e) => handleApproveClick(e, req.id)}
+                                        className="btn btn-primary"
+                                        disabled={loading !== null}
+                                        style={{
+                                            backgroundColor: "var(--color-success)",
+                                            border: "none",
+                                            padding: "0.75rem 2rem"
+                                        }}
+                                    >
+                                        {loading === req.id ? '處理中...' : '批准'}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 );
@@ -864,12 +907,14 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                             width: '90%'
                         }}>
                             <h3 style={{ marginBottom: '1rem' }}>
-                                {confirmDialog.action === 'approve' ? '確認批准？' : '確認拒絕？'}
+                                {confirmDialog.action === 'approve' ? '確認批准？' : confirmDialog.action === 'cancel' ? '確認撤回？' : '確認拒絕？'}
                             </h3>
                             <p style={{ marginBottom: '1rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                                 {confirmDialog.action === 'approve'
-                                    ? '此操作將建立/更新項目並將申請標記為已批准。'
-                                    : '此操作將拒絕申請且無法復原。'}
+                                    ? '此變更將立即生效並更新至項目。'
+                                    : confirmDialog.action === 'cancel'
+                                        ? '您確定要撤回此申請嗎？撤回後此申請將被永久刪除且無法復原。'
+                                        : '拒絕後請填寫原因，申請將被退回。'}
                             </p>
 
                             {/* Display submit reason if available */}
@@ -887,25 +932,30 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                                 </div>
                             )}
 
-                            <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: 600 }}>
-                                審查意見
-                            </label>
-                            <textarea
-                                value={reviewNote}
-                                onChange={(e) => setReviewNote(e.target.value)}
-                                placeholder="請輸入審查意見（選填）..."
-                                style={{
-                                    width: '100%',
-                                    padding: '0.5rem',
-                                    borderRadius: 'var(--radius-sm)',
-                                    border: '1px solid var(--color-border)',
-                                    minHeight: '80px',
-                                    resize: 'vertical',
-                                    marginBottom: '1.5rem'
-                                }}
-                            />
+                            {/* Display review note input only for approve/reject */}
+                            {confirmDialog.action !== 'cancel' && (
+                                <>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', fontWeight: 600 }}>
+                                        審查意見
+                                    </label>
+                                    <textarea
+                                        value={reviewNote}
+                                        onChange={(e) => setReviewNote(e.target.value)}
+                                        placeholder="請輸入審查意見（選填）..."
+                                        style={{
+                                            width: '100%',
+                                            padding: '0.5rem',
+                                            borderRadius: 'var(--radius-sm)',
+                                            border: '1px solid var(--color-border)',
+                                            minHeight: '80px',
+                                            resize: 'vertical',
+                                            marginBottom: '1.5rem'
+                                        }}
+                                    />
+                                </>
+                            )}
 
-                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: confirmDialog.action === 'cancel' ? '1rem' : 0 }}>
                                 <button
                                     onClick={handleCancel}
                                     className="btn btn-outline"
@@ -917,86 +967,89 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                                     className="btn btn-primary"
                                     style={{
                                         backgroundColor: confirmDialog.action === 'approve' ? 'var(--color-success)' : 'var(--color-danger)',
-                                        border: 'none'
+                                        border: 'none',
+                                        padding: '0.6rem 1.5rem'
                                     }}
                                 >
-                                    {confirmDialog.action === 'approve' ? '批准' : '拒絕'}
+                                    {confirmDialog.action === 'approve' ? '批准' : confirmDialog.action === 'cancel' ? '確定撤回' : '拒絕'}
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </div >
                 );
             })()}
 
             {/* Error Dialog */}
-            {errorDialog && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    backdropFilter: 'blur(8px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 99999
-                }}
-                    onClick={() => setErrorDialog(null)}
-                >
-                    <div
-                        className="glass"
-                        style={{
-                            width: '500px',
-                            maxWidth: '95vw',
-                            borderRadius: 'var(--radius-lg)',
-                            padding: '2rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            backgroundColor: 'var(--color-bg-surface)',
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                            border: '1px solid var(--color-border)'
-                        }}
-                        onClick={(e) => e.stopPropagation()}
+            {
+                errorDialog && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                        backdropFilter: 'blur(8px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 99999
+                    }}
+                        onClick={() => setErrorDialog(null)}
                     >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--color-danger)' }}>
-                                權限受限
-                            </h2>
-                            <button
-                                type="button"
-                                onClick={() => setErrorDialog(null)}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '1.5rem',
-                                    lineHeight: 1,
-                                    color: 'var(--color-text-muted)'
-                                }}
-                            >
-                                ×
-                            </button>
-                        </div>
+                        <div
+                            className="glass"
+                            style={{
+                                width: '500px',
+                                maxWidth: '95vw',
+                                borderRadius: 'var(--radius-lg)',
+                                padding: '2rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                backgroundColor: 'var(--color-bg-surface)',
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                                border: '1px solid var(--color-border)'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <h2 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--color-danger)' }}>
+                                    權限受限
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setErrorDialog(null)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontSize: '1.5rem',
+                                        lineHeight: 1,
+                                        color: 'var(--color-text-muted)'
+                                    }}
+                                >
+                                    ×
+                                </button>
+                            </div>
 
-                        <p style={{ marginBottom: '2rem', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
-                            {errorDialog}
-                        </p>
+                            <p style={{ marginBottom: '2rem', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
+                                {errorDialog}
+                            </p>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button
-                                onClick={() => setErrorDialog(null)}
-                                type="button"
-                                className="btn btn-primary"
-                                style={{ padding: '0.6rem 1.5rem' }}
-                            >
-                                確定
-                            </button>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setErrorDialog(null)}
+                                    type="button"
+                                    className="btn btn-primary"
+                                    style={{ padding: '0.6rem 1.5rem' }}
+                                >
+                                    確定
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </>
     );
 }

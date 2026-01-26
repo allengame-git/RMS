@@ -36,7 +36,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { approveDataFileRequest, rejectDataFileRequest } from '@/actions/data-files';
+import { approveDataFileRequest, rejectDataFileRequest, cancelDataFileChangeRequest } from '@/actions/data-files';
 import { formatDate, formatDateTime } from '@/lib/date-utils';
 
 type DataFile = {
@@ -152,7 +152,7 @@ export default function DataFileApprovalList({
 }) {
     const router = useRouter();
     const [expandedId, setExpandedId] = useState<number | null>(null);
-    const [confirmDialog, setConfirmDialog] = useState<{ id: number; action: 'approve' | 'reject' } | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{ id: number; action: 'approve' | 'reject' | 'cancel' } | null>(null);
     const [errorDialog, setErrorDialog] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -180,14 +180,20 @@ export default function DataFileApprovalList({
         setConfirmDialog({ id, action: 'reject' });
     };
 
+    const handleCancelRequest = async (id: number) => {
+        setConfirmDialog({ id, action: 'cancel' });
+    };
+
     const handleConfirm = async () => {
         if (!confirmDialog) return;
         setLoading(true);
         try {
             if (confirmDialog.action === 'approve') {
                 await approveDataFileRequest(confirmDialog.id);
-            } else {
+            } else if (confirmDialog.action === 'reject') {
                 await rejectDataFileRequest(confirmDialog.id);
+            } else if (confirmDialog.action === 'cancel') {
+                await cancelDataFileChangeRequest(confirmDialog.id);
             }
             router.refresh();
         } catch (err: any) {
@@ -487,30 +493,59 @@ export default function DataFileApprovalList({
                             paddingTop: '1rem',
                             borderTop: '1px solid var(--color-border)'
                         }}>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleReject(req.id); }}
-                                className="btn btn-outline"
-                                disabled={loading}
-                                style={{
-                                    color: 'var(--color-danger)',
-                                    borderColor: 'var(--color-danger)',
-                                    padding: '0.75rem 2rem'
-                                }}
-                            >
-                                {loading ? '處理中...' : '拒絕'}
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleApprove(req.id); }}
-                                className="btn btn-primary"
-                                disabled={loading}
-                                style={{
-                                    backgroundColor: 'var(--color-success)',
-                                    border: 'none',
-                                    padding: '0.75rem 2rem'
-                                }}
-                            >
-                                {loading ? '處理中...' : '批准'}
-                            </button>
+                            {/* Submitter Action: Cancel Request */}
+                            {req.submittedBy?.username === currentUsername && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleCancelRequest(req.id); }}
+                                    className="btn"
+                                    disabled={loading}
+                                    style={{
+                                        marginRight: 'auto',
+                                        backgroundColor: 'var(--color-bg-base)',
+                                        color: 'var(--color-danger)',
+                                        border: '1px solid var(--color-danger)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M3 6h18" />
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    </svg>
+                                    撤回申請
+                                </button>
+                            )}
+
+                            {/* Reviewer Actions */}
+                            {['ADMIN', 'INSPECTOR'].includes(currentUserRole) && (!req.submittedBy?.username || req.submittedBy.username !== currentUsername || currentUserRole === 'ADMIN') && (
+                                <>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleReject(req.id); }}
+                                        className="btn btn-outline"
+                                        disabled={loading}
+                                        style={{
+                                            color: 'var(--color-danger)',
+                                            borderColor: 'var(--color-danger)',
+                                            padding: '0.75rem 2rem'
+                                        }}
+                                    >
+                                        {loading ? '處理中...' : '拒絕'}
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleApprove(req.id); }}
+                                        className="btn btn-primary"
+                                        disabled={loading}
+                                        style={{
+                                            backgroundColor: 'var(--color-success)',
+                                            border: 'none',
+                                            padding: '0.75rem 2rem'
+                                        }}
+                                    >
+                                        {loading ? '處理中...' : '批准'}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 );
@@ -540,10 +575,14 @@ export default function DataFileApprovalList({
                         border: '1px solid var(--color-border)'
                     }} onClick={(e) => e.stopPropagation()}>
                         <h3 style={{ margin: 0, marginBottom: '1rem' }}>
-                            {confirmDialog.action === 'approve' ? '確認批准' : '確認拒絕'}
+                            {confirmDialog.action === 'approve' ? '確認批准' : confirmDialog.action === 'cancel' ? '確認撤回' : '確認拒絕'}
                         </h3>
                         <p style={{ color: 'var(--color-text-muted)', marginBottom: '1.5rem' }}>
-                            您確定要{confirmDialog.action === 'approve' ? '批准' : '拒絕'}此檔案申請嗎？
+                            {confirmDialog.action === 'approve'
+                                ? '您確定要批准此檔案申請嗎？'
+                                : confirmDialog.action === 'cancel'
+                                    ? '您確定要撤回此檔案申請嗎？撤回後此申請將被永久刪除。'
+                                    : '您確定要拒絕此檔案申請嗎？'}
                         </p>
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                             <button
@@ -563,7 +602,7 @@ export default function DataFileApprovalList({
                                         : 'var(--color-danger)'
                                 }}
                             >
-                                {loading ? '處理中...' : '確認'}
+                                {loading ? '處理中...' : confirmDialog.action === 'cancel' ? '確定撤回' : '確認'}
                             </button>
                         </div>
                     </div>

@@ -406,10 +406,17 @@ export async function submitDeleteProjectRequest(projectId: number): Promise<App
 
 export async function getPendingRequests() {
     const session = await getServerSession(authOptions);
-    if (!session || !canReview(session.user.role)) return [];
+    if (!session) return [];
+
+    // Filter for non-reviewers (Editors/Viewers): can only see their own requests
+    const isReviewer = canReview(session.user.role);
+    const whereCondition: Prisma.ChangeRequestWhereInput = {
+        status: "PENDING",
+        ...(isReviewer ? {} : { submittedById: session.user.id })
+    };
 
     return await prisma.changeRequest.findMany({
-        where: { status: "PENDING" },
+        where: whereCondition,
         include: {
             submittedBy: { select: { username: true } },
             targetProject: { select: { title: true, codePrefix: true } },
@@ -439,6 +446,41 @@ export async function getPendingRequests() {
         },
         orderBy: { createdAt: "asc" }
     });
+}
+
+export async function cancelChangeRequest(requestId: number) {
+    const session = await getServerSession(authOptions);
+    if (!session) throw new Error("Unauthorized");
+
+    const request = await prisma.changeRequest.findUnique({
+        where: { id: requestId },
+        include: { submittedBy: true }
+    });
+
+    if (!request) throw new Error("Request not found");
+
+    // Check permissions: Admin or Original Submitter
+    const isAdmin = session.user.role === "ADMIN";
+    const isSubmitter = request.submittedById === session.user.id;
+
+    if (!isAdmin && !isSubmitter) {
+        throw new Error("You do not have permission to cancel this request");
+    }
+
+    if (request.status !== "PENDING") {
+        throw new Error("Only pending requests can be cancelled");
+    }
+
+    await prisma.changeRequest.delete({
+        where: { id: requestId }
+    });
+
+    // Revalidate relevant paths
+    revalidatePath("/admin/approval");
+    if (request.targetProjectId) revalidatePath(`/projects/${request.targetProjectId}`);
+    if (request.itemId) revalidatePath(`/items/${request.itemId}`);
+
+    return { message: "Request cancelled successfully" };
 }
 
 // ==================== Approval Handlers (Private) ====================

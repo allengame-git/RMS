@@ -53,9 +53,9 @@ export default function Navbar() {
                     const res = await fetch('/api/pending-count');
                     const data = await res.json();
                     setPendingCount(data.count || 0);
-                    // Show approval link if user has pending items or is ADMIN/INSPECTOR
+                    // Show approval link if user has pending items or is ADMIN/INSPECTOR/EDITOR
                     const hasAccess = (data.count > 0) ||
-                        ["ADMIN", "INSPECTOR"].includes(session.user.role);
+                        ["ADMIN", "INSPECTOR", "EDITOR"].includes(session.user.role);
                     setHasApprovalAccess(hasAccess || data.hasApprovalAccess);
                 } catch {
                     console.error('Failed to fetch pending count');
@@ -183,7 +183,7 @@ export default function Navbar() {
                                     )}
                                 </Link>
                             )}
-                            {(hasApprovalAccess || ["ADMIN", "INSPECTOR"].includes(session.user.role)) && (
+                            {(hasApprovalAccess || ["ADMIN", "INSPECTOR", "EDITOR"].includes(session.user.role)) && (
                                 <Link
                                     href="/admin/approval"
                                     className={`btn btn-outline ${isActive("/admin/approval") ? "active-link" : ""}`}

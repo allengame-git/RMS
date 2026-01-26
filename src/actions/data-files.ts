@@ -280,12 +280,16 @@ export async function submitDeleteDataFileRequest(fileId: number) {
 export async function getPendingDataFileRequests() {
     const session = await getServerSession(authOptions);
     if (!session) throw new Error('Unauthorized');
-    if (!['ADMIN', 'INSPECTOR'].includes(session.user.role)) {
-        throw new Error('Permission denied');
-    }
+
+    // Filter for non-reviewers: can only see their own requests
+    const isReviewer = ['ADMIN', 'INSPECTOR'].includes(session.user.role);
+    const whereCondition = {
+        status: 'PENDING' as const,
+        ...(isReviewer ? {} : { submittedById: session.user.id })
+    };
 
     const requests = await prisma.dataFileChangeRequest.findMany({
-        where: { status: 'PENDING' },
+        where: whereCondition,
         include: {
             file: true,
             submittedBy: { select: { id: true, username: true } }
@@ -294,6 +298,41 @@ export async function getPendingDataFileRequests() {
     });
 
     return requests;
+}
+
+/**
+ * Cancel (Retract) a data file change request
+ */
+export async function cancelDataFileChangeRequest(requestId: number) {
+    const session = await getServerSession(authOptions);
+    if (!session) throw new Error("Unauthorized");
+
+    const request = await prisma.dataFileChangeRequest.findUnique({
+        where: { id: requestId }
+    });
+
+    if (!request) throw new Error("Request not found");
+
+    // Check permissions: Admin or Original Submitter
+    const isAdmin = session.user.role === "ADMIN";
+    const isSubmitter = request.submittedById === session.user.id;
+
+    if (!isAdmin && !isSubmitter) {
+        throw new Error("You do not have permission to cancel this request");
+    }
+
+    if (request.status !== "PENDING") {
+        throw new Error("Only pending requests can be cancelled");
+    }
+
+    await prisma.dataFileChangeRequest.delete({
+        where: { id: requestId }
+    });
+
+    revalidatePath("/admin/approval");
+    if (request.fileId) revalidatePath(`/datafiles/${request.fileId}`);
+
+    return { message: "Request cancelled successfully" };
 }
 
 /**

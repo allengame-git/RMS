@@ -10,7 +10,8 @@
  * 3. **品質文件簽核 (QC/PM)**：PDF 品質文件的多階段簽署。
  *
  * ## 權限控制
- * - 僅限 ADMIN 與 INSPECTOR 進入。
+ * - ADMIN / INSPECTOR：可審核所有申請。
+ * - EDITOR：僅可檢視與撤回自己提交的申請。
  * - 內部元件進一步細分 QC 與 PM 資格者的操作範圍。
  */
 
@@ -30,7 +31,7 @@ export const dynamic = 'force-dynamic';
 export default async function ApprovalPage() {
     const session = await getServerSession(authOptions);
 
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR")) {
+    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INSPECTOR" && session.user.role !== "EDITOR")) {
         redirect("/");
     }
 
