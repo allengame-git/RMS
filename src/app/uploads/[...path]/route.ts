@@ -44,8 +44,21 @@ export async function GET(
         const subPaths = resolvedParams.path;
 
         // Path Traversal Protection: Ensure we stay within public/uploads
+        // 1. Sanitize each segment (remove .. and separators)
         const sanitizedPaths = subPaths.map(p => path.basename(p));
-        const filePath = path.join(process.cwd(), 'public', 'uploads', ...sanitizedPaths);
+
+        // 2. Resolve absolute path
+        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+        const filePath = path.join(uploadsDir, ...sanitizedPaths);
+
+        // 3. Strict directory traversal check
+        const resolvedUploadsDir = path.resolve(uploadsDir);
+        const resolvedFilePath = path.resolve(filePath);
+
+        if (!resolvedFilePath.startsWith(resolvedUploadsDir)) {
+            console.error('[Uploads Proxy API] Path traversal attempt blocked:', filePath);
+            return new NextResponse('Forbidden', { status: 403 });
+        }
 
         console.log('[Uploads Proxy API] Attempting to read file:', filePath);
 

@@ -18,8 +18,21 @@ export async function GET(
         const { filename } = await params;
 
         // Path Traversal Protection
+        // 1. Sanitize filename
         const safeFilename = path.basename(filename);
-        const filePath = path.join(process.cwd(), 'public', 'iso_doc', safeFilename);
+
+        // 2. Resolve paths
+        const isoDocsDir = path.join(process.cwd(), 'public', 'iso_doc');
+        const filePath = path.join(isoDocsDir, safeFilename);
+
+        // 3. Strict directory traversal check
+        const resolvedIsoDocsDir = path.resolve(isoDocsDir);
+        const resolvedFilePath = path.resolve(filePath);
+
+        if (!resolvedFilePath.startsWith(resolvedIsoDocsDir)) {
+            console.error('[ISO-Doc Proxy API] Path traversal attempt blocked:', filePath);
+            return new NextResponse('Forbidden', { status: 403 });
+        }
 
         console.log('[ISO-Doc Proxy API] Attempting to read file:', filePath);
 
