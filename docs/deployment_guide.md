@@ -60,6 +60,15 @@ RMS/
 - **LoginLog**: 登入審計日誌
 - **Notification**: 通知系統
 
+### 1.4 Windows 部署重要變更 (v2.1.2)
+
+為解決 Windows 生產環境 (Production) 下的靜態資源快取與權限問題，系統已切換為 **代理路由架構 (Proxy Routes)**：
+
+- **圖片資源**: 透過 `/uploads/[...path]` API 存取，而非直接讀取 `/uploads/` 靜態目錄。
+- **PDF 文件**: 透過 `/iso_doc/[filename]` API 存取，由後端直接串流檔案。
+
+> ⚠️ **維運注意**: 請確保執行帳號對 `public` 目錄擁有完整的 **讀取/寫入** 權限，否則代理路由將回傳 404 或 403 錯誤。
+
 ---
 
 ## 2. Docker 容器化部署
@@ -736,6 +745,8 @@ Invoke-RestMethod http://localhost:3000/api/health
 - [ ] 建立管理員帳號
 - [ ] 設定 Windows 防火牆規則
 - [ ] 設定自動備份排程
+- [ ] **檢查字體檔案**: 確認 `public/fonts/` 目錄下包含 `ArialUnicode.ttf` 與 `Noto_Sans_TC/`
+- [ ] **權限檢查**: 確認應用程式有 `public/uploads` 與 `public/iso_doc` 的寫入權限
 
 ### 8.2 環境變數範本
 
@@ -776,6 +787,7 @@ New-NetFirewallRule -DisplayName "RMS HTTP" -Direction Inbound -Port 80 -Protoco
 | 資料庫鎖定 | 並發寫入衝突 | 重啟容器 |
 | 上傳失敗 | 磁碟空間不足 | 清理舊備份或擴充磁碟 |
 | SSL 錯誤 | 憑證過期 | 更新 SSL 憑證 |
+| 圖片/PDF 404 | 檔案權限不足 | 確認 `public` 目錄權限，或查看後端 Log (`[Uploads Proxy API]`) |
 
 ### B. 聯絡資訊
 

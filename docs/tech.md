@@ -11,6 +11,7 @@
 | **樣式方案** | Vanilla CSS + CSS Variables | - |
 | **編輯器** | Tiptap (ProseMirror-based) | ^3.14.0 |
 | **PDF 生成** | pdf-lib (純 JavaScript，無需 Puppeteer) | pdf-lib ^1.17.1 |
+| **檔案代理** | 代理路由 (Proxy API) 解決 Windows 靜態資源問題 | - |
 | **部署方案** | Docker + Nginx / Vercel + Neon PostgreSQL | - |
 
 ---
@@ -798,6 +799,59 @@ if (user?.signaturePath) {
     session.user.username
   );
 }
+
+### 7.4 跨平台相容性優化 (New in v2.1.2)
+
+**問題背景**:
+在 Windows 生產環境 (Production Mode) 下，Next.js 的 `public` 目錄靜態資源服務機制可能因檔案系統權限或動態快取問題，導致運行時生成的 PDF 或上傳的圖片無法即時透過靜態 URL 下載 (404 Not Found)。
+
+**解決方案 - 代理路由架構**:
+
+1. **ISO 文件代理 (`/iso_doc/[filename]`)**:
+   - 接管所有 `/iso_doc/*.pdf` 請求
+   - 後端直接從磁碟讀取檔案流 (Stream)
+   - 強制執行權限檢查 (只有登入使用者可下載)
+   - 解決 Windows 路徑分隔符與靜態掃描延遲問題
+
+2. **上傳檔案代理 (`/uploads/[...path]`)**:
+   - 接管所有圖片與附件存取
+   - 自動偵測 MIME Type 並設定正確標頭
+   - 支援 Inline 顯示 (圖片) 與 Attachment 下載 (文件)
+   - **安全性強化**: 實作嚴格的 Path Traversal 防護
+
+**安全性防護機制**:
+
+```typescript
+// 嚴格的路徑穿越防護範例
+const safeFilename = path.basename(filename);
+const targetDir = path.join(process.cwd(), 'public', 'iso_doc');
+const filePath = path.join(targetDir, safeFilename);
+
+// Double check: 解析絕對路徑並比對前綴
+const resolvedTargetDir = path.resolve(targetDir);
+const resolvedFilePath = path.resolve(filePath);
+
+if (!resolvedFilePath.startsWith(resolvedTargetDir)) {
+    throw new Error('Path traversal attempt blocked');
+}
+```
+
+### 7.5 PDF 生成與字體優化
+
+**字體策略**:
+為解決 `pdf-lib` 在繁體中文環境下的缺字與體積問題，採用以下混合策略：
+
+1. **優先字體**: `ArialUnicode.ttf` (位於 `public/fonts/`)
+   - 優點: 對 Font Subsetting 支援極佳，不缺字
+   - 效果: PDF 體積由 7MB+ 降至 ~300KB
+   - 設定: `{ subset: true }`
+
+2. **備用字體**: `NotoSansTC-Regular.ttf`
+   - 作為 Fallback 選項
+
+**檔名安全**:
+採用 `UUID` 生成上傳檔名，徹底規避 Windows 環境下中文字元或特殊符號導致的檔案系統錯誤。
+
 ```
 
 ### 7.4 PDF 生成技術優化
