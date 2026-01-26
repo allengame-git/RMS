@@ -518,6 +518,13 @@ async function handleItemCreateApproval(
         undefined,
         tx
     );
+
+    // 關鍵：回寫 itemId 到 ChangeRequest
+    // 這樣如果後續被 QC/PM 退回，重新提交時可以找到已建立的 Item
+    await tx.changeRequest.update({
+        where: { id: request.id },
+        data: { itemId: newItem.id }
+    });
 }
 
 async function handleItemUpdateApproval(

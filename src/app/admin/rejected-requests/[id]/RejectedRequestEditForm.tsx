@@ -139,12 +139,18 @@ export default function RejectedRequestEditForm({ request }: Props) {
 
         try {
             let result;
-            if (request.type === "CREATE") {
-                // If it was a CREATE request that got rejected, we re-submit as a new CREATE request
+            // 關鍵邏輯：只要 itemId 存在，就代表 Item 已被初審核准並建立，
+            // 後續的重新提交一律是 UPDATE，而非 CREATE。
+            // 只有在 CREATE 申請於初審階段就被退回（Item 尚未建立）時，才使用 CREATE。
+            if (request.itemId) {
+                result = await submitUpdateItemRequest({}, formData);
+            } else if (request.type === "CREATE" && request.targetProjectId) {
                 const { submitCreateItemRequest } = await import("@/actions/approval");
                 result = await submitCreateItemRequest({}, formData);
             } else {
-                result = await submitUpdateItemRequest({}, formData);
+                setStatus({ error: "無法識別申請類型" });
+                setIsSubmitting(false);
+                return;
             }
 
             if (result.error) {
