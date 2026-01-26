@@ -112,7 +112,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                     {files.map((file, index) => (
                         <a
                             key={index}
-                            href={file.path}
+                            href={encodeURI(file.path)}
                             download={file.name}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -404,7 +404,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                     </div>
                     {record.isoDocPath && (
                         <a
-                            href={record.isoDocPath}
+                            href={encodeURI(record.isoDocPath)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="iso-doc-btn"
