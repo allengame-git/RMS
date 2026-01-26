@@ -298,7 +298,8 @@ export const generateQCDocument = async (
                 if (fs.existsSync(fontPath)) {
                     console.log('[generateQCDocument] Loading project font:', fontPath);
                     const fontBytes = fs.readFileSync(fontPath);
-                    font = await pdfDoc.embedFont(fontBytes, { subset: true });
+                    // 關閉 subset 以避免缺字問題，雖然檔案較大但能確保所有漢字顯示
+                    font = await pdfDoc.embedFont(fontBytes, { subset: false });
                     console.log('[generateQCDocument] Font loaded successfully:', fontPath);
                     fontLoaded = true;
                     break;
