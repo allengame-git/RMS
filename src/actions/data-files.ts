@@ -301,7 +301,13 @@ export async function getPendingDataFileRequests() {
 }
 
 /**
- * Cancel (Retract) a data file change request
+ * 撤回（取消）資料文件變更申請
+ *
+ * 允許提交者本人後悔並撤回尚未審核的申請，或由管理員強制撤回。
+ * 撤回操作是「物理刪除」，資料庫中不會保留此次申請記錄。
+ *
+ * @param requestId DataFileChangeRequest ID
+ * @throws Error 如果申請不存在、權限不足或狀態非 PENDING
  */
 export async function cancelDataFileChangeRequest(requestId: number) {
     const session = await getServerSession(authOptions);

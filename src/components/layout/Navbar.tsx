@@ -45,7 +45,14 @@ export default function Navbar() {
         setTheme(savedTheme);
     }, []);
 
-    // Fetch pending count for ADMIN/INSPECTOR/QC/PM
+    /**
+     * 定期抓取待審核數量
+     *
+     * 每 30 秒更新一次。
+     * 決定導航列是否顯示「審核」連結：
+     * 1. ADMIN / INSPECTOR / EDITOR 角色始終可見 (EDITOR 需查看自己的申請)
+     * 2. 其他角色若有待審核項目 (data.count > 0) 或被授權 (data.hasApprovalAccess) 也可見
+     */
     useEffect(() => {
         if (session) {
             const fetchCount = async () => {
@@ -53,6 +60,7 @@ export default function Navbar() {
                     const res = await fetch('/api/pending-count');
                     const data = await res.json();
                     setPendingCount(data.count || 0);
+
                     // Show approval link if user has pending items or is ADMIN/INSPECTOR/EDITOR
                     const hasAccess = (data.count > 0) ||
                         ["ADMIN", "INSPECTOR", "EDITOR"].includes(session.user.role);

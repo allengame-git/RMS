@@ -448,6 +448,15 @@ export async function getPendingRequests() {
     });
 }
 
+/**
+ * 撤回（取消）項目變更申請
+ *
+ * 允許提交者本人後悔並撤回尚未審核的申請，或由管理員強制撤回。
+ * 撤回操作是「物理刪除」，資料庫中不會保留此次申請記錄。
+ *
+ * @param requestId ChangeRequest ID
+ * @throws Error 如果申請不存在、權限不足或狀態非 PENDING
+ */
 export async function cancelChangeRequest(requestId: number) {
     const session = await getServerSession(authOptions);
     if (!session) throw new Error("Unauthorized");

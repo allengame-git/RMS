@@ -180,6 +180,10 @@ export default function DataFileApprovalList({
         setConfirmDialog({ id, action: 'reject' });
     };
 
+    /**
+     * 處理「撤回申請」按鈕點擊事件
+     * 設定確認對話框狀態為 'cancel'，準備進行撤回操作。
+     */
     const handleCancelRequest = async (id: number) => {
         setConfirmDialog({ id, action: 'cancel' });
     };
