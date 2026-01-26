@@ -20,6 +20,11 @@ const MIME_TYPES: Record<string, string> = {
     '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     '.ppt': 'application/vnd.ms-powerpoint',
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.zip': 'application/zip',
+    '.rar': 'application/x-rar-compressed',
+    '.7z': 'application/x-7z-compressed',
+    '.tar': 'application/x-tar',
+    '.gz': 'application/gzip',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.png': 'image/png',
@@ -28,6 +33,10 @@ const MIME_TYPES: Record<string, string> = {
     '.svg': 'image/svg+xml',
     '.txt': 'text/plain',
     '.csv': 'text/csv',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.mp4': 'video/mp4',
+    '.mp3': 'audio/mpeg',
 };
 
 export async function GET(
@@ -73,11 +82,14 @@ export async function GET(
 
         const headers = new Headers();
         headers.set('Content-Type', contentType);
+        const fileName = path.basename(filePath);
+        const encodedFileName = encodeURIComponent(fileName);
+
         // 對於圖片以外的檔案強制下載，圖片則 inline 顯示
         if (!contentType.startsWith('image/')) {
-            headers.set('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
+            headers.set('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
         } else {
-            headers.set('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+            headers.set('Content-Disposition', `inline; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
         }
 
         return new NextResponse(fileBuffer, {

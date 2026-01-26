@@ -194,7 +194,7 @@ export default async function DataFileDetailPage({
                     paddingTop: '1.5rem'
                 }}>
                     <a
-                        href={file.filePath}
+                        href={encodeURI(file.filePath)}
                         download={file.fileName}
                         className="btn btn-primary"
                         style={{ textDecoration: 'none' }}

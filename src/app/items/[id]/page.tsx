@@ -512,7 +512,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                                 {JSON.parse(item.attachments).map((file: any, index: number) => (
                                     <a
                                         key={index}
-                                        href={file.path}
+                                        href={encodeURI(file.path)}
                                         download={file.name}
                                         target="_blank"
                                         rel="noopener noreferrer"

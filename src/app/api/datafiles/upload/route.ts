@@ -60,8 +60,9 @@ export async function POST(request: NextRequest) {
         // Get file extension
         const originalName = file.name;
 
-        // Sanitize original filename - keep the name but remove dangerous characters
-        const sanitizedName = originalName.replace(/[<>:"/\\|?*]/g, '_');
+        // Generate safe unique filename using UUID to avoid OS encoding issues
+        const ext = path.extname(file.name);
+        const uuidName = `${crypto.randomUUID()}${ext}`;
 
         // Create unique subdirectory with timestamp to avoid filename conflicts
         const timestamp = Date.now();
@@ -71,14 +72,14 @@ export async function POST(request: NextRequest) {
         const yearDir = path.join(process.cwd(), 'public', 'uploads', 'datafiles', dataYear, subDir);
         await mkdir(yearDir, { recursive: true });
 
-        // Save file with original (sanitized) name
-        const filePath = path.join(yearDir, sanitizedName);
+        // Save file with UUID name
+        const filePath = path.join(yearDir, uuidName);
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
         await writeFile(filePath, buffer);
 
         // Return relative path for storage in DB
-        const relativePath = `/uploads/datafiles/${dataYear}/${subDir}/${sanitizedName}`;
+        const relativePath = `/uploads/datafiles/${dataYear}/${subDir}/${uuidName}`;
 
 
         return NextResponse.json({

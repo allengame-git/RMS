@@ -244,7 +244,7 @@ export default function ReferencesManager({
                                                     <polyline points="14 2 14 8 20 8" />
                                                 </svg>
                                                 <Link
-                                                    href={`/api/datafiles/${ref.fileId}/download`}
+                                                    href={`/datafiles/${ref.fileId}`}
                                                     target="_blank"
                                                     style={{
                                                         fontWeight: 'bold',
