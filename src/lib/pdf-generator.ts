@@ -37,7 +37,7 @@
  * @see /src/actions/history.ts - 歷史紀錄管理
  */
 
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFFont } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -283,14 +283,50 @@ export const generateQCDocument = async (
         const pdfDoc = await PDFDocument.create();
         pdfDoc.registerFontkit(fontkit);
 
-        // Try to load Chinese font
-        let font;
-        const fontPath = '/System/Library/Fonts/Supplemental/Arial Unicode.ttf';
-        if (fs.existsSync(fontPath)) {
-            const fontBytes = fs.readFileSync(fontPath);
-            font = await pdfDoc.embedFont(fontBytes, { subset: true });
-        } else {
-            console.warn('[generateQCDocument] Chinese font not found, using Helvetica');
+        // 跨平台字體支援：依序嘗試多個路徑
+        let font: PDFFont;
+        const fontPaths = [
+            // 專案內嵌字體（最優先）
+            path.join(process.cwd(), 'public', 'fonts', 'NotoSansTC-Regular.ttf'),
+            path.join(process.cwd(), 'fonts', 'NotoSansTC-Regular.ttf'),
+            // macOS
+            '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
+            '/System/Library/Fonts/STHeiti Light.ttc',
+            '/Library/Fonts/Arial Unicode.ttf',
+            // Windows
+            'C:\\Windows\\Fonts\\msyh.ttc',      // 微軟雅黑
+            'C:\\Windows\\Fonts\\msjh.ttc',      // 微軟正黑
+            'C:\\Windows\\Fonts\\simsun.ttc',    // 宋體
+            'C:\\Windows\\Fonts\\arialuni.ttf',  // Arial Unicode
+            // Linux
+            '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+            '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+            '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        ];
+
+        let fontLoaded = false;
+        for (const fontPath of fontPaths) {
+            try {
+                if (fs.existsSync(fontPath)) {
+                    console.log('[generateQCDocument] Trying font:', fontPath);
+                    const fontBytes = fs.readFileSync(fontPath);
+                    font = await pdfDoc.embedFont(fontBytes, { subset: true });
+                    console.log('[generateQCDocument] Font loaded successfully:', fontPath);
+                    fontLoaded = true;
+                    break;
+                }
+            } catch (fontError) {
+                console.warn('[generateQCDocument] Failed to load font:', fontPath, fontError);
+                continue;
+            }
+        }
+
+        if (!fontLoaded) {
+            console.warn('[generateQCDocument] No CJK font found, using Helvetica (Chinese characters may not display correctly)');
+        }
+        // 確保 font 一定有值（fallback to Helvetica）
+        if (!font!) {
             font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         }
 
