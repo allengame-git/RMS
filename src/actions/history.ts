@@ -202,7 +202,18 @@ export async function getRequestChain(requestId: number) {
             where: { id: currentId },
             include: {
                 submittedBy: { select: { username: true } },
-                reviewedBy: { select: { username: true } }
+                reviewedBy: { select: { username: true } },
+                // 關鍵：查詢此申請案最終產出的歷史記錄
+                // 如果有歷史記錄，代表初審 (Reviewer) 已核准
+                item: {
+                    select: {
+                        history: {
+                            where: { changeRequestId: currentId },
+                            take: 1,
+                            select: { id: true, reviewedBy: { select: { username: true } }, createdAt: true, reviewNote: true }
+                        }
+                    }
+                }
             }
         });
 
@@ -244,7 +255,7 @@ export async function getHistoryDetail(historyId: number) {
     // Fetch the FULL chain of ChangeRequests for this ItemHistory
     // The entire review cycle (submit -> reject -> resubmit -> approve) 
     // should be displayed as one unified flow
-    let reviewChain: unknown[] = [];
+    let reviewChain: any[] = [];
     if (history.changeRequestId) {
         reviewChain = await getRequestChain(history.changeRequestId);
     }

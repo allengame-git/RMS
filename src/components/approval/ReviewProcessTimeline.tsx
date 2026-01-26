@@ -77,15 +77,21 @@ export default function ReviewProcessTimeline({
             });
 
             // Review result (Approval or Rejection)
-            if (req.status === "APPROVED" && req.reviewedBy) {
+            // 邏輯修正：如果申請案狀態為 REJECTED 但有關聯的 ItemHistory，
+            // 代表 Reviewer (初審) 其實已經核准了，目前的 REJECTED 是後來被 QC/PM 退回導致的。
+            const producedHistory = req.item?.history?.[0];
+            const isApprovedByReviewer = req.status === "APPROVED" || !!producedHistory;
+
+            if (isApprovedByReviewer && (req.reviewedBy || producedHistory?.reviewedBy)) {
                 roundEvents.push({
                     type: "APPROVAL",
-                    user: req.reviewedBy.username,
-                    date: new Date(req.updatedAt),
-                    note: req.reviewNote,
+                    user: req.reviewedBy?.username || producedHistory?.reviewedBy?.username || "審核者",
+                    date: new Date(producedHistory?.createdAt || req.updatedAt),
+                    note: producedHistory?.reviewNote || req.reviewNote,
                     status: "success"
                 });
             } else if ((req.status === "REJECTED" || req.status === "RESUBMITTED") && req.reviewedBy) {
+                // 只有在真的沒有產生歷史記錄（初審就沒過）的情況下，才在這裡顯示退回
                 roundEvents.push({
                     type: "REJECTION",
                     user: req.reviewedBy.username,
