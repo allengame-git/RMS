@@ -33,7 +33,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { addRelatedItem, removeRelatedItem, updateRelatedItemDescription } from '@/actions/item-relations';
 
@@ -242,8 +243,24 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
         return acc;
     }, {} as Record<string, RelatedItem[]>);
 
+    // Portal related
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+
+    useEffect(() => {
+        if (showResults && inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            setDropdownPosition({
+                top: rect.bottom + window.scrollY + 4,
+                left: rect.left + window.scrollX,
+                width: rect.width
+            });
+        }
+    }, [showResults, searchResults]);
+
     return (
         <div style={{ marginTop: '2rem' }} className="glass">
+            {/* ... header ... */}
             <h3 style={{
                 marginBottom: '1rem',
                 borderBottom: '1px solid var(--color-border)',
@@ -266,13 +283,14 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                 </span>
             </h3>
 
+            {/* ... items list ... */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
                 {relatedItems.length === 0 && (
                     <p style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
                         尚無關聯項目
                     </p>
                 )}
-
+                {/* ... existing grouped items render ... */}
                 {Object.entries(groupedItems).map(([projectTitle, items]) => (
                     <div key={projectTitle}>
                         <div style={{
@@ -422,12 +440,15 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                         {/* Search Combobox Area */}
-                        <div style={{ position: 'relative', width: '300px' }}>
+                        <div style={{ width: '300px' }}>
                             <input
+                                ref={inputRef}
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => onSearchChange(e.target.value)}
                                 onFocus={() => searchTerm && setShowResults(true)}
+                                // Disable auto-close on blur to allow clicking dropdown items
+                                // onBlur={() => setTimeout(() => setShowResults(false), 200)}
                                 placeholder="搜尋編號或標題..."
                                 style={{
                                     width: '100%',
@@ -440,22 +461,25 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                                     backgroundColor: selectedItem ? 'var(--color-bg-elevated)' : 'var(--color-bg)'
                                 }}
                             />
-                            {/* Search Results Dropdown */}
-                            {showResults && searchResults.length > 0 && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    left: 0,
-                                    right: 0,
-                                    maxHeight: '240px',
-                                    overflowY: 'auto',
-                                    backgroundColor: 'var(--color-bg-surface)',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                    zIndex: 10,
-                                    marginTop: '4px'
-                                }}>
+
+                            {/* Search Results Dropdown - Portal to Body */}
+                            {showResults && searchResults.length > 0 && typeof document !== 'undefined' && createPortal(
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        top: dropdownPosition.top,
+                                        left: dropdownPosition.left,
+                                        width: dropdownPosition.width,
+                                        maxHeight: '240px',
+                                        overflowY: 'auto',
+                                        backgroundColor: 'var(--color-bg-surface)',
+                                        border: '1px solid var(--color-border)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                        zIndex: 99999, // Super high z-index
+                                        marginTop: '0'
+                                    }}
+                                >
                                     {searchResults.map(result => (
                                         <div
                                             key={result.id}
@@ -480,8 +504,15 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                                             </div>
                                         </div>
                                     ))}
-                                </div>
+                                    {/* Overlay back to close */}
+                                    <div
+                                        style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -1 }}
+                                        onClick={() => setShowResults(false)}
+                                    />
+                                </div>,
+                                document.body
                             )}
+
                             {isSearching && (
                                 <div style={{
                                     position: 'absolute',
