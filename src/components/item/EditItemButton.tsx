@@ -34,7 +34,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import RichTextEditor from "../editor/RichTextEditor";
@@ -125,6 +125,8 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
     const [status, setStatus] = useState<{ message?: string; error?: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const isSubmittingRef = useRef(false);
+
     // Initial load check for document (SSR safety)
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
@@ -134,6 +136,8 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
     // Reset form when modal opens
     useEffect(() => {
         if (isModalOpen) {
+            isSubmittingRef.current = false;
+            // ...existing code...
             setTitle(item.title);
             setContent(item.content || "");
             setRelatedItems((item.relationsFrom || []).map(r => ({
@@ -155,11 +159,17 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
             })));
             setSubmitReason("");
             setStatus(null);
+            setIsSubmitting(false);
         }
     }, [isModalOpen, item]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Double check lock to prevent duplicate submissions
+        if (isSubmittingRef.current || isSubmitting) return;
+        isSubmittingRef.current = true;
+
         setIsSubmitting(true);
         setStatus(null);
 
@@ -194,6 +204,7 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
             setStatus({ error: "An unexpected error occurred." });
         } finally {
             setIsSubmitting(false);
+            isSubmittingRef.current = false;
         }
     };
 

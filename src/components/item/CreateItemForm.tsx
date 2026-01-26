@@ -65,21 +65,25 @@ const initialState: ApprovalState = {
     error: "",
 };
 
-function SubmitButton() {
+function SubmitButton({ isLocalLocked }: { isLocalLocked: boolean }) {
     const { pending } = useFormStatus();
+    const isLocked = pending || isLocalLocked;
+
     return (
         <button
             type="submit"
             className="btn btn-primary"
-            disabled={pending}
+            disabled={isLocked}
             style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.4rem",
-                padding: "0.6rem 1.25rem"
+                padding: "0.6rem 1.25rem",
+                opacity: isLocked ? 0.7 : 1,
+                cursor: isLocked ? 'not-allowed' : 'pointer'
             }}
         >
-            {pending ? (
+            {isLocked ? (
                 <>
                     <svg
                         width="14"
@@ -134,6 +138,12 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
     const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
     const [references, setReferences] = useState<Reference[]>([]);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
+
+    // Reset local lock when server action returns state
+    useEffect(() => {
+        setIsLocalSubmitting(false);
+    }, [state]);
 
     useEffect(() => {
         if (state.message) {
@@ -196,7 +206,11 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
     }
 
     const FormContent = (
-        <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <form
+            action={formAction}
+            onSubmit={() => setIsLocalSubmitting(true)}
+            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+        >
             <input type="hidden" name="projectId" value={projectId} />
             {parentId && <input type="hidden" name="parentId" value={parentId} />}
 
@@ -331,7 +345,7 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
                 paddingTop: "1rem",
                 borderTop: "1px solid var(--color-border)"
             }}>
-                <SubmitButton />
+                <SubmitButton isLocalLocked={isLocalSubmitting} />
                 <button
                     type="button"
                     onClick={() => setIsOpen(false)}
