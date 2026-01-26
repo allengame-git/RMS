@@ -55,57 +55,106 @@ interface RelatedItemsManagerProps {
 
 export default function RelatedItemsManager({ sourceItemId, initialRelatedItems, onChange, canEdit = true }: RelatedItemsManagerProps) {
     const [relatedItems, setRelatedItems] = useState<RelatedItem[]>(initialRelatedItems);
-    const [newItemId, setNewItemId] = useState('');
+
+    // Search & Add state
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState<RelatedItem[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showResults, setShowResults] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<RelatedItem | null>(null);
+
     const [newDescription, setNewDescription] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
     // Edit state
     const [editingItemId, setEditingItemId] = useState<number | null>(null);
     const [editDescription, setEditDescription] = useState('');
 
-    const handleAdd = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newItemId.trim()) return;
+    // Debounce search effect
+    useState(() => {
+        // Init logic if needed
+    });
+
+    const handleSearch = async (query: string) => {
+        if (!query.trim()) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        try {
+            const res = await fetch(`/api/items/search?q=${encodeURIComponent(query)}&exclude=${sourceItemId || ''}`);
+            if (res.ok) {
+                const data = await res.json();
+                // Filter out already added items
+                const filtered = data.items.filter((item: RelatedItem) =>
+                    !relatedItems.some(existing => existing.id === item.id)
+                );
+                setSearchResults(filtered);
+                setShowResults(true);
+            }
+        } catch (err) {
+            console.error("Search failed", err);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    // Use a simple debounce wrapper or just timeout in useEffect
+    const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
+
+    const onSearchChange = (term: string) => {
+        setSearchTerm(term);
+        setSelectedItem(null); // Clear selection if typing
+
+        if (timer) clearTimeout(timer);
+
+        const newTimer = setTimeout(() => {
+            handleSearch(term);
+        }, 300);
+
+        setTimer(newTimer);
+    };
+
+    const handleSelectItem = (item: RelatedItem) => {
+        setSelectedItem(item);
+        setSearchTerm(item.fullId); // Show fullId in input
+        setShowResults(false);
+        setError('');
+    };
+
+    const handleAdd = async () => {
+        if (!selectedItem) {
+            setError('請先從清單中選擇一個項目');
+            return;
+        }
 
         setIsLoading(true);
         setError('');
 
         try {
             if (onChange) {
-                // Draft mode - validate via API
-                const response = await fetch(`/api/items/lookup?fullId=${newItemId.trim()}`);
-                if (!response.ok) {
-                    const data = await response.json();
-                    setError(data.error || '項目不存在');
-                    return;
-                }
-                const itemData = await response.json();
-
-                if (relatedItems.some(i => i.id === itemData.id)) {
-                    setError('項目已經是關聯項目');
-                    return;
-                }
-
+                // Draft mode
                 const newItem: RelatedItem = {
-                    id: itemData.id,
-                    fullId: itemData.fullId,
-                    title: itemData.title,
-                    projectId: itemData.projectId,
+                    ...selectedItem,
                     description: newDescription.trim() || null
                 };
 
                 const updated = [...relatedItems, newItem];
                 setRelatedItems(updated);
                 onChange(updated);
-                setNewItemId('');
+
+                // Reset
+                setSearchTerm('');
+                setSelectedItem(null);
                 setNewDescription('');
+                setSearchResults([]);
             } else {
                 // Server Action mode
                 if (!sourceItemId) return;
-                const result = await addRelatedItem(sourceItemId, newItemId.trim(), newDescription.trim() || undefined);
+                const result = await addRelatedItem(sourceItemId, selectedItem.fullId, newDescription.trim() || undefined);
                 if (result.success) {
-                    setNewItemId('');
-                    setNewDescription('');
                     window.location.reload();
                 } else {
                     setError(result.error || '新增失敗');
@@ -130,6 +179,7 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
             if (!sourceItemId) return;
             setIsLoading(true);
             try {
+                // ...existing remove logic...
                 const result = await removeRelatedItem(sourceItemId, targetId);
                 if (result.success) {
                     window.location.reload();
@@ -155,8 +205,8 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
     };
 
     const handleSaveEdit = async (targetId: number) => {
+        // ...existing edit logic...
         if (onChange) {
-            // Draft mode - update locally
             const updated = relatedItems.map(item =>
                 item.id === targetId ? { ...item, description: editDescription.trim() || null } : item
             );
@@ -165,7 +215,6 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
             setEditingItemId(null);
             setEditDescription('');
         } else {
-            // Server Action mode
             if (!sourceItemId) return;
             setIsLoading(true);
             try {
@@ -257,7 +306,8 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                                                     fontWeight: 'bold',
                                                     fontFamily: 'var(--font-geist-mono)',
                                                     color: 'var(--color-primary)',
-                                                    fontSize: '0.95rem'
+                                                    fontSize: '0.95rem',
+                                                    textDecoration: 'none'
                                                 }}
                                             >
                                                 {item.fullId}
@@ -275,15 +325,8 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                                                     <button
                                                         onClick={() => handleStartEdit(item)}
                                                         disabled={isLoading}
-                                                        style={{
-                                                            color: 'var(--color-primary)',
-                                                            padding: '0.25rem 0.5rem',
-                                                            borderRadius: '4px',
-                                                            border: '1px solid currentColor',
-                                                            background: 'transparent',
-                                                            cursor: 'pointer',
-                                                            fontSize: '0.75rem'
-                                                        }}
+                                                        className="btn-text"
+                                                        style={{ fontSize: '0.75rem' }}
                                                     >
                                                         編輯
                                                     </button>
@@ -291,15 +334,8 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                                                 <button
                                                     onClick={() => handleRemove(item.id)}
                                                     disabled={isLoading}
-                                                    style={{
-                                                        color: 'var(--color-danger, #ef4444)',
-                                                        padding: '0.25rem 0.5rem',
-                                                        borderRadius: '4px',
-                                                        border: '1px solid currentColor',
-                                                        background: 'transparent',
-                                                        cursor: 'pointer',
-                                                        fontSize: '0.75rem'
-                                                    }}
+                                                    className="btn-text-danger"
+                                                    style={{ fontSize: '0.75rem' }}
                                                 >
                                                     移除
                                                 </button>
@@ -340,28 +376,13 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                                             <button
                                                 onClick={() => handleSaveEdit(item.id)}
                                                 disabled={isLoading}
-                                                style={{
-                                                    padding: '0.5rem 0.75rem',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    border: 'none',
-                                                    background: 'var(--color-primary)',
-                                                    color: 'white',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.75rem'
-                                                }}
+                                                className="btn btn-primary btn-sm"
                                             >
                                                 儲存
                                             </button>
                                             <button
                                                 onClick={handleCancelEdit}
-                                                style={{
-                                                    padding: '0.5rem 0.75rem',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    border: '1px solid var(--color-border)',
-                                                    background: 'transparent',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.75rem'
-                                                }}
+                                                className="btn btn-outline btn-sm"
                                             >
                                                 取消
                                             </button>
@@ -399,21 +420,82 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                     }}>
                         新增關聯項目
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <input
-                            type="text"
-                            value={newItemId}
-                            onChange={(e) => setNewItemId(e.target.value)}
-                            placeholder="項目編號 (如 SI-1-2)"
-                            style={{
-                                width: '160px',
-                                padding: '0.5rem 0.75rem',
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1px solid var(--color-border)',
-                                fontFamily: 'var(--font-geist-mono)',
-                                fontSize: '0.9rem'
-                            }}
-                        />
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                        {/* Search Combobox Area */}
+                        <div style={{ position: 'relative', width: '300px' }}>
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => onSearchChange(e.target.value)}
+                                onFocus={() => searchTerm && setShowResults(true)}
+                                placeholder="搜尋編號或標題..."
+                                style={{
+                                    width: '100%',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: '1px solid var(--color-border)',
+                                    fontFamily: 'var(--font-geist-mono)',
+                                    fontSize: '0.9rem',
+                                    borderColor: selectedItem ? 'var(--color-primary)' : 'var(--color-border)',
+                                    backgroundColor: selectedItem ? 'var(--color-bg-elevated)' : 'var(--color-bg)'
+                                }}
+                            />
+                            {/* Search Results Dropdown */}
+                            {showResults && searchResults.length > 0 && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    right: 0,
+                                    maxHeight: '240px',
+                                    overflowY: 'auto',
+                                    backgroundColor: 'var(--color-bg-surface)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                    zIndex: 10,
+                                    marginTop: '4px'
+                                }}>
+                                    {searchResults.map(result => (
+                                        <div
+                                            key={result.id}
+                                            onClick={() => handleSelectItem(result)}
+                                            style={{
+                                                padding: '0.5rem 0.75rem',
+                                                cursor: 'pointer',
+                                                borderBottom: '1px solid var(--color-border)',
+                                                transition: 'background-color 0.15s'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-bg-elevated)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                        >
+                                            <div style={{ fontWeight: 600, color: 'var(--color-primary)', fontSize: '0.85rem' }}>
+                                                {result.fullId}
+                                            </div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-main)' }}>
+                                                {result.title}
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                                                {result.projectTitle}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {isSearching && (
+                                <div style={{
+                                    position: 'absolute',
+                                    right: '0.75rem',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    fontSize: '0.75rem',
+                                    color: 'var(--color-text-muted)'
+                                }}>
+                                    搜尋中...
+                                </div>
+                            )}
+                        </div>
+
                         <input
                             type="text"
                             value={newDescription}
@@ -421,7 +503,7 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     e.preventDefault();
-                                    if (newItemId.trim()) handleAdd({ preventDefault: () => { } } as React.FormEvent);
+                                    if (selectedItem) handleAdd();
                                 }
                             }}
                             placeholder="描述說明 (選填)"
@@ -436,13 +518,13 @@ export default function RelatedItemsManager({ sourceItemId, initialRelatedItems,
                         />
                         <button
                             type="button"
-                            onClick={(e) => handleAdd(e as unknown as React.FormEvent)}
-                            disabled={isLoading || !newItemId.trim()}
+                            onClick={handleAdd}
+                            disabled={isLoading || !selectedItem}
                             className="btn btn-primary"
                             style={{
                                 padding: '0.5rem 1rem',
                                 fontSize: '0.9rem',
-                                opacity: isLoading || !newItemId.trim() ? 0.6 : 1
+                                opacity: isLoading || !selectedItem ? 0.6 : 1
                             }}
                         >
                             {isLoading ? '新增中...' : '新增關聯'}
