@@ -510,16 +510,27 @@ export const generateQCDocument = async (
 
         // Ensure output directory exists
         const outDir = path.join(process.cwd(), 'public', 'iso_doc');
-        if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+        console.log('[generateQCDocument] Target directory (outDir):', outDir);
+
+        if (!fs.existsSync(outDir)) {
+            console.log('[generateQCDocument] Directory does not exist, creating:', outDir);
+            fs.mkdirSync(outDir, { recursive: true });
+        }
 
         // Save PDF
-        // Use stable filename matching document ID: QC-[ProjectCode]-[HistoryID].pdf
         const fileName = `QC-${projectCode}-${history.id}.pdf`;
         const filePath = path.join(outDir, fileName);
+        console.log('[generateQCDocument] Absolute physical path for saving:', filePath);
+
         const pdfBytes = await pdfDoc.save();
         fs.writeFileSync(filePath, pdfBytes);
 
-        console.log('[generateQCDocument] PDF saved successfully:', filePath);
+        if (fs.existsSync(filePath)) {
+            console.log('[generateQCDocument] PDF saved and verified exists at:', filePath);
+        } else {
+            console.error('[generateQCDocument] FATAL: File missing after writeFileSync:', filePath);
+        }
+
         return `/iso_doc/${fileName}`;
 
     } catch (error) {
