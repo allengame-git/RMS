@@ -6,9 +6,13 @@ export const dynamic = "force-dynamic";
 
 // 類型標籤配置
 const typeConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-    'CREATE': { label: '新增', color: '#16a34a', bgColor: 'rgba(22, 163, 74, 0.1)' },
-    'UPDATE': { label: '修改', color: '#ca8a04', bgColor: 'rgba(202, 138, 4, 0.1)' },
-    'DELETE': { label: '刪除', color: '#dc2626', bgColor: 'rgba(220, 38, 38, 0.1)' }
+    'CREATE': { label: '新增項目', color: '#16a34a', bgColor: 'rgba(22, 163, 74, 0.1)' },
+    'UPDATE': { label: '修改項目', color: '#ca8a04', bgColor: 'rgba(202, 138, 4, 0.1)' },
+    'DELETE': { label: '刪除項目', color: '#dc2626', bgColor: 'rgba(220, 38, 38, 0.1)' },
+    'FILE_CREATE': { label: '新增檔案', color: '#0891b2', bgColor: 'rgba(8, 145, 178, 0.1)' },
+    'FILE_UPDATE': { label: '修改檔案', color: '#0d9488', bgColor: 'rgba(13, 148, 136, 0.1)' },
+    'FILE_DELETE': { label: '刪除檔案', color: '#be185d', bgColor: 'rgba(190, 24, 93, 0.1)' },
+    'REVISION_REQUIRED': { label: '品管修訂', color: '#d97706', bgColor: 'rgba(217, 119, 6, 0.1)' }
 };
 
 export default async function RejectedRequestsPage() {
@@ -143,7 +147,7 @@ export default async function RejectedRequestsPage() {
                                                 fontWeight: 600,
                                                 fontSize: "0.85rem"
                                             }}>
-                                                {request.item?.fullId || request.targetProject?.codePrefix}
+                                                {request.item?.fullId || (request as any).targetProject?.codePrefix || "N/A"}
                                             </span>
                                         </div>
                                         <h3 style={{
@@ -226,7 +230,11 @@ export default async function RejectedRequestsPage() {
                                         itemTitle={request.item?.title || request.targetProject?.title || "此項目"}
                                     />
                                     <Link
-                                        href={`/admin/rejected-requests/${request.id}`}
+                                        href={(request as any).category === 'FILE'
+                                            ? `/datafiles/${(request as any).fileId}`
+                                            : (request as any).category === 'QC'
+                                                ? `/admin/history/detail/${(request as any).itemHistoryId}`
+                                                : `/admin/rejected-requests/${request.id}`}
                                         className="btn btn-primary"
                                         style={{
                                             padding: "0.5rem 1rem",

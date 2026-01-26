@@ -15,18 +15,40 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session) {
         return NextResponse.json({ count: 0 });
     }
 
-    const count = await prisma.changeRequest.count({
+    // 1. 統計項目變更退回
+    const changeRequestCount = await prisma.changeRequest.count({
         where: {
             submittedById: session.user.id,
             status: "REJECTED"
         }
     });
 
-    return NextResponse.json({ count });
+    // 2. 統計檔案變更退回
+    const dataFileRequestCount = await prisma.dataFileChangeRequest.count({
+        where: {
+            submittedById: session.user.id,
+            status: "REJECTED"
+        }
+    });
+
+    // 3. 統計品質文件修訂要求 (REVISION_REQUIRED)
+    // 這些對編輯者來說也是「待修改」事項
+    const qcRevisionCount = await prisma.qCDocumentApproval.count({
+        where: {
+            status: "REVISION_REQUIRED",
+            itemHistory: {
+                submittedById: session.user.id
+            }
+        }
+    });
+
+    return NextResponse.json({ count: changeRequestCount + dataFileRequestCount + qcRevisionCount });
 }
