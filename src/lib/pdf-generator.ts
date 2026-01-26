@@ -283,24 +283,24 @@ export const generateQCDocument = async (
         const pdfDoc = await PDFDocument.create();
         pdfDoc.registerFontkit(fontkit);
 
-        // 跨平台字體支援：直接使用專案內建的字體確保一致性
+        // 跨平台字體支援：恢復字體子集化並切換為更穩定的 Arial Unicode
         let font: PDFFont;
         const fontPaths = [
-            // 標準字體路徑 (Noto Sans TC Regular)
+            // 優先使用 Arial Unicode (對 pdf-lib 子集化支援較佳)
+            path.join(process.cwd(), 'public', 'fonts', 'ArialUnicode.ttf'),
+            // 備用 Noto Sans TC
             path.join(process.cwd(), 'public', 'fonts', 'Noto_Sans_TC', 'static', 'NotoSansTC-Regular.ttf'),
-            // 變體字體 (Variable Font) 作為備用
-            path.join(process.cwd(), 'public', 'fonts', 'Noto_Sans_TC', 'NotoSansTC-VariableFont_wght.ttf'),
         ];
 
         let fontLoaded = false;
         for (const fontPath of fontPaths) {
             try {
                 if (fs.existsSync(fontPath)) {
-                    console.log('[generateQCDocument] Loading project font:', fontPath);
+                    console.log('[generateQCDocument] Loading stable font for subsetting:', fontPath);
                     const fontBytes = fs.readFileSync(fontPath);
-                    // 關閉 subset 以避免缺字問題，雖然檔案較大但能確保所有漢字顯示
-                    font = await pdfDoc.embedFont(fontBytes, { subset: false });
-                    console.log('[generateQCDocument] Font loaded successfully:', fontPath);
+                    // 恢復 subset: true 以顯著縮小 PDF 體積
+                    font = await pdfDoc.embedFont(fontBytes, { subset: true });
+                    console.log('[generateQCDocument] Font loaded with subsetting:', fontPath);
                     fontLoaded = true;
                     break;
                 }
