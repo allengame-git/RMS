@@ -67,9 +67,10 @@ export async function POST(request: NextRequest) {
         // Create unique subdirectory with timestamp to avoid filename conflicts
         const timestamp = Date.now();
         const subDir = timestamp.toString(36);
+        const userId = session.user.id;
 
-        // Create year/subdir directory if not exists
-        const yearDir = path.join(process.cwd(), 'public', 'uploads', 'datafiles', dataYear, subDir);
+        // Create year/userId/subdir directory if not exists
+        const yearDir = path.join(process.cwd(), 'public', 'uploads', 'datafiles', dataYear, userId, subDir);
         await mkdir(yearDir, { recursive: true });
 
         // Save file with UUID name
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
         await writeFile(filePath, buffer);
 
         // Return relative path for storage in DB
-        const relativePath = `/uploads/datafiles/${dataYear}/${subDir}/${uuidName}`;
+        const relativePath = `/uploads/datafiles/${dataYear}/${userId}/${subDir}/${uuidName}`;
 
 
         return NextResponse.json({

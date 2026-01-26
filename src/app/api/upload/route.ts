@@ -87,7 +87,8 @@ export async function POST(request: NextRequest) {
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', String(year), month);
+        const userId = session.user.id;
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads', String(year), month, userId);
 
         console.log('[Upload] Target directory:', uploadDir);
 
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Return file info
-        const publicPath = `/uploads/${year}/${month}/${filename}`;
+        const publicPath = `/uploads/${year}/${month}/${userId}/${filename}`;
 
         return NextResponse.json({
             success: true,
