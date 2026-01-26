@@ -1376,3 +1376,42 @@ const APPROVAL_INCLUDE = { itemHistory: { include: { ... } } };
 | PM2 | `.pm2/` |
 | 備份 | `backups/`, `*.bak` |
 | 暫存 | `tmp/`, `temp/`, `*.tmp` |
+
+---
+
+## Phase 28: Item ID 邏輯與搜尋優化 (v2.1.6)
+
+### 28.1 Item ID 預分配機制 (Sequence Control)
+
+**問題背景**:
+原有的 Item ID 生成 (`generateNextItemId`) 發生在「審核通過 (APPROVED)」階段。若有多位編輯者先後提交申請，但管理員審核順序與提交順序不同，會導致最終生成的編號 (`RMS-1-5` vs `RMS-1-6`) 與編輯者預期不符。
+
+**解決方案**:
+將編號生成的決策權提前至「申請提交」階段，並確保唯一性。
+
+**實作細節**:
+
+1. **提交即鎖定**: 在 `submitCreateItemRequest` 中立即呼叫 `generateNextItemId` 取得編號，並存入申請單 `data` JSON 中。
+2. **雙重掃描**:
+    - `generateNextItemId` 改寫查詢邏輯。
+    - 同時查詢 `Item` 資料表 (已核准項目)。
+    - 同時查詢 `ChangeRequest` 資料表 (PENDING 狀態且 type=CREATE 的申請)。
+    - 取兩者之最大流水號 + 1，確保預分配的編號絕對唯一且不衝突。
+3. **審核一致性**: `handleItemCreateApproval` 優先使用申請單內鎖定的 `fullId`，確保最終結果與提交時一致。
+
+### 28.2 關聯項目智慧搜尋
+
+**問題背景**:
+原有的關聯項目輸入框僅能輸入 `fullId` 純文字，要求使用者背誦編號，體驗極差。
+
+**優化方案**:
+
+1. **後端搜尋 API** (`/api/items/search`):
+    - 接收 `q` 關鍵字參數。
+    - 使用 Prisma `OR` 查詢，同時匹配 `fullId` 與 `title` (contains, mode: insensitive)。
+    - 支援 `exclude` 參數，排除特定 ID (例如自身)。
+
+2. **前端 Combobox (Portal 實作)**:
+    - 將 `RelatedItemsManager` 改造為搜尋下拉選單。
+    - 實作 Debounce 機制減少 API 請求。
+    - **Portal 渲染**: 為解決 `z-index` 與 Stacking Context 導致下拉選單被下方內容 (如參考文獻區塊) 遮擋的問題，改用 `createPortal` 將選單渲染至 `document.body` 根節點，並動態計算座標。
