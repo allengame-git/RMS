@@ -145,7 +145,11 @@ export async function getProjects() {
         orderBy: { createdAt: "desc" },
         include: {
             _count: {
-                select: { items: true }
+                select: {
+                    items: {
+                        where: { isDeleted: false }
+                    }
+                }
             }
         }
     });
