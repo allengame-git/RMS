@@ -191,10 +191,8 @@ export async function getItemHistory(itemId: number) {
  * Get the chain of previous change requests for a given request ID
  */
 export async function getRequestChain(requestId: number) {
-    type RequestWithUsers = Prisma.ChangeRequestGetPayload<{
-        include: { submittedBy: { select: { username: true } }; reviewedBy: { select: { username: true } } }
-    }>;
-    const chain: RequestWithUsers[] = [];
+    type RequestWithUsers = any;
+    const chain: any[] = [];
     let currentId: number | null = requestId;
 
     while (currentId) {
@@ -203,22 +201,23 @@ export async function getRequestChain(requestId: number) {
             include: {
                 submittedBy: { select: { username: true } },
                 reviewedBy: { select: { username: true } },
-                // 關鍵：查詢此申請案最終產出的歷史記錄
-                // 如果有歷史記錄，代表初審 (Reviewer) 已核准
-                item: {
-                    select: {
-                        history: {
-                            where: { changeRequestId: currentId },
-                            take: 1,
-                            select: { id: true, reviewedBy: { select: { username: true } }, createdAt: true, reviewNote: true }
-                        }
-                    }
-                }
             }
         });
 
         if (!req) break;
-        chain.push(req);
+
+        // 關鍵修正：直接查詢此申請案產出的歷史記錄。
+        // 如果有歷史記錄，代表該申請案已通過初審。
+        const historyRecord = await prisma.itemHistory.findFirst({
+            where: { changeRequestId: req.id },
+            select: { id: true, reviewedBy: { select: { username: true } }, createdAt: true, reviewNote: true }
+        });
+
+        chain.push({
+            ...req,
+            producedHistory: historyRecord
+        });
+
         currentId = req.previousRequestId;
     }
 
