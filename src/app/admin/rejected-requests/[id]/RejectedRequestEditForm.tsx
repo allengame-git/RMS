@@ -105,8 +105,14 @@ export default function RejectedRequestEditForm({ request }: Props) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!request.itemId) {
+
+        // Validate based on type
+        if (request.type !== "CREATE" && !request.itemId) {
             setStatus({ error: "無法提交：找不到關聯項目" });
+            return;
+        }
+        if (request.type === "CREATE" && !request.targetProjectId) {
+            setStatus({ error: "無法提交：找不到關聯專案" });
             return;
         }
 
@@ -114,7 +120,9 @@ export default function RejectedRequestEditForm({ request }: Props) {
         setStatus(null);
 
         const formData = new FormData();
-        formData.append("itemId", request.itemId.toString());
+        if (request.itemId) formData.append("itemId", request.itemId.toString());
+        if (request.targetProjectId) formData.append("projectId", request.targetProjectId.toString());
+
         formData.append("title", title);
         formData.append("content", content);
 
@@ -130,11 +138,19 @@ export default function RejectedRequestEditForm({ request }: Props) {
         formData.append("previousRequestId", request.id.toString());
 
         try {
-            const result = await submitUpdateItemRequest({}, formData);
+            let result;
+            if (request.type === "CREATE") {
+                // If it was a CREATE request that got rejected, we re-submit as a new CREATE request
+                const { submitCreateItemRequest } = await import("@/actions/approval");
+                result = await submitCreateItemRequest({}, formData);
+            } else {
+                result = await submitUpdateItemRequest({}, formData);
+            }
+
             if (result.error) {
                 setStatus({ error: result.error });
             } else {
-                // Mark the original rejected request as resubmitted (deleted)
+                // Mark the original rejected request as resubmitted
                 await markRejectedAsResubmitted(request.id);
 
                 setStatus({ message: "已成功重新提交審查！" });
@@ -143,7 +159,8 @@ export default function RejectedRequestEditForm({ request }: Props) {
                     router.refresh();
                 }, 1500);
             }
-        } catch {
+        } catch (error) {
+            console.error(error);
             setStatus({ error: "發生未預期的錯誤" });
         } finally {
             setIsSubmitting(false);
