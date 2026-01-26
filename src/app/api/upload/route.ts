@@ -79,13 +79,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'File type not allowed' }, { status: 400 });
         }
 
-        // Generate safe filename with path traversal protection
-        const timestamp = Date.now();
-        const sanitizedName = file.name
-            .replace(/[^a-zA-Z0-9.-]/g, '_')
-            .replace(/\.\./g, '_'); // 防止路徑穿越
-        const safeFilename = path.basename(sanitizedName); // 確保只取檔名
-        const filename = `${timestamp}-${safeFilename}`;
+        // Generate safe unique filename using UUID to avoid OS encoding issues
+        const ext = path.extname(file.name);
+        const filename = `${crypto.randomUUID()}${ext}`;
 
         // Create upload directory structure (year/month)
         const now = new Date();
@@ -93,15 +89,29 @@ export async function POST(request: NextRequest) {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const uploadDir = path.join(process.cwd(), 'public', 'uploads', String(year), month);
 
+        console.log('[Upload] Target directory:', uploadDir);
+
         if (!existsSync(uploadDir)) {
-            await mkdir(uploadDir, { recursive: true });
+            try {
+                await mkdir(uploadDir, { recursive: true });
+            } catch (err) {
+                console.error('[Upload] Failed to create directory:', uploadDir, err);
+                return NextResponse.json({ error: 'Failed to create upload directory' }, { status: 500 });
+            }
         }
 
         // Save file
         const filepath = path.join(uploadDir, filename);
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        await writeFile(filepath, buffer);
+        console.log('[Upload] Saving file to:', filepath);
+
+        try {
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            await writeFile(filepath, buffer);
+        } catch (err) {
+            console.error('[Upload] Failed to write file:', filepath, err);
+            return NextResponse.json({ error: 'Failed to write file to disk' }, { status: 500 });
+        }
 
         // Return file info
         const publicPath = `/uploads/${year}/${month}/${filename}`;
