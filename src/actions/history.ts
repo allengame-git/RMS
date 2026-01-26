@@ -306,7 +306,13 @@ export async function getGlobalHistory(filters?: {
 export async function getProjectHistoryStats() {
     return await prisma.project.findMany({
         include: {
-            _count: { select: { items: true } },
+            _count: {
+                select: {
+                    items: {
+                        where: { isDeleted: false }
+                    }
+                }
+            },
             itemHistories: {
                 select: { id: true, createdAt: true },
                 orderBy: { createdAt: 'desc' },
