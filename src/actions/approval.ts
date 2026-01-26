@@ -162,7 +162,18 @@ export async function submitCreateItemRequest(
     }
 
     const submitReason = formData.get("submitReason") as string || null;
-    const data = JSON.stringify({ title, content, attachments, relatedItems, references });
+
+    // v2.1.5: Pre-allocate fullId at submission time
+    const fullId = await generateNextItemId(projectId, parentId);
+
+    const data = JSON.stringify({
+        title,
+        content,
+        attachments,
+        relatedItems,
+        references,
+        fullId // Store the pre-allocated ID 
+    });
 
     try {
         await prisma.changeRequest.create({
@@ -441,7 +452,10 @@ async function handleItemCreateApproval(
 ) {
     if (!request.targetProjectId) throw new Error("Missing target project");
 
-    const fullId = await generateNextItemId(
+    // v2.1.5: Use pre-allocated fullId from request data if available
+    // Otherwise fallback to dynamic generation (for older pending requests)
+    const dataWithFullId = data as any;
+    const fullId = dataWithFullId.fullId || await generateNextItemId(
         request.targetProjectId,
         request.targetParentId,
         tx

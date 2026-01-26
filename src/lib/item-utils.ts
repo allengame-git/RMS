@@ -58,42 +58,51 @@ export async function generateNextItemId(projectId: number, parentId: number | n
         parentFullId = parent.fullId;
     }
 
-    // Find all siblings to determine max sequence
-    // We search for items that start with the prefix and have the same depth
-    // Ideally, we just check items with same parentId.
-    const siblings = await client.item.findMany({
-        where: {
-            projectId,
-            parentId
-        },
+    const prefix = parentId ? `${parentFullId}-` : `${project.codePrefix}-`;
+
+    // 1. Get IDs from existing items
+    const existingItems = await client.item.findMany({
+        where: { projectId, parentId },
         select: { fullId: true }
+    });
+
+    // 2. Get IDs from pending CREATE requests
+    const pendingRequests = await client.changeRequest.findMany({
+        where: {
+            targetProjectId: projectId,
+            targetParentId: parentId,
+            type: "CREATE",
+            status: "PENDING"
+        },
+        select: { data: true }
     });
 
     let maxSeq = 0;
 
-    // Pattern to extract the last number.
-    // If Root (RMS-1), prefix is "RMS-". Match number after that.
-    // If Child (RMS-1-1), prefix is "RMS-1-". Match number after that.
-
-    // Construct regex based on expected parent prefix
-    // If parentId is null, prefix is "{codePrefix}-" -> Regex: ^{codePrefix}-(\d+)$
-    // If parentId is set, prefix is "{parentFullId}-" -> Regex: ^{parentFullId}-(\d+)$
-
-    const prefix = parentId ? `${parentFullId}-` : `${project.codePrefix}-`;
-
-    // We can filter in JS. 
-    for (const sib of siblings) {
-        if (sib.fullId.startsWith(prefix)) {
-            const suffix = sib.fullId.substring(prefix.length);
-            // Ensure suffix is just a number (no extra hyphens, though query filtered by parentId so it should be immediate siblings)
-            // But wait, if data is corrupted or mixed, good to be safe.
-            // With parentId check, these ARE the direct siblings.
+    const processFullId = (fullId: string) => {
+        if (fullId.startsWith(prefix)) {
+            const suffix = fullId.substring(prefix.length);
             const seq = parseInt(suffix, 10);
             if (!isNaN(seq)) {
                 if (seq > maxSeq) maxSeq = seq;
             }
         }
-    }
+    };
+
+    // Process existing items
+    existingItems.forEach(item => processFullId(item.fullId));
+
+    // Process pending requests
+    pendingRequests.forEach(req => {
+        try {
+            const data = JSON.parse(req.data);
+            if (data.fullId) {
+                processFullId(data.fullId);
+            }
+        } catch (e) {
+            console.error("Failed to parse pending request data", e);
+        }
+    });
 
     return `${prefix}${maxSeq + 1}`;
 }
