@@ -283,33 +283,20 @@ export const generateQCDocument = async (
         const pdfDoc = await PDFDocument.create();
         pdfDoc.registerFontkit(fontkit);
 
-        // 跨平台字體支援：依序嘗試多個路徑
+        // 跨平台字體支援：直接使用專案內建的字體確保一致性
         let font: PDFFont;
         const fontPaths = [
-            // 專案內嵌字體（最優先）
-            path.join(process.cwd(), 'public', 'fonts', 'NotoSansTC-Regular.ttf'),
-            path.join(process.cwd(), 'fonts', 'NotoSansTC-Regular.ttf'),
-            // macOS
-            '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
-            '/System/Library/Fonts/STHeiti Light.ttc',
-            '/Library/Fonts/Arial Unicode.ttf',
-            // Windows
-            'C:\\Windows\\Fonts\\msyh.ttc',      // 微軟雅黑
-            'C:\\Windows\\Fonts\\msjh.ttc',      // 微軟正黑
-            'C:\\Windows\\Fonts\\simsun.ttc',    // 宋體
-            'C:\\Windows\\Fonts\\arialuni.ttf',  // Arial Unicode
-            // Linux
-            '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-            '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
-            '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            // 標準字體路徑 (Noto Sans TC Regular)
+            path.join(process.cwd(), 'public', 'fonts', 'Noto_Sans_TC', 'static', 'NotoSansTC-Regular.ttf'),
+            // 變體字體 (Variable Font) 作為備用
+            path.join(process.cwd(), 'public', 'fonts', 'Noto_Sans_TC', 'NotoSansTC-VariableFont_wght.ttf'),
         ];
 
         let fontLoaded = false;
         for (const fontPath of fontPaths) {
             try {
                 if (fs.existsSync(fontPath)) {
-                    console.log('[generateQCDocument] Trying font:', fontPath);
+                    console.log('[generateQCDocument] Loading project font:', fontPath);
                     const fontBytes = fs.readFileSync(fontPath);
                     font = await pdfDoc.embedFont(fontBytes, { subset: true });
                     console.log('[generateQCDocument] Font loaded successfully:', fontPath);

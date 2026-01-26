@@ -28,12 +28,12 @@ ENV NODE_ENV=production
 
 # Install Chromium and dependencies for Puppeteer
 RUN apk add --no-cache \
-      chromium \
-      nss \
-      freetype \
-      harfbuzz \
-      ca-certificates \
-      ttf-freefont
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
 
 # Tell Puppeteer to skip installing Chrome. We'll use the installed package.
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
