@@ -19,7 +19,6 @@ model User {
   // Qualifications
   isQC          Boolean  @default(false)
   isPM          Boolean  @default(false)
-  signaturePath String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -13,7 +13,6 @@ interface User {
     role: string;
     isQC: boolean;
     isPM: boolean;
-    signaturePath?: string | null;
     createdAt: Date;
     failedLoginAttempts: number;
     lockedUntil: Date | null;
@@ -45,7 +44,6 @@ export default function UserManagementPage() {
         role: 'VIEWER',
         isQC: false,
         isPM: false,
-        signaturePath: ''
     });
     const [formError, setFormError] = useState('');
     const [fetchError, setFetchError] = useState(''); // New state for fetch error
@@ -96,17 +94,13 @@ export default function UserManagementPage() {
         form.append('role', formData.role);
         form.append('isQC', String(formData.isQC));
         form.append('isPM', String(formData.isPM));
-        if (formData.signaturePath) {
-            form.append('signaturePath', formData.signaturePath);
-        }
-
         try {
             const result = await createUser({}, form);
             if (result.error) {
                 setFormError(result.error);
             } else {
                 setIsCreateModalOpen(false);
-                setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false, signaturePath: '' });
+                setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false });
                 fetchUsers();
             }
         } catch {
@@ -124,7 +118,6 @@ export default function UserManagementPage() {
             role: user.role,
             isQC: user.isQC,
             isPM: user.isPM,
-            signaturePath: user.signaturePath || ''
         });
         setShowEditPassword(false);
         setIsEditModalOpen(true);
@@ -138,13 +131,12 @@ export default function UserManagementPage() {
         setIsSubmitting(true);
 
         // Prepare update data
-        const updateData: { username?: string; password?: string; role?: string; isQC?: boolean; isPM?: boolean; signaturePath?: string } = {};
+        const updateData: { username?: string; password?: string; role?: string; isQC?: boolean; isPM?: boolean } = {};
         if (formData.username !== editingUser.username) updateData.username = formData.username;
         if (formData.password) updateData.password = formData.password;
         if (formData.role !== editingUser.role) updateData.role = formData.role;
         if (formData.isQC !== editingUser.isQC) updateData.isQC = formData.isQC;
         if (formData.isPM !== editingUser.isPM) updateData.isPM = formData.isPM;
-        if (formData.signaturePath !== editingUser.signaturePath) updateData.signaturePath = formData.signaturePath;
 
         try {
             const result = await updateUser(editingUser.id, updateData);
@@ -153,7 +145,7 @@ export default function UserManagementPage() {
             } else {
                 setIsEditModalOpen(false);
                 setEditingUser(null);
-                setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false, signaturePath: '' });
+                setFormData({ username: '', password: '', role: 'VIEWER', isQC: false, isPM: false });
                 fetchUsers();
             }
         } catch {
@@ -200,36 +192,25 @@ export default function UserManagementPage() {
         return <div className="container" style={{ padding: '2rem' }}>未經授權</div>;
     }
 
-    const handleSignatureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-            const data = await res.json();
-            if (data.success) {
-                setFormData(prev => ({ ...prev, signaturePath: data.file.path }));
-            } else {
-                alert(`上傳失敗: ${data.error}`);
-            }
-        } catch (error) {
-            console.error('Upload error:', error);
-            alert('上傳失敗');
-        }
-    };
-
     return (
         <div className="container" style={{ padding: "2rem 0", maxWidth: "1000px", margin: "0 auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-                <h1>使用者管理</h1>
+            <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "flex-end",
+                marginBottom: "2.5rem", paddingBottom: "1rem", borderBottom: "1px solid var(--color-border)"
+            }}>
+                <div>
+                    <h1 style={{ marginBottom: "0.5rem", fontSize: "2.25rem", background: "linear-gradient(to right, var(--color-text-main), var(--color-primary))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>使用者管理</h1>
+                    <p style={{ color: "var(--color-text-muted)", fontSize: "1rem" }}>配置系統存取權限、QC/PM 資歷及安全設定</p>
+                </div>
                 <button
                     className="btn btn-primary"
+                    style={{
+                        padding: "0.85rem 1.75rem",
+                        borderRadius: "12px",
+                        gap: "0.8rem",
+                        boxShadow: "0 4px 15px rgba(0, 131, 143, 0.25)",
+                        fontSize: "1rem"
+                    }}
                     onClick={() => {
                         setFormData({
                             username: '',
@@ -237,12 +218,11 @@ export default function UserManagementPage() {
                             role: 'VIEWER',
                             isQC: false,
                             isPM: false,
-                            signaturePath: ''
                         });
                         setIsCreateModalOpen(true);
                     }}
                 >
-                    新增使用者
+                    <span style={{ fontSize: "1.2rem" }}>➕</span> 新增使用者
                 </button>
             </div>
 
@@ -252,161 +232,199 @@ export default function UserManagementPage() {
                 </div>
             )}
 
-            <div className="glass" style={{ borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+            <div className="glass" style={{
+                borderRadius: "20px",
+                overflow: "hidden",
+                boxShadow: "var(--shadow-md)",
+                border: "1px solid rgba(255, 255, 255, 0.2)"
+            }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
-                        <tr style={{ borderBottom: "1px solid var(--color-border)", backgroundColor: "rgba(0,0,0,0.02)" }}>
-                            <th style={{ padding: "1rem", textAlign: "left" }}>使用者名稱</th>
-                            <th style={{ padding: "1rem", textAlign: "left" }}>角色與資歷</th>
-                            <th style={{ padding: "1rem", textAlign: "left" }}>狀態</th>
-                            <th style={{ padding: "1rem", textAlign: "left" }}>加入時間</th>
-                            <th style={{ padding: "1rem", textAlign: "right" }}>操作</th>
+                        <tr style={{
+                            borderBottom: "1px solid var(--color-border)",
+                            backgroundColor: "rgba(0,0,0,0.03)",
+                            color: "var(--color-text-muted)"
+                        }}>
+                            <th style={{ padding: "1.25rem 1.5rem", textAlign: "left", fontSize: "0.85rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em" }}>使用者名稱</th>
+                            <th style={{ padding: "1.25rem 1.5rem", textAlign: "left", fontSize: "0.85rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em" }}>權限與資歷</th>
+                            <th style={{ padding: "1.25rem 1.5rem", textAlign: "left", fontSize: "0.85rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em" }}>帳號狀態</th>
+                            <th style={{ padding: "1.25rem 1.5rem", textAlign: "left", fontSize: "0.85rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em" }}>加入日期</th>
+                            <th style={{ padding: "1.25rem 1.5rem", textAlign: "right", fontSize: "0.85rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em" }}>操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         {users.map(user => (
                             <tr key={user.id} style={{
                                 borderBottom: "1px solid var(--color-border)",
-                                backgroundColor: isUserLocked(user) ? "rgba(239, 68, 68, 0.05)" : undefined
+                                backgroundColor: isUserLocked(user) ? "rgba(198, 40, 40, 0.03)" : "transparent",
+                                transition: "background-color 0.2s"
                             }}>
-                                <td style={{ padding: "1rem", fontWeight: "bold" }}>
-                                    {user.username}
-                                    {session.user.id === user.id && <span style={{ marginLeft: "0.5rem", fontSize: "0.8rem", color: "var(--color-primary)", border: "1px solid currentColor", padding: "2px 6px", borderRadius: "10px" }}>您</span>}
+                                <td style={{ padding: "1.25rem 1.5rem" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                                        <div style={{
+                                            width: "32px", height: "32px", borderRadius: "50%",
+                                            backgroundColor: "var(--color-primary-soft)", color: "var(--color-primary)",
+                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                            fontSize: "0.85rem", fontWeight: "bold"
+                                        }}>
+                                            {user.username.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: "600", fontSize: "0.95rem" }}>
+                                                {user.username}
+                                                {session.user.id === user.id && (
+                                                    <span style={{
+                                                        marginLeft: "0.5rem", fontSize: "0.7rem",
+                                                        backgroundColor: "var(--color-primary-soft)",
+                                                        color: "var(--color-primary)",
+                                                        padding: "2px 8px", borderRadius: "999px",
+                                                        fontWeight: "700"
+                                                    }}>ME</span>
+                                                )}
+                                            </div>
+                                            <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>ID: {user.id.slice(0, 8)}...</div>
+                                        </div>
+                                    </div>
                                 </td>
 
-                                <td style={{ padding: "1rem" }}>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <td style={{ padding: "1.25rem 1.5rem" }}>
+                                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                         <span style={{
-                                            padding: "4px 8px",
-                                            borderRadius: "4px",
-                                            backgroundColor: "var(--color-background)",
-                                            fontSize: "0.9rem",
+                                            padding: "2px 10px",
+                                            borderRadius: "6px",
+                                            backgroundColor: "rgba(0,0,0,0.05)",
+                                            color: "var(--color-text-main)",
+                                            fontSize: "0.8rem",
+                                            fontWeight: "600",
                                             border: "1px solid var(--color-border)"
                                         }}>
                                             {user.role}
                                         </span>
                                         {user.isQC && (
                                             <span style={{
-                                                padding: "2px 6px",
-                                                borderRadius: "4px",
-                                                backgroundColor: "rgba(14, 165, 233, 0.1)",
-                                                color: "rgb(14, 165, 233)",
+                                                padding: "2px 10px",
+                                                borderRadius: "6px",
+                                                backgroundColor: "#E8F5E9",
+                                                color: "#2E7D32",
                                                 fontSize: "0.8rem",
-                                                border: "1px solid rgba(14, 165, 233, 0.2)",
                                                 fontWeight: "600"
-                                            }}>
-                                                QC
-                                            </span>
+                                            }}>QC</span>
                                         )}
                                         {user.isPM && (
                                             <span style={{
-                                                padding: "2px 6px",
-                                                borderRadius: "4px",
-                                                backgroundColor: "rgba(245, 158, 11, 0.1)",
-                                                color: "rgb(245, 158, 11)",
+                                                padding: "2px 10px",
+                                                borderRadius: "6px",
+                                                backgroundColor: "#F3E5F5",
+                                                color: "#7B1FA2",
                                                 fontSize: "0.8rem",
-                                                border: "1px solid rgba(245, 158, 11, 0.2)",
                                                 fontWeight: "600"
-                                            }}>
-                                                PM
-                                            </span>
+                                            }}>PM</span>
                                         )}
                                     </div>
                                 </td>
-                                <td style={{ padding: "1rem" }}>
+
+                                <td style={{ padding: "1.25rem 1.5rem" }}>
                                     {isUserLocked(user) ? (
-                                        <span style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: "0.25rem",
-                                            padding: "4px 8px",
-                                            borderRadius: "4px",
-                                            backgroundColor: "rgba(239, 68, 68, 0.1)",
-                                            color: "rgb(239, 68, 68)",
-                                            fontSize: "0.8rem",
-                                            fontWeight: "600"
-                                        }}>
-                                            🔒 已鎖定
-                                        </span>
-                                    ) : user.failedLoginAttempts > 0 ? (
-                                        <span style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: "0.25rem",
-                                            padding: "4px 8px",
-                                            borderRadius: "4px",
-                                            backgroundColor: "rgba(245, 158, 11, 0.1)",
-                                            color: "rgb(245, 158, 11)",
-                                            fontSize: "0.8rem"
-                                        }}>
-                                            ⚠️ 失敗 {user.failedLoginAttempts}次
-                                        </span>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                            <span style={{
+                                                display: "inline-block",
+                                                padding: "4px 10px",
+                                                borderRadius: "6px",
+                                                backgroundColor: "rgba(198, 40, 40, 0.1)",
+                                                color: "var(--color-danger)",
+                                                fontSize: "0.8rem",
+                                                fontWeight: "600"
+                                            }}>已鎖定 🔒</span>
+                                            <button
+                                                onClick={() => handleUnlock(user.id)}
+                                                style={{
+                                                    fontSize: "0.75rem",
+                                                    color: "var(--color-primary)",
+                                                    background: "none",
+                                                    border: "1px solid var(--color-primary)",
+                                                    borderRadius: "4px",
+                                                    padding: "2px 6px",
+                                                    cursor: "pointer"
+                                                }}
+                                            >
+                                                解鎖
+                                            </button>
+                                        </div>
                                     ) : (
                                         <span style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: "0.25rem",
-                                            padding: "4px 8px",
-                                            borderRadius: "4px",
-                                            backgroundColor: "rgba(34, 197, 94, 0.1)",
-                                            color: "rgb(34, 197, 94)",
-                                            fontSize: "0.8rem"
-                                        }}>
-                                            ✓ 正常
-                                        </span>
+                                            display: "inline-block",
+                                            padding: "4px 10px",
+                                            borderRadius: "6px",
+                                            backgroundColor: "rgba(46, 125, 50, 0.1)",
+                                            color: "#2E7D32",
+                                            fontSize: "0.8rem",
+                                            fontWeight: "600"
+                                        }}>正常運作 ✅</span>
                                     )}
                                 </td>
-                                <td style={{ padding: "1rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
-                                    {new Date(user.createdAt).toLocaleDateString()}
+
+                                <td style={{ padding: "1.25rem 1.5rem", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+                                    {new Date(user.createdAt).toLocaleDateString('zh-TW')}
                                 </td>
-                                <td style={{ padding: "1rem", textAlign: "right" }}>
-                                    {isUserLocked(user) && (
+
+                                <td style={{ padding: "1.25rem 1.5rem", textAlign: "right" }}>
+                                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.25rem" }}>
                                         <button
-                                            onClick={() => handleUnlock(user.id)}
+                                            onClick={() => {
+                                                setEditingUser(user);
+                                                setFormData({
+                                                    username: user.username,
+                                                    password: '',
+                                                    role: user.role,
+                                                    isQC: user.isQC,
+                                                    isPM: user.isPM,
+                                                });
+                                                setIsEditModalOpen(true);
+                                                setShowEditPassword(false);
+                                            }}
+                                            className="btn-icon"
                                             style={{
-                                                marginRight: "1rem",
-                                                color: "rgb(34, 197, 94)",
-                                                background: "transparent",
+                                                padding: "8px 12px",
+                                                borderRadius: "8px",
+                                                color: "var(--color-primary)",
+                                                backgroundColor: "transparent",
                                                 border: "none",
                                                 cursor: "pointer",
-                                                fontWeight: "500"
+                                                fontSize: "0.9rem",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "4px"
                                             }}
+                                            title="編輯"
                                         >
-                                            解鎖
+                                            ✏️ 編輯
                                         </button>
-                                    )}
-                                    <button
-                                        onClick={() => openEditModal(user)}
-                                        disabled={false}
-                                        style={{
-                                            marginRight: "1rem",
-                                            color: "var(--color-primary)",
-                                            background: "transparent",
-                                            border: "none",
-                                            cursor: "pointer",
-                                            opacity: 1
-                                        }}
-                                    >
-                                        編輯
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(user.id)}
-                                        disabled={user.id === session.user.id}
-                                        style={{
-                                            color: "var(--color-danger, #ef4444)",
-                                            background: "transparent",
-                                            border: "none",
-                                            cursor: user.id === session.user.id ? "not-allowed" : "pointer",
-                                            opacity: user.id === session.user.id ? 0.5 : 1
-                                        }}
-                                    >
-                                        刪除
-                                    </button>
+                                        <button
+                                            onClick={() => handleDelete(user.id)}
+                                            disabled={user.id === session.user.id}
+                                            className="btn-icon"
+                                            style={{
+                                                padding: "8px 12px",
+                                                borderRadius: "8px",
+                                                color: "var(--color-danger)",
+                                                backgroundColor: "transparent",
+                                                border: "none",
+                                                cursor: user.id === session.user.id ? "not-allowed" : "pointer",
+                                                opacity: user.id === session.user.id ? 0.3 : 1,
+                                                fontSize: "0.9rem",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "4px"
+                                            }}
+                                            title="刪除"
+                                        >
+                                            🗑️ 刪除
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
-
                 </table>
             </div>
 
@@ -414,103 +432,170 @@ export default function UserManagementPage() {
             {isCreateModalOpen && (
                 <div style={{
                     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center",
-                    zIndex: 1000
+                    backgroundColor: "rgba(16, 32, 39, 0.4)",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    display: "flex", justifyContent: "center", alignItems: "center",
+                    zIndex: 1000,
+                    transition: "all 0.3s ease"
                 }}>
-                    <div className="glass" style={{ padding: "2rem", borderRadius: "var(--radius-lg)", width: "500px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto" }}>
-                        <h2 style={{ marginBottom: "1.5rem" }}>建立新使用者</h2>
-                        <form onSubmit={handleCreateUser}>
-                            <div style={{ marginBottom: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>使用者名稱</label>
-                                <input
-                                    type="text"
-                                    required
-                                    minLength={2}
-                                    value={formData.username}
-                                    onChange={e => setFormData({ ...formData, username: e.target.value })}
-                                    style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--color-border)" }}
-                                />
+                    <div className="glass" style={{
+                        padding: "2.5rem",
+                        borderRadius: "var(--radius-lg)",
+                        width: "520px",
+                        maxWidth: "92%",
+                        maxHeight: "92vh",
+                        overflowY: "auto",
+                        boxShadow: "var(--shadow-lg), 0 0 20px rgba(0, 131, 143, 0.1)",
+                        border: "1px solid rgba(255, 255, 255, 0.2)"
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "2rem" }}>
+                            <div style={{
+                                width: "48px", height: "48px", borderRadius: "12px",
+                                background: "var(--color-primary-soft)", color: "var(--color-primary)",
+                                display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem"
+                            }}>
+                                ➕
                             </div>
-                            <div style={{ marginBottom: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>密碼</label>
-                                <input
-                                    type="password"
-                                    required
-                                    minLength={6}
-                                    value={formData.password}
-                                    onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                    style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--color-border)" }}
-                                />
-                                <PasswordStrengthIndicator password={formData.password} />
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: "700" }}>建立新使用者</h2>
+                                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>新增一個系統帳號並配置權限</p>
                             </div>
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>角色</label>
-                                <select
-                                    value={formData.role}
-                                    onChange={e => setFormData({ ...formData, role: e.target.value })}
-                                    style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--color-border)" }}
-                                >
-                                    <option value="VIEWER">VIEWER (唯讀)</option>
-                                    <option value="EDITOR">EDITOR (建立/編輯)</option>
-                                    <option value="INSPECTOR">INSPECTOR (審核)</option>
-                                    <option value="ADMIN">ADMIN (管理員)</option>
-                                </select>
+                        </div>
+
+                        <form onSubmit={handleCreateUser} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                            <div style={{ display: "grid", gap: "1.25rem" }}>
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600", fontSize: "0.875rem", color: "var(--color-text-main)" }}>使用者名稱</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        minLength={2}
+                                        value={formData.username}
+                                        onChange={e => setFormData({ ...formData, username: e.target.value })}
+                                        placeholder="請輸入使用者名稱"
+                                        style={{
+                                            width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)",
+                                            border: "1px solid var(--color-border)",
+                                            backgroundColor: "var(--color-bg-base)",
+                                            fontSize: "0.95rem",
+                                            transition: "border-color 0.2s, box-shadow 0.2s"
+                                        }}
+                                        onFocus={e => {
+                                            e.target.style.borderColor = "var(--color-primary)";
+                                            e.target.style.boxShadow = "0 0 0 3px var(--color-primary-soft)";
+                                        }}
+                                        onBlur={e => {
+                                            e.target.style.borderColor = "var(--color-border)";
+                                            e.target.style.boxShadow = "none";
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600", fontSize: "0.875rem", color: "var(--color-text-main)" }}>登入密碼</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={6}
+                                        value={formData.password}
+                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                        placeholder="請輸入至少 6 位密碼"
+                                        style={{
+                                            width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)",
+                                            border: "1px solid var(--color-border)",
+                                            backgroundColor: "var(--color-bg-base)",
+                                            fontSize: "0.95rem",
+                                            transition: "border-color 0.2s, box-shadow 0.2s"
+                                        }}
+                                        onFocus={e => {
+                                            e.target.style.borderColor = "var(--color-primary)";
+                                            e.target.style.boxShadow = "0 0 0 3px var(--color-primary-soft)";
+                                        }}
+                                        onBlur={e => {
+                                            e.target.style.borderColor = "var(--color-border)";
+                                            e.target.style.boxShadow = "none";
+                                        }}
+                                    />
+                                    <div style={{ marginTop: "0.5rem" }}>
+                                        <PasswordStrengthIndicator password={formData.password} />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600", fontSize: "0.875rem", color: "var(--color-text-main)" }}>系統角色</label>
+                                    <select
+                                        value={formData.role}
+                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                        style={{
+                                            width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)",
+                                            border: "1px solid var(--color-border)",
+                                            backgroundColor: "var(--color-bg-surface)",
+                                            fontSize: "0.95rem",
+                                            cursor: "pointer",
+                                            appearance: "none",
+                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23546E7A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                            backgroundRepeat: "no-repeat",
+                                            backgroundPosition: "right 1rem center",
+                                            backgroundSize: "1.25rem"
+                                        }}
+                                    >
+                                        <option value="VIEWER">VIEWER (唯讀模式)</option>
+                                        <option value="EDITOR">EDITOR (編輯權限)</option>
+                                        <option value="INSPECTOR">INSPECTOR (審核權限)</option>
+                                        <option value="ADMIN">ADMIN (系統管理員)</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div style={{ marginBottom: "1.5rem", borderTop: "1px solid var(--color-border)", paddingTop: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "bold" }}>權限資歷</label>
-                                <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem" }}>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                            <div style={{
+                                padding: "1.25rem",
+                                borderRadius: "var(--radius-md)",
+                                backgroundColor: "rgba(0,0,0,0.03)",
+                                border: "1px solid var(--color-border)"
+                            }}>
+                                <label style={{ display: "block", marginBottom: "1rem", fontWeight: "700", fontSize: "0.9rem", color: "var(--color-text-main)", letterSpacing: "0.05em" }}>權限資歷認證</label>
+                                <div style={{ display: "flex", gap: "2rem" }}>
+                                    <label style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", fontSize: "0.95rem" }}>
                                         <input
                                             type="checkbox"
                                             checked={formData.isQC}
                                             onChange={e => setFormData({ ...formData, isQC: e.target.checked })}
+                                            style={{ width: "18px", height: "18px", accentColor: "var(--color-primary)" }}
                                         />
-                                        <span>品管 (QC)</span>
+                                        <span style={{ fontWeight: "500" }}>品質管制 (QC)</span>
                                     </label>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                                    <label style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", fontSize: "0.95rem" }}>
                                         <input
                                             type="checkbox"
                                             checked={formData.isPM}
                                             onChange={e => setFormData({ ...formData, isPM: e.target.checked })}
+                                            style={{ width: "18px", height: "18px", accentColor: "var(--color-primary)" }}
                                         />
-                                        <span>專案經理 (PM)</span>
+                                        <span style={{ fontWeight: "500" }}>專案經理 (PM)</span>
                                     </label>
                                 </div>
                             </div>
 
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>電子簽章</label>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleSignatureUpload}
-                                    style={{ marginBottom: "0.5rem" }}
-                                />
-                                {formData.signaturePath && (
-                                    <div style={{ marginTop: "0.5rem", border: "1px solid var(--color-border)", padding: "0.5rem", borderRadius: "4px", display: "inline-block" }}>
-                                        <img
-                                            src={formData.signaturePath}
-                                            alt="Signature Preview"
-                                            style={{ maxHeight: "60px", maxWidth: "100%", display: "block" }}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, signaturePath: '' })}
-                                            style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-danger)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                                        >
-                                            移除簽章
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                            {formError && (
+                                <div style={{
+                                    padding: "0.75rem 1rem",
+                                    borderRadius: "var(--radius-sm)",
+                                    backgroundColor: "rgba(198, 40, 40, 0.1)",
+                                    color: "var(--color-danger)",
+                                    fontSize: "0.85rem",
+                                    border: "1px solid rgba(198, 40, 40, 0.2)"
+                                }}>
+                                    ❌ {formError}
+                                </div>
+                            )}
 
-                            {formError && <p style={{ color: "red", marginBottom: "1rem" }}>{formError}</p>}
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "1rem" }}>
                                 <button
                                     type="button"
                                     onClick={() => setIsCreateModalOpen(false)}
                                     className="btn btn-outline"
+                                    style={{ padding: "0.75rem 1.5rem", borderRadius: "10px" }}
                                 >
                                     取消
                                 </button>
@@ -518,6 +603,11 @@ export default function UserManagementPage() {
                                     type="submit"
                                     className="btn btn-primary"
                                     disabled={isSubmitting}
+                                    style={{
+                                        padding: "0.75rem 2.5rem",
+                                        borderRadius: "10px",
+                                        boxShadow: "0 4px 12px rgba(0, 131, 143, 0.3)"
+                                    }}
                                 >
                                     {isSubmitting ? '建立中...' : '建立使用者'}
                                 </button>
@@ -531,135 +621,189 @@ export default function UserManagementPage() {
             {isEditModalOpen && editingUser && (
                 <div style={{
                     position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center",
-                    zIndex: 1000
+                    backgroundColor: "rgba(16, 32, 39, 0.4)",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    display: "flex", justifyContent: "center", alignItems: "center",
+                    zIndex: 1000,
+                    transition: "all 0.3s ease"
                 }}>
-                    <div className="glass" style={{ padding: "2rem", borderRadius: "var(--radius-lg)", width: "500px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto" }}>
-                        <h2 style={{ marginBottom: "1.5rem" }}>編輯使用者</h2>
-                        <form onSubmit={handleUpdateUser}>
-                            <div style={{ marginBottom: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>使用者名稱</label>
-                                <input
-                                    type="text"
-                                    required
-                                    minLength={2}
-                                    value={formData.username}
-                                    onChange={e => setFormData({ ...formData, username: e.target.value })}
-                                    style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--color-border)" }}
-                                />
+                    <div className="glass" style={{
+                        padding: "2.5rem",
+                        borderRadius: "var(--radius-lg)",
+                        width: "520px",
+                        maxWidth: "92%",
+                        maxHeight: "92vh",
+                        overflowY: "auto",
+                        boxShadow: "var(--shadow-lg), 0 0 20px rgba(0, 131, 143, 0.1)",
+                        border: "1px solid rgba(255, 255, 255, 0.2)"
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "2rem" }}>
+                            <div style={{
+                                width: "48px", height: "48px", borderRadius: "12px",
+                                background: "var(--color-primary-soft)", color: "var(--color-primary)",
+                                display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem"
+                            }}>
+                                👤
                             </div>
-                            <div style={{ marginBottom: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>
-                                    新密碼 <span style={{ fontWeight: "normal", fontSize: "0.85em", color: "var(--color-text-muted)" }}>(留白則保持不變)</span>
-                                </label>
-                                <div style={{ position: "relative" }}>
+                            <div>
+                                <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: "700" }}>編輯使用者</h2>
+                                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>管理使用者帳號及權限設定</p>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleUpdateUser} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                            <div style={{ display: "grid", gap: "1.25rem" }}>
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600", fontSize: "0.875rem", color: "var(--color-text-main)" }}>使用者名稱</label>
                                     <input
-                                        type={showEditPassword ? "text" : "password"}
-                                        minLength={6}
-                                        value={formData.password}
-                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                        placeholder="••••••"
-                                        style={{ width: "100%", padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--color-border)", paddingRight: "40px" }}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowEditPassword(!showEditPassword)}
+                                        type="text"
+                                        required
+                                        minLength={2}
+                                        value={formData.username}
+                                        onChange={e => setFormData({ ...formData, username: e.target.value })}
                                         style={{
-                                            position: "absolute",
-                                            right: "8px",
-                                            top: "50%",
-                                            transform: "translateY(-50%)",
-                                            background: "none",
-                                            border: "none",
-                                            cursor: "pointer",
-                                            color: "var(--color-text-muted)",
-                                            fontSize: "1.2rem",
-                                            lineHeight: "1",
-                                            padding: 0
+                                            width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)",
+                                            border: "1px solid var(--color-border)",
+                                            backgroundColor: "var(--color-bg-base)",
+                                            fontSize: "0.95rem",
+                                            transition: "border-color 0.2s, box-shadow 0.2s"
                                         }}
-                                        title={showEditPassword ? "隱藏密碼" : "顯示密碼"}
-                                    >
-                                        {showEditPassword ? "👁️" : "👁️‍🗨️"}
-                                    </button>
+                                        onFocus={e => {
+                                            e.target.style.borderColor = "var(--color-primary)";
+                                            e.target.style.boxShadow = "0 0 0 3px var(--color-primary-soft)";
+                                        }}
+                                        onBlur={e => {
+                                            e.target.style.borderColor = "var(--color-border)";
+                                            e.target.style.boxShadow = "none";
+                                        }}
+                                    />
                                 </div>
-                                <PasswordStrengthIndicator password={formData.password} />
-                            </div>
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>角色</label>
-                                <select
-                                    value={formData.role}
-                                    onChange={e => setFormData({ ...formData, role: e.target.value })}
-                                    disabled={editingUser.id === session?.user?.id}
-                                    style={{
-                                        width: "100%",
-                                        padding: "0.5rem",
-                                        borderRadius: "4px",
-                                        border: "1px solid var(--color-border)",
-                                        backgroundColor: editingUser.id === session?.user?.id ? "var(--color-background-muted)" : "var(--color-background)",
-                                        cursor: editingUser.id === session?.user?.id ? "not-allowed" : "default"
-                                    }}
-                                >
-                                    <option value="VIEWER">VIEWER (唯讀)</option>
-                                    <option value="EDITOR">EDITOR (建立/編輯)</option>
-                                    <option value="INSPECTOR">INSPECTOR (審核)</option>
-                                    <option value="ADMIN">ADMIN (管理員)</option>
-                                </select>
+
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600", fontSize: "0.875rem", color: "var(--color-text-main)" }}>
+                                        新密碼 <span style={{ fontWeight: "normal", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>(留白則保持不變)</span>
+                                    </label>
+                                    <div style={{ position: "relative" }}>
+                                        <input
+                                            type={showEditPassword ? "text" : "password"}
+                                            minLength={6}
+                                            value={formData.password}
+                                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                            placeholder="••••••"
+                                            style={{
+                                                width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)",
+                                                border: "1px solid var(--color-border)",
+                                                backgroundColor: "var(--color-bg-base)",
+                                                fontSize: "0.95rem",
+                                                paddingRight: "45px",
+                                                transition: "border-color 0.2s, box-shadow 0.2s"
+                                            }}
+                                            onFocus={e => {
+                                                e.target.style.borderColor = "var(--color-primary)";
+                                                e.target.style.boxShadow = "0 0 0 3px var(--color-primary-soft)";
+                                            }}
+                                            onBlur={e => {
+                                                e.target.style.borderColor = "var(--color-border)";
+                                                e.target.style.boxShadow = "none";
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEditPassword(!showEditPassword)}
+                                            style={{
+                                                position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+                                                background: "none", border: "none", cursor: "pointer",
+                                                color: "var(--color-text-muted)", fontSize: "1.2rem", padding: "4px"
+                                            }}
+                                            title={showEditPassword ? "隱藏密碼" : "顯示密碼"}
+                                        >
+                                            {showEditPassword ? "👁️" : "👁️‍🗨️"}
+                                        </button>
+                                    </div>
+                                    <div style={{ marginTop: "0.5rem" }}>
+                                        <PasswordStrengthIndicator password={formData.password} />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600", fontSize: "0.875rem", color: "var(--color-text-main)" }}>系統角色</label>
+                                    <select
+                                        value={formData.role}
+                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                        disabled={editingUser.id === session?.user?.id}
+                                        style={{
+                                            width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)",
+                                            border: "1px solid var(--color-border)",
+                                            backgroundColor: editingUser.id === session?.user?.id ? "var(--color-bg-base)" : "var(--color-bg-surface)",
+                                            fontSize: "0.95rem",
+                                            cursor: editingUser.id === session?.user?.id ? "not-allowed" : "pointer",
+                                            appearance: "none",
+                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23546E7A'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                            backgroundRepeat: "no-repeat",
+                                            backgroundPosition: "right 1rem center",
+                                            backgroundSize: "1.25rem"
+                                        }}
+                                    >
+                                        <option value="VIEWER">VIEWER (唯讀模式)</option>
+                                        <option value="EDITOR">EDITOR (編輯權限)</option>
+                                        <option value="INSPECTOR">INSPECTOR (審核權限)</option>
+                                        <option value="ADMIN">ADMIN (系統管理員)</option>
+                                    </select>
+                                    {editingUser.id === session?.user?.id && (
+                                        <p style={{ marginTop: "0.4rem", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>⚠️ 無法修改自己的角色權限</p>
+                                    )}
+                                </div>
                             </div>
 
-                            <div style={{ marginBottom: "1.5rem", borderTop: "1px solid var(--color-border)", paddingTop: "1rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "bold" }}>權限資歷</label>
-                                <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem" }}>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                            <div style={{
+                                padding: "1.25rem",
+                                borderRadius: "var(--radius-md)",
+                                backgroundColor: "rgba(0,0,0,0.03)",
+                                border: "1px solid var(--color-border)"
+                            }}>
+                                <label style={{ display: "block", marginBottom: "1rem", fontWeight: "700", fontSize: "0.9rem", color: "var(--color-text-main)", letterSpacing: "0.05em" }}>權限資歷認證</label>
+                                <div style={{ display: "flex", gap: "2rem" }}>
+                                    <label style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", fontSize: "0.95rem" }}>
                                         <input
                                             type="checkbox"
                                             checked={formData.isQC}
                                             onChange={e => setFormData({ ...formData, isQC: e.target.checked })}
+                                            style={{ width: "18px", height: "18px", accentColor: "var(--color-primary)" }}
                                         />
-                                        <span>品管 (QC)</span>
+                                        <span style={{ fontWeight: "500" }}>品質管制 (QC)</span>
                                     </label>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                                    <label style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer", fontSize: "0.95rem" }}>
                                         <input
                                             type="checkbox"
                                             checked={formData.isPM}
                                             onChange={e => setFormData({ ...formData, isPM: e.target.checked })}
+                                            style={{ width: "18px", height: "18px", accentColor: "var(--color-primary)" }}
                                         />
-                                        <span>專案經理 (PM)</span>
+                                        <span style={{ fontWeight: "500" }}>專案經理 (PM)</span>
                                     </label>
                                 </div>
                             </div>
 
-                            <div style={{ marginBottom: "1.5rem" }}>
-                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>電子簽章</label>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleSignatureUpload}
-                                    style={{ marginBottom: "0.5rem" }}
-                                />
-                                {formData.signaturePath && (
-                                    <div style={{ marginTop: "0.5rem", border: "1px solid var(--color-border)", padding: "0.5rem", borderRadius: "4px", display: "inline-block" }}>
-                                        <img
-                                            src={formData.signaturePath}
-                                            alt="Signature Preview"
-                                            style={{ maxHeight: "60px", maxWidth: "100%", display: "block" }}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, signaturePath: '' })}
-                                            style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-danger)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                                        >
-                                            移除簽章
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                            {formError && (
+                                <div style={{
+                                    padding: "0.75rem 1rem",
+                                    borderRadius: "var(--radius-sm)",
+                                    backgroundColor: "rgba(198, 40, 40, 0.1)",
+                                    color: "var(--color-danger)",
+                                    fontSize: "0.85rem",
+                                    border: "1px solid rgba(198, 40, 40, 0.2)"
+                                }}>
+                                    ❌ {formError}
+                                </div>
+                            )}
 
-                            {formError && <p style={{ color: "red", marginBottom: "1rem" }}>{formError}</p>}
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "1rem" }}>
                                 <button
                                     type="button"
                                     onClick={() => setIsEditModalOpen(false)}
                                     className="btn btn-outline"
+                                    style={{ padding: "0.75rem 1.5rem", borderRadius: "10px" }}
                                 >
                                     取消
                                 </button>
@@ -667,8 +811,13 @@ export default function UserManagementPage() {
                                     type="submit"
                                     className="btn btn-primary"
                                     disabled={isSubmitting}
+                                    style={{
+                                        padding: "0.75rem 2rem",
+                                        borderRadius: "10px",
+                                        boxShadow: "0 4px 12px rgba(0, 131, 143, 0.3)"
+                                    }}
                                 >
-                                    {isSubmitting ? '儲存中...' : '更新使用者'}
+                                    {isSubmitting ? '儲存中...' : '更新使用者資料'}
                                 </button>
                             </div>
                         </form>
@@ -677,7 +826,9 @@ export default function UserManagementPage() {
             )}
 
             {/* 備份與復原區塊 */}
-            <BackupRestoreSection projects={projects} />
-        </div>
+            <div style={{ marginTop: "3rem" }}>
+                <BackupRestoreSection projects={projects} />
+            </div>
+        </div >
     );
 }

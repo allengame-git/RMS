@@ -10,7 +10,6 @@
  * - `updateUser`：更新使用者資料（含角色、QC/PM 資格）
  * - `deleteUser`：刪除使用者帳號
  * - `resetUserPassword`：重置使用者密碼
- * - `uploadSignature`：上傳電子簽名圖片
  *
  * ## 角色定義
  * - `VIEWER`：僅能檢視，無編輯權限
@@ -57,7 +56,6 @@ export async function getUsers() {
             role: true,
             isQC: true,
             isPM: true,
-            signaturePath: true,
             createdAt: true,
         },
         orderBy: { createdAt: "desc" },
@@ -89,7 +87,6 @@ export async function createUser(prevState: UserState, formData: FormData): Prom
 
     const isQC = formData.get("isQC") === "true";
     const isPM = formData.get("isPM") === "true";
-    const signaturePath = formData.get("signaturePath") as string;
 
     const existingUser = await prisma.user.findUnique({ where: { username } });
     if (existingUser) return { error: "Username already exists" };
@@ -104,7 +101,6 @@ export async function createUser(prevState: UserState, formData: FormData): Prom
                 role,
                 isQC,
                 isPM,
-                signaturePath: signaturePath || null,
             },
         });
         revalidatePath("/admin/users");
@@ -124,7 +120,6 @@ export async function updateUser(
         role?: string;
         isQC?: boolean;
         isPM?: boolean;
-        signaturePath?: string;
     }
 ): Promise<UserState> {
     const session = await getServerSession(authOptions);
@@ -136,7 +131,6 @@ export async function updateUser(
         role?: string;
         isQC?: boolean;
         isPM?: boolean;
-        signaturePath?: string | null;
     } = {};
 
     // 1. Handle Username Update
@@ -175,7 +169,6 @@ export async function updateUser(
     // 4. Handle Qualifications
     if (data.isQC !== undefined) updates.isQC = data.isQC;
     if (data.isPM !== undefined) updates.isPM = data.isPM;
-    if (data.signaturePath !== undefined) updates.signaturePath = data.signaturePath;
 
     if (Object.keys(updates).length === 0) return { message: "No changes made" };
 
@@ -309,7 +302,6 @@ export async function getUsersWithLockStatus() {
             role: true,
             isQC: true,
             isPM: true,
-            signaturePath: true,
             createdAt: true,
             failedLoginAttempts: true,
             lockedUntil: true,
