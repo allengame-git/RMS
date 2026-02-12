@@ -131,6 +131,8 @@ export default function EditDataFileButton({ file }: { file: DataFile }) {
                             type="number"
                             name="dataYear"
                             defaultValue={file.dataYear}
+                            min={1950}
+                            max={2200}
                             required
                             style={{
                                 width: '100%',

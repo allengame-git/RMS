@@ -160,8 +160,8 @@ export default function UploadDataFileForm() {
                         type="number"
                         name="dataYear"
                         defaultValue={currentYear}
-                        min={2000}
-                        max={2100}
+                        min={1950}
+                        max={2200}
                         required
                         style={{
                             width: '100%',
