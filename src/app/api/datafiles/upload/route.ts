@@ -27,6 +27,43 @@ import path from 'path';
 // 100MB limit
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
+// Allowed MIME types for data file uploads
+const ALLOWED_TYPES = [
+    // PDF
+    'application/pdf',
+    // Word
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    // Excel
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // PowerPoint
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    // Images (no SVG — XSS risk)
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    // Text / Data
+    'text/plain',
+    'text/csv',
+    'application/json',
+    'application/xml',
+    'text/xml',
+    // Archives
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/x-rar-compressed',
+    'application/x-7z-compressed',
+    'application/x-tar',
+    'application/gzip',
+    // AutoCAD / Engineering
+    'application/acad',
+    'image/vnd.dwg',
+    'application/octet-stream', // fallback for binary formats without specific MIME
+];
+
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
@@ -54,6 +91,13 @@ export async function POST(request: NextRequest) {
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json({
                 error: `檔案大小超過限制 (最大 100MB)`
+            }, { status: 400 });
+        }
+
+        // Validate file type against whitelist
+        if (file.type && !ALLOWED_TYPES.includes(file.type)) {
+            return NextResponse.json({
+                error: `不支援的檔案類型：${file.type}`
             }, { status: 400 });
         }
 
