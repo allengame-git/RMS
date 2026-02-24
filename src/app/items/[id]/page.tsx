@@ -27,6 +27,7 @@ import { buildItemTree } from "@/lib/tree-utils";
 import SidebarNav from "@/components/item/SidebarNav";
 import EditItemButton from "@/components/item/EditItemButton";
 import DeleteItemButton from "@/components/item/DeleteItemButton";
+import DOMPurify from "isomorphic-dompurify";
 
 export const dynamic = 'force-dynamic';
 
@@ -386,7 +387,7 @@ export default async function ItemDetailPage({ params }: { params: { id: string 
                             <div
                                 className="rich-text-content"
                                 style={{ lineHeight: "1.8" }}
-                                dangerouslySetInnerHTML={{ __html: item.content }}
+                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.content) }}
                             />
                         ) : (
                             <p style={{ color: "var(--color-text-muted)", fontStyle: "italic", textAlign: 'center', padding: '2rem 0' }}>

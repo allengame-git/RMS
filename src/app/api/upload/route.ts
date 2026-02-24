@@ -47,7 +47,7 @@ const ALLOWED_TYPES = [
     'image/png',
     'image/gif',
     'image/webp',
-    'image/svg+xml',
+    // SVG removed: can contain <script> tags (XSS risk)
     // Text
     'text/plain',
     'text/csv',

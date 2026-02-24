@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 /**
  * @file route.ts (api/datafiles/search)
@@ -19,6 +21,10 @@ import { prisma } from "@/lib/prisma";
  * @see /src/components/item/ReferencesManager.tsx - 呼叫此 API
  */
 export async function GET(request: NextRequest) {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
     const limit = parseInt(searchParams.get("limit") || "20", 10);

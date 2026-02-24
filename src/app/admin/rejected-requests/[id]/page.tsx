@@ -2,6 +2,7 @@ import { getRejectedRequestDetail } from "@/data/rejected-requests";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import RejectedRequestEditForm from "./RejectedRequestEditForm";
+import DOMPurify from "isomorphic-dompurify";
 
 export const dynamic = "force-dynamic";
 
@@ -159,7 +160,7 @@ export default async function RejectedRequestDetailPage({ params }: { params: { 
                                         maxHeight: "300px",
                                         overflow: "auto"
                                     }}
-                                    dangerouslySetInnerHTML={{ __html: requestData.content }}
+                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(requestData.content) }}
                                 />
                             </div>
                         )}

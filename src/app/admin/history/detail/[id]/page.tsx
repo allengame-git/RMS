@@ -2,6 +2,7 @@ import { getHistoryDetail, ItemSnapshot } from "@/actions/history";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import ReviewProcessTimeline from "@/components/approval/ReviewProcessTimeline";
+import DOMPurify from "isomorphic-dompurify";
 
 export const dynamic = 'force-dynamic';
 
@@ -275,7 +276,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                                 <div
                                     className="rich-text-content"
                                     style={{ fontSize: '0.9rem', maxHeight: '400px', overflow: 'auto' }}
-                                    dangerouslySetInnerHTML={{ __html: value.old || '<em style="color:var(--color-text-muted)">空白</em>' }}
+                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value.old || '<em style="color:var(--color-text-muted)">空白</em>') }}
                                 />
                             ) : isRelatedItems ? (
                                 renderRelatedItemsList(value.old)
@@ -307,7 +308,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                                 <div
                                     className="rich-text-content"
                                     style={{ fontSize: '0.9rem', maxHeight: '400px', overflow: 'auto' }}
-                                    dangerouslySetInnerHTML={{ __html: value.new || '<em style="color:var(--color-text-muted)">空白</em>' }}
+                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value.new || '<em style="color:var(--color-text-muted)">空白</em>') }}
                                 />
                             ) : isRelatedItems ? (
                                 renderRelatedItemsList(value.new)
@@ -544,7 +545,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                                 borderRadius: 'var(--radius-md)',
                                 border: '1px solid var(--color-border)'
                             }}
-                            dangerouslySetInnerHTML={{ __html: previousSnapshot.content || '<span style="color:var(--color-text-muted);font-style:italic">無內容</span>' }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previousSnapshot.content || '<span style="color:var(--color-text-muted);font-style:italic">無內容</span>') }}
                         />
                     </div>
 
@@ -647,7 +648,7 @@ export default async function HistoryDetailPage({ params }: { params: { id: stri
                                 borderRadius: 'var(--radius-md)',
                                 border: '1px solid var(--color-border)'
                             }}
-                            dangerouslySetInnerHTML={{ __html: snapshot.content || '<span style="color:var(--color-text-muted);font-style:italic">無內容</span>' }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(snapshot.content || '<span style="color:var(--color-text-muted);font-style:italic">無內容</span>') }}
                         />
                     </div>
 

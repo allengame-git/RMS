@@ -85,8 +85,9 @@ export async function GET(
         const fileName = path.basename(filePath);
         const encodedFileName = encodeURIComponent(fileName);
 
-        // 對於圖片以外的檔案強制下載，圖片則 inline 顯示
-        if (!contentType.startsWith('image/')) {
+        // SVG must be served as attachment (can contain <script> tags — XSS risk)
+        // All non-image types and SVGs are forced download
+        if (!contentType.startsWith('image/') || contentType === 'image/svg+xml') {
             headers.set('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
         } else {
             headers.set('Content-Disposition', `inline; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
