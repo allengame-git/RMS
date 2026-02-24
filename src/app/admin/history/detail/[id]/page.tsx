@@ -60,8 +60,9 @@ const DownloadIcon = () => (
     </svg>
 );
 
-export default async function HistoryDetailPage({ params }: { params: { id: string } }) {
-    const historyId = parseInt(params.id);
+export default async function HistoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const historyId = parseInt(id);
     if (isNaN(historyId)) return notFound();
 
     const record = await getHistoryDetail(historyId);

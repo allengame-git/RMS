@@ -8,13 +8,14 @@ import Link from 'next/link';
 export default async function DataFilesSearchPage({
     searchParams
 }: {
-    searchParams: { q?: string; year?: string }
+    searchParams: Promise<{ q?: string; year?: string }>
 }) {
+    const resolvedSearchParams = await searchParams;
     const session = await getServerSession(authOptions);
     if (!session) redirect('/auth/signin');
 
-    const query = searchParams.q || '';
-    const year = searchParams.year ? parseInt(searchParams.year) : undefined;
+    const query = resolvedSearchParams.q || '';
+    const year = resolvedSearchParams.year ? parseInt(resolvedSearchParams.year) : undefined;
 
     if (!query) {
         redirect('/datafiles');

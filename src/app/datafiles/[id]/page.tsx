@@ -9,12 +9,13 @@ import EditDataFileButton from '@/components/datafile/EditDataFileButton';
 export default async function DataFileDetailPage({
     params
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
     if (!session) redirect('/auth/signin');
 
-    const file = await getDataFile(parseInt(params.id));
+    const file = await getDataFile(parseInt(id));
     if (!file || file.isDeleted) notFound();
 
     const canEdit = ['EDITOR', 'INSPECTOR', 'ADMIN'].includes(session.user.role);

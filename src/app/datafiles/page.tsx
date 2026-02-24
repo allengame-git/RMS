@@ -7,12 +7,13 @@ import DataFileList from '@/components/datafile/DataFileList';
 export default async function DataFilesPage({
     searchParams
 }: {
-    searchParams: { year?: string; q?: string }
+    searchParams: Promise<{ year?: string; q?: string }>
 }) {
+    const resolvedSearchParams = await searchParams;
     const session = await getServerSession(authOptions);
     if (!session) redirect('/auth/signin');
 
-    const selectedYear = searchParams.year ? parseInt(searchParams.year) : undefined;
+    const selectedYear = resolvedSearchParams.year ? parseInt(resolvedSearchParams.year) : undefined;
     const files = await getDataFiles(selectedYear);
     const years = await getDataFileYears();
 
@@ -135,7 +136,7 @@ export default async function DataFilesPage({
                             type="text"
                             name="q"
                             placeholder="搜尋檔案名稱、編碼、作者..."
-                            defaultValue={searchParams.q}
+                            defaultValue={resolvedSearchParams.q}
                             style={{
                                 width: '100%',
                                 padding: '0.75rem 1rem 0.75rem 3rem',

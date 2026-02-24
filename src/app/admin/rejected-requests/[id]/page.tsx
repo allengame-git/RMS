@@ -6,8 +6,9 @@ import DOMPurify from "isomorphic-dompurify";
 
 export const dynamic = "force-dynamic";
 
-export default async function RejectedRequestDetailPage({ params }: { params: { id: string } }) {
-    const requestId = parseInt(params.id);
+export default async function RejectedRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const requestId = parseInt(id);
     if (isNaN(requestId)) return notFound();
 
     const request = await getRejectedRequestDetail(requestId);

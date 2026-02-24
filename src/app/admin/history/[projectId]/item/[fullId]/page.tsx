@@ -3,13 +3,14 @@ import Link from "next/link";
 
 export const dynamic = 'force-dynamic';
 
-export default async function ItemHistoryListPage({ params }: { params: { projectId: string, fullId: string } }) {
-    const history = await getItemHistoryByFullId(parseInt(params.projectId), params.fullId);
+export default async function ItemHistoryListPage({ params }: { params: Promise<{ projectId: string, fullId: string }> }) {
+    const { projectId, fullId } = await params;
+    const history = await getItemHistoryByFullId(parseInt(projectId), fullId);
 
     if (history.length === 0) {
         return (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                找不到歷史記錄： {params.fullId}
+                找不到歷史記錄： {fullId}
             </div>
         )
     }
@@ -21,7 +22,7 @@ export default async function ItemHistoryListPage({ params }: { params: { projec
         <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
             <div style={{ marginBottom: '2rem' }}>
                 <h1 style={{ fontSize: '2rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    {params.fullId}
+                    {fullId}
                     {isDeleted && <span style={{ fontSize: '1rem', background: 'var(--color-error-bg)', color: 'var(--color-error)', padding: '0.25rem 0.75rem', borderRadius: '4px' }}>已刪除</span>}
                 </h1>
                 <h2 style={{ fontSize: '1.2rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>{firstRecord.itemTitle}</h2>

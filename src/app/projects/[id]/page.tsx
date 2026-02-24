@@ -10,8 +10,9 @@ import ProjectSearch from "@/components/search/ProjectSearch";
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
-    const projectId = parseInt(params.id);
+export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const projectId = parseInt(id);
     if (isNaN(projectId)) return notFound();
 
     const project = await prisma.project.findUnique({

@@ -72,8 +72,9 @@ const ChevronLeftIcon = () => (
     </svg>
 );
 
-export default async function ItemDetailPage({ params }: { params: { id: string } }) {
-    const itemId = parseInt(params.id);
+export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const itemId = parseInt(id);
     if (isNaN(itemId)) return notFound();
 
     const item = await prisma.item.findUnique({
