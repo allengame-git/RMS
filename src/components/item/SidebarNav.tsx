@@ -31,7 +31,7 @@
 'use client';
 
 import { ItemNode } from '@/lib/tree-utils';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import CreateItemForm from './CreateItemForm';
 
@@ -80,6 +80,7 @@ interface SidebarNavItemProps {
 }
 
 function SidebarNavItem({ node, level, currentItemId, canEdit = false, projectId }: SidebarNavItemProps) {
+    const router = useRouter();
     const hasChildren = node.children && node.children.length > 0;
     const [isExpanded, setIsExpanded] = useState(true);
     const isCurrentItem = currentItemId === node.id;
@@ -130,8 +131,12 @@ function SidebarNavItem({ node, level, currentItemId, canEdit = false, projectId
                 )}
 
                 {/* Item Link */}
-                <Link
+                <a
                     href={`/items/${node.id}`}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        router.push(`/items/${node.id}`, { scroll: false });
+                    }}
                     style={{
                         flex: 1,
                         display: 'flex',
@@ -140,6 +145,7 @@ function SidebarNavItem({ node, level, currentItemId, canEdit = false, projectId
                         textDecoration: 'none',
                         color: 'inherit',
                         minWidth: 0,
+                        cursor: 'pointer',
                     }}
                     className="sidebar-item-link"
                 >
@@ -163,7 +169,7 @@ function SidebarNavItem({ node, level, currentItemId, canEdit = false, projectId
                     }}>
                         {node.title}
                     </span>
-                </Link>
+                </a>
 
                 {/* Child count indicator */}
                 {hasChildren && (

@@ -1,6 +1,7 @@
 import { getIsoDocumentsByProject } from '@/actions/history';
 import { prisma } from '@/lib/prisma';
 import IsoDocList from '@/components/iso-docs/IsoDocList';
+import DownloadAllButton from '@/components/iso-docs/DownloadAllButton';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -62,13 +63,17 @@ export default async function ProjectIsoDocsPage({ params }: { params: Params })
             <div style={{
                 marginBottom: '2rem',
                 paddingBottom: '1.5rem',
-                borderBottom: '1px solid var(--color-border)'
+                borderBottom: '1px solid var(--color-border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '1rem',
+                flexWrap: 'wrap'
             }}>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '1rem',
-                    marginBottom: '0.5rem'
                 }}>
                     <div style={{
                         width: '48px',
@@ -110,6 +115,7 @@ export default async function ProjectIsoDocsPage({ params }: { params: Params })
                         </div>
                     </div>
                 </div>
+                <DownloadAllButton projectId={projectIdNum} docCount={docs.length} />
             </div>
 
             <IsoDocList docs={docs} />
