@@ -29,9 +29,9 @@
 
 "use client";
 
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
 import { createProject, ProjectState } from "@/actions/project";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useActionState } from "react";
 
 interface Category {
     id: number;
@@ -57,7 +57,7 @@ function SubmitButton() {
 }
 
 export default function CreateProjectForm({ categories }: CreateProjectFormProps) {
-    const [state, formAction] = useFormState(createProject, initialState);
+    const [state, formAction] = useActionState(createProject, initialState);
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {

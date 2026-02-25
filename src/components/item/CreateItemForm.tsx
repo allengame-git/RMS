@@ -32,10 +32,10 @@
 
 "use client";
 
-import { useFormStatus, useFormState } from "react-dom";
+import { useFormStatus } from "react-dom";
 import { createPortal } from "react-dom";
 import { submitCreateItemRequest, ApprovalState } from "@/actions/approval";
-import { useEffect, useState, CSSProperties, ReactNode } from "react";
+import { useEffect, useState, CSSProperties, ReactNode, useActionState } from "react";
 import { useRouter } from "next/navigation";
 import RichTextEditor from "../editor/RichTextEditor";
 import RelatedItemsManager from "./RelatedItemsManager";
@@ -132,7 +132,7 @@ interface CreateItemFormProps {
 
 export default function CreateItemForm({ projectId, parentId, parentFullId, codePrefix, style, className, modal = false, trigger }: CreateItemFormProps) {
     const router = useRouter();
-    const [state, formAction] = useFormState(submitCreateItemRequest, initialState);
+    const [state, formAction] = useActionState(submitCreateItemRequest, initialState);
     const [isOpen, setIsOpen] = useState(false);
     const [content, setContent] = useState("");
     const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);

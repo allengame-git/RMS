@@ -31,8 +31,8 @@
 'use client';
 
 import { ItemNode } from '@/lib/tree-utils';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import Link from 'next/link';
+import { useSidebarStore } from '@/stores/sidebarStore';
 import CreateItemForm from './CreateItemForm';
 
 interface SidebarNavProps {
@@ -80,9 +80,9 @@ interface SidebarNavItemProps {
 }
 
 function SidebarNavItem({ node, level, currentItemId, canEdit = false, projectId }: SidebarNavItemProps) {
-    const router = useRouter();
     const hasChildren = node.children && node.children.length > 0;
-    const [isExpanded, setIsExpanded] = useState(true);
+    const { toggle, isExpanded: checkExpanded } = useSidebarStore();
+    const isExpanded = checkExpanded(node.id);
     const isCurrentItem = currentItemId === node.id;
 
     return (
@@ -105,7 +105,7 @@ function SidebarNavItem({ node, level, currentItemId, canEdit = false, projectId
                 {/* Expand/Collapse Toggle */}
                 {hasChildren ? (
                     <button
-                        onClick={() => setIsExpanded(!isExpanded)}
+                        onClick={() => toggle(node.id)}
                         style={{
                             background: 'transparent',
                             border: 'none',
@@ -131,12 +131,9 @@ function SidebarNavItem({ node, level, currentItemId, canEdit = false, projectId
                 )}
 
                 {/* Item Link */}
-                <a
+                <Link
                     href={`/items/${node.id}`}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        router.push(`/items/${node.id}`, { scroll: false });
-                    }}
+                    scroll={false}
                     style={{
                         flex: 1,
                         display: 'flex',
@@ -169,7 +166,7 @@ function SidebarNavItem({ node, level, currentItemId, canEdit = false, projectId
                     }}>
                         {node.title}
                     </span>
-                </a>
+                </Link>
 
                 {/* Child count indicator */}
                 {hasChildren && (
