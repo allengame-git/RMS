@@ -163,16 +163,13 @@ export async function submitCreateItemRequest(
 
     const submitReason = formData.get("submitReason") as string || null;
 
-    // v2.1.5: Pre-allocate fullId at submission time
-    const fullId = await generateNextItemId(projectId, parentId);
-
     const data = JSON.stringify({
         title,
         content,
         attachments,
         relatedItems,
         references,
-        fullId // Store the pre-allocated ID 
+        // 注意：不再預分配 fullId，改為在審核通過時於交易內生成，避免並發競態條件
     });
 
     try {
@@ -503,10 +500,8 @@ async function handleItemCreateApproval(
 ) {
     if (!request.targetProjectId) throw new Error("Missing target project");
 
-    // v2.1.5: Use pre-allocated fullId from request data if available
-    // Otherwise fallback to dynamic generation (for older pending requests)
-    const dataWithFullId = data as any;
-    const fullId = dataWithFullId.fullId || await generateNextItemId(
+    // 在交易內動態生成 fullId，確保唯一性（避免並發競態條件）
+    const fullId = await generateNextItemId(
         request.targetProjectId,
         request.targetParentId,
         tx

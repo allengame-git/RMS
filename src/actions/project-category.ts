@@ -145,15 +145,18 @@ export async function deleteCategory(id: number): Promise<CategoryState> {
     }
 
     try {
-        // First, unlink all projects from this category
-        await prisma.project.updateMany({
-            where: { categoryId: id },
-            data: { categoryId: null }
-        });
+        // 使用交易確保解除關聯與刪除的原子性
+        await prisma.$transaction(async (tx) => {
+            // First, unlink all projects from this category
+            await tx.project.updateMany({
+                where: { categoryId: id },
+                data: { categoryId: null }
+            });
 
-        // Then delete the category
-        await prisma.projectCategory.delete({
-            where: { id }
+            // Then delete the category
+            await tx.projectCategory.delete({
+                where: { id }
+            });
         });
 
         revalidatePath("/projects");
@@ -175,8 +178,8 @@ export async function reorderCategories(orderedIds: number[]): Promise<CategoryS
     }
 
     try {
-        // Update each category's sortOrder
-        await Promise.all(
+        // 使用交易確保排序更新的原子性，避免部分失敗導致不一致
+        await prisma.$transaction(
             orderedIds.map((id, index) =>
                 prisma.projectCategory.update({
                     where: { id },

@@ -39,7 +39,8 @@ export default function NotificationList({ initialNotifications }: NotificationL
         prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
       );
     }
-    if (notification.link) {
+    // 僅允許相對路徑，防止開放重導向攻擊
+    if (notification.link && notification.link.startsWith('/')) {
       router.push(notification.link);
     }
   };

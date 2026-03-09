@@ -495,7 +495,10 @@ export async function rejectDataFileRequest(requestId: number, reviewNote?: stri
     if (!request) throw new Error('Request not found');
     if (request.status !== 'PENDING') throw new Error('Request already processed');
 
-    // 允許使用者拒絕自己的申請（用於撤回）
+    // EDITOR 僅能撤回自己的申請，不可拒絕他人的申請
+    if (session.user.role === 'EDITOR' && request.submittedById !== session.user.id) {
+        throw new Error('編輯者僅能撤回自己的申請');
+    }
 
     await prisma.dataFileChangeRequest.update({
         where: { id: requestId },

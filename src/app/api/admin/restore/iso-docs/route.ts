@@ -44,8 +44,16 @@ export async function POST(request: NextRequest) {
         const buffer = Buffer.from(await file.arrayBuffer());
         fs.writeFileSync(zipPath, buffer);
 
-        // 4. 解壓縮
+        // 4. 解壓縮（含 Zip Slip 防護）
         const zip = new AdmZip(zipPath);
+        const resolvedTempDir = path.resolve(tempDir);
+        for (const entry of zip.getEntries()) {
+            const resolvedTarget = path.resolve(tempDir, entry.entryName);
+            if (!resolvedTarget.startsWith(resolvedTempDir + path.sep) && resolvedTarget !== resolvedTempDir) {
+                fs.rmSync(tempDir, { recursive: true });
+                return NextResponse.json({ error: '備份檔案包含不安全的路徑，已中止還原' }, { status: 400 });
+            }
+        }
         zip.extractAllTo(tempDir, true);
 
         // 5. 驗證 manifest.json
@@ -98,14 +106,24 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * 遞迴複製目錄
+ * 遞迴複製目錄（含 symlink 防護與路徑邊界檢查）
  */
 function copyRecursive(src: string, dest: string): void {
+    const resolvedDest = path.resolve(dest);
     const items = fs.readdirSync(src);
     for (const item of items) {
         const srcPath = path.join(src, item);
         const destPath = path.join(dest, item);
-        const stat = fs.statSync(srcPath);
+
+        // 使用 lstatSync 偵測 symlink，跳過以防止路徑穿越
+        const stat = fs.lstatSync(srcPath);
+        if (stat.isSymbolicLink()) continue;
+
+        // 確認目標路徑在允許範圍內
+        const resolvedTarget = path.resolve(destPath);
+        if (!resolvedTarget.startsWith(resolvedDest + path.sep) && resolvedTarget !== resolvedDest) {
+            throw new Error(`路徑穿越偵測: ${destPath}`);
+        }
 
         if (stat.isDirectory()) {
             fs.mkdirSync(destPath, { recursive: true });

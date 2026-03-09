@@ -61,7 +61,8 @@ const ALLOWED_TYPES = [
     // AutoCAD / Engineering
     'application/acad',
     'image/vnd.dwg',
-    'application/octet-stream', // fallback for binary formats without specific MIME
+    // 已移除 application/octet-stream — 此通用類型會使白名單失效
+    // AutoCAD 檔案請使用 application/acad 或 image/vnd.dwg
 ];
 
 export async function POST(request: NextRequest) {
@@ -94,8 +95,8 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        // Validate file type against whitelist
-        if (file.type && !ALLOWED_TYPES.includes(file.type)) {
+        // Validate file type against whitelist (空 MIME 也拒絕)
+        if (!file.type || !ALLOWED_TYPES.includes(file.type)) {
             return NextResponse.json({
                 error: `不支援的檔案類型：${file.type}`
             }, { status: 400 });

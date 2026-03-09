@@ -37,7 +37,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync, unlinkSync, existsSync } from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
 
@@ -243,7 +243,10 @@ async function generateUniqueCodePrefix(basePrefix: string): Promise<string> {
  * 重新生成 fullId
  */
 function regenerateFullId(oldFullId: string, oldPrefix: string, newPrefix: string): string {
-    return oldFullId.replace(new RegExp(`^${oldPrefix}`), newPrefix);
+    if (oldFullId.startsWith(oldPrefix)) {
+        return newPrefix + oldFullId.slice(oldPrefix.length);
+    }
+    return oldFullId;
 }
 
 /**
@@ -611,8 +614,11 @@ export async function importProjectFromZip(
     let data: ImportData | null = null;
     const extractedFiles: Array<{ zipPath: string; targetPath: string }> = [];
 
+    // 暫存解壓的檔案資料（先讀入記憶體，DB 成功後才寫入磁碟）
+    const pendingFiles: Array<{ targetPath: string; fileData: Buffer }> = [];
+
     try {
-        // 使用 AdmZip 解壓
+        // Step 1: 解壓 ZIP 至記憶體，不寫入磁碟
         const zip = new AdmZip(zipBuffer);
         const entries = zip.getEntries();
 
@@ -624,7 +630,6 @@ export async function importProjectFromZip(
                 const content = entry.getData().toString('utf-8');
                 data = JSON.parse(content);
             } else if (entry.entryName.startsWith('assets/') && !entry.isDirectory) {
-                // 記錄檔案路徑，稍後還原
                 let targetPath: string;
                 if (entry.entryName.startsWith('assets/uploads/datafiles/')) {
                     targetPath = path.join(basePath, 'public', 'uploads', 'datafiles', path.basename(entry.entryName));
@@ -635,12 +640,16 @@ export async function importProjectFromZip(
                 } else {
                     continue;
                 }
-                extractedFiles.push({ zipPath: entry.entryName, targetPath });
 
-                // 確保目錄存在並解壓檔案
-                mkdirSync(path.dirname(targetPath), { recursive: true });
-                const fileData = entry.getData();
-                writeFileSync(targetPath, fileData);
+                // Zip Slip 防護：確認解析後的路徑在 public/ 目錄內
+                const resolvedTarget = path.resolve(targetPath);
+                const resolvedPublic = path.resolve(path.join(basePath, 'public'));
+                if (!resolvedTarget.startsWith(resolvedPublic + path.sep)) {
+                    throw new Error(`路徑穿越偵測: ${entry.entryName}`);
+                }
+
+                // 先暫存至記憶體，稍後寫入
+                pendingFiles.push({ targetPath, fileData: entry.getData() });
             }
         }
 
@@ -657,17 +666,40 @@ export async function importProjectFromZip(
             console.warn(`備份版本 ${manifest.version} 與系統版本 ${SYSTEM_VERSION} 不同，將嘗試匯入`);
         }
 
-        // 匯入資料
+        // Step 2: 先執行資料庫匯入（交易內，失敗自動回滾）
         const result = await importProjectData(data, options);
+
+        if (!result.success) {
+            // DB 匯入失敗，不寫入任何檔案
+            return result;
+        }
+
+        // Step 3: DB 成功後才寫入檔案至磁碟
+        for (const { targetPath, fileData } of pendingFiles) {
+            mkdirSync(path.dirname(targetPath), { recursive: true });
+            writeFileSync(targetPath, fileData);
+            extractedFiles.push({ zipPath: '', targetPath });
+        }
 
         // 更新統計
         result.stats.filesRestored = extractedFiles.length;
 
         return result;
     } catch (error) {
+        // 清理已寫入的檔案（若部分檔案已寫入後發生錯誤）
+        for (const { targetPath } of extractedFiles) {
+            try {
+                if (existsSync(targetPath)) {
+                    unlinkSync(targetPath);
+                }
+            } catch {
+                // 忽略清理錯誤
+            }
+        }
+
         return {
             success: false,
-            error: `解壓 ZIP 失敗: ${error instanceof Error ? error.message : '未知錯誤'}`,
+            error: `匯入失敗: ${error instanceof Error ? error.message : '未知錯誤'}`,
             stats: { itemsImported: 0, filesRestored: 0 },
         };
     }

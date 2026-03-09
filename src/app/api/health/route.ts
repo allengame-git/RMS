@@ -23,12 +23,12 @@ export async function GET() {
             database: 'connected',
             version: process.env.npm_package_version || '0.1.0'
         });
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json({
             status: 'error',
             timestamp: new Date().toISOString(),
             database: 'disconnected',
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: 'database unavailable'
         }, { status: 500 });
     }
 }

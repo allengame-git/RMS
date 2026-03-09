@@ -61,8 +61,16 @@ export async function POST(request: NextRequest) {
             const zipPath = path.join(tempDir, 'backup.zip');
             fs.writeFileSync(zipPath, buffer);
 
-            // 解壓縮
+            // 解壓縮（含 Zip Slip 防護）
             const zip = new AdmZip(zipPath);
+            const resolvedTempDir = path.resolve(tempDir);
+            for (const entry of zip.getEntries()) {
+                const resolvedTarget = path.resolve(tempDir, entry.entryName);
+                if (!resolvedTarget.startsWith(resolvedTempDir + path.sep) && resolvedTarget !== resolvedTempDir) {
+                    fs.rmSync(tempDir, { recursive: true });
+                    return NextResponse.json({ error: '備份檔案包含不安全的路徑，已中止還原' }, { status: 400 });
+                }
+            }
             zip.extractAllTo(tempDir, true);
 
             // 驗證 manifest.json
@@ -126,22 +134,43 @@ export async function POST(request: NextRequest) {
         console.log(`  - 使用者記錄數: ${userInsertMatches.length}`);
         console.log(`  - 管理員帳號數: ${adminInsertMatches.length}`);
 
-        // 5. 執行 SQL (使用 $executeRawUnsafe 逐行執行)
+        // 5. 執行 SQL (使用 $executeRawUnsafe 逐行執行，包裹在交易中)
         const statements = sql
             .split(';\n')
             .map(s => s.trim())
             .filter(s => s && !s.startsWith('--'));
 
+        // SQL 語句類型白名單 — 僅允許備份還原所需的語句
+        const ALLOWED_SQL_PREFIXES = [
+            'INSERT INTO',
+            'DELETE FROM',
+            'TRUNCATE TABLE',
+            'TRUNCATE',
+            'SET ',
+            'BEGIN',
+            'COMMIT',
+        ];
+
+        // 驗證所有語句類型
         for (const statement of statements) {
-            if (statement) {
-                try {
-                    await prisma.$executeRawUnsafe(statement);
-                } catch (err) {
-                    console.error('SQL execution error:', statement.slice(0, 100), err);
-                    // 繼續執行，不中斷
-                }
+            if (!statement) continue;
+            const upper = statement.toUpperCase().trimStart();
+            const isAllowed = ALLOWED_SQL_PREFIXES.some(prefix => upper.startsWith(prefix));
+            if (!isAllowed) {
+                return NextResponse.json({
+                    error: `SQL 包含不允許的語句類型，已中止還原。問題語句：${statement.slice(0, 80)}...`
+                }, { status: 400 });
             }
         }
+
+        // 在單一交易中執行所有語句，任一失敗即全部回滾
+        await prisma.$transaction(async (tx) => {
+            for (const statement of statements) {
+                if (statement) {
+                    await tx.$executeRawUnsafe(statement);
+                }
+            }
+        });
 
         // 6. 強制登出所有使用者
         await forceLogoutAllUsers();

@@ -117,8 +117,9 @@ export const authOptions: NextAuthOptions = {
                 );
 
                 if (!isPasswordValid) {
-                    // Increment failed attempts
-                    const newAttempts = user.failedLoginAttempts + 1;
+                    // 若鎖定已過期，重置計數器後再遞增（防止永久鎖定）
+                    const baseAttempts = (user.lockedUntil && user.lockedUntil <= new Date()) ? 0 : user.failedLoginAttempts;
+                    const newAttempts = baseAttempts + 1;
                     const shouldLock = newAttempts >= LOCKOUT_CONFIG.maxAttempts;
 
                     await prisma.user.update({

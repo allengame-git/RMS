@@ -64,35 +64,37 @@ export async function addRelatedItem(sourceItemId: number, targetFullId: string,
             return { success: false, error: `項目 ${targetFullId} 已經是關聯項目` };
         }
 
-        // 3. Create relation (bidirectional)
-        // Create A -> B
-        await prisma.itemRelation.create({
-            data: {
-                sourceId: sourceItemId,
-                targetId: targetItem.id,
-                description: description || null
-            }
-        });
-
-        // Create B -> A (symmetric relation)
-        const reverseExists = await prisma.itemRelation.findUnique({
-            where: {
-                sourceId_targetId: {
-                    sourceId: targetItem.id,
-                    targetId: sourceItemId
-                }
-            }
-        });
-
-        if (!reverseExists) {
-            await prisma.itemRelation.create({
+        // 3. Create relation (bidirectional) — 使用交易確保原子性
+        await prisma.$transaction(async (tx) => {
+            // Create A -> B
+            await tx.itemRelation.create({
                 data: {
-                    sourceId: targetItem.id,
-                    targetId: sourceItemId,
+                    sourceId: sourceItemId,
+                    targetId: targetItem.id,
                     description: description || null
                 }
             });
-        }
+
+            // Create B -> A (symmetric relation)
+            const reverseExists = await tx.itemRelation.findUnique({
+                where: {
+                    sourceId_targetId: {
+                        sourceId: targetItem.id,
+                        targetId: sourceItemId
+                    }
+                }
+            });
+
+            if (!reverseExists) {
+                await tx.itemRelation.create({
+                    data: {
+                        sourceId: targetItem.id,
+                        targetId: sourceItemId,
+                        description: description || null
+                    }
+                });
+            }
+        });
 
         revalidatePath(`/items/${sourceItemId}`);
         return { success: true };

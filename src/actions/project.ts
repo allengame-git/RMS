@@ -43,8 +43,8 @@ export type ProjectState = {
 export async function createProject(prevState: ProjectState, formData: FormData): Promise<ProjectState> {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role === "VIEWER") {
-        return { error: "Unauthorized: Only Admins and Editors can create projects." };
+    if (!session || !["ADMIN", "INSPECTOR"].includes(session.user.role)) {
+        return { error: "Unauthorized: 僅限管理員與審核者可建立專案。" };
     }
 
     const title = formData.get("title") as string;
