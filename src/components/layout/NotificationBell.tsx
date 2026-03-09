@@ -100,8 +100,8 @@ export default function NotificationBell() {
             );
         }
 
-        // 僅允許相對路徑，防止開放重導向攻擊
-        if (notification.link && notification.link.startsWith('/')) {
+        // 僅允許相對路徑，防止開放重導向攻擊（排除 // 協議相對 URL）
+        if (notification.link && /^\/[^/]/.test(notification.link)) {
             router.push(notification.link);
         }
         setIsOpen(false);

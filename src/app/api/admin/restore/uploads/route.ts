@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
 /**
  * 遞迴複製目錄（含 symlink 防護與路徑邊界檢查）
  */
-function copyRecursive(src: string, dest: string): void {
-    const resolvedDest = path.resolve(dest);
+function copyRecursive(src: string, dest: string, rootDest?: string): void {
+    const boundary = path.resolve(rootDest ?? dest);
     const items = fs.readdirSync(src);
     for (const item of items) {
         const srcPath = path.join(src, item);
@@ -134,15 +134,15 @@ function copyRecursive(src: string, dest: string): void {
         const stat = fs.lstatSync(srcPath);
         if (stat.isSymbolicLink()) continue;
 
-        // 確認目標路徑在允許範圍內
+        // 確認目標路徑在原始根目標範圍內（遞迴時邊界不變）
         const resolvedTarget = path.resolve(destPath);
-        if (!resolvedTarget.startsWith(resolvedDest + path.sep) && resolvedTarget !== resolvedDest) {
+        if (!resolvedTarget.startsWith(boundary + path.sep) && resolvedTarget !== boundary) {
             throw new Error(`路徑穿越偵測: ${destPath}`);
         }
 
         if (stat.isDirectory()) {
             fs.mkdirSync(destPath, { recursive: true });
-            copyRecursive(srcPath, destPath);
+            copyRecursive(srcPath, destPath, rootDest ?? dest);
         } else {
             fs.copyFileSync(srcPath, destPath);
         }

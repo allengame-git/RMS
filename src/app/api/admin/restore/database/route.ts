@@ -141,12 +141,16 @@ export async function POST(request: NextRequest) {
             .filter(s => s && !s.startsWith('--'));
 
         // SQL 語句類型白名單 — 僅允許備份還原所需的語句
+        // 注意：SET 僅允許特定變體，避免 SET ROLE / SET SESSION AUTHORIZATION 等權限提升
         const ALLOWED_SQL_PREFIXES = [
             'INSERT INTO',
             'DELETE FROM',
             'TRUNCATE TABLE',
             'TRUNCATE',
-            'SET ',
+            'SET SESSION_REPLICATION_ROLE',
+            'SET CONSTRAINTS',
+            'SET STATEMENT_TIMEOUT',
+            'SET LOCK_TIMEOUT',
             'BEGIN',
             'COMMIT',
         ];
