@@ -12,6 +12,7 @@ LLRWD-RMS (Low-level Radiowaste Disposal Management System) — a full-featured 
 npm run dev          # Start development server (localhost:3000)
 npm run build        # Production build (standalone output)
 npm run lint         # ESLint check
+npx tsc --noEmit     # Type-check without emitting files
 npx prisma generate  # Regenerate Prisma client after schema changes
 npx prisma migrate dev --name <name>  # Create and apply migration
 npx prisma studio    # GUI database browser
@@ -59,9 +60,17 @@ User roles: VIEWER, EDITOR, INSPECTOR, ADMIN. Users can also have `isQC` and `is
 
 NextAuth.js with Credentials provider and JWT session strategy. Auth config in `src/lib/auth.ts`. Session includes: id, username, role, isPM, isQC. Account lockout after 5 failed attempts (15-min lock).
 
+### Middleware (Edge Auth)
+
+`src/middleware.ts` protects all routes at the edge using `next-auth/jwt`'s `getToken`. Excludes: `/auth/login`, `/api/auth`, `/api/health`, `_next/static`, `_next/image`, `favicon.ico`.
+
 ### API Routes Pattern
 
 REST endpoints under `src/app/api/`. All require session authentication. Server Actions in `src/actions/` handle mutations with role-based access checks.
+
+### Backup & Restore
+
+`src/lib/backup/` handles project import/export (ZIP with manifest.json). Admin restore endpoints at `src/app/api/admin/restore/{database,iso-docs,uploads}/`. Database restore uses SQL whitelist and transaction wrapping. File restores use symlink-aware recursive copy with path boundary checks.
 
 ### Styling
 
@@ -85,3 +94,12 @@ Uses `pdf-lib` (pure JS, no browser dependency) in `src/lib/pdf-generator.ts` fo
 - ESLint: `@typescript-eslint/no-explicit-any` and unused vars are warnings (underscore-prefixed vars ignored)
 - Next.js standalone output mode for Docker deployment
 - Server Actions body size limit: 100MB (for file uploads)
+
+## Security Gotchas
+
+- **Open redirect prevention**: Validate `notification.link` with `/^\/[^/]/` regex, not just `startsWith('/')` — protocol-relative URLs (`//evil.com`) bypass the naive check
+- **ZIP Slip**: Always verify `path.resolve(entry)` stays within the target directory before extraction
+- **Recursive copy boundary**: `copyRecursive` must pin the boundary to the original root dest (`rootDest` parameter), not the current recursion level's `dest`
+- **SQL restore whitelist**: Only allow specific `SET` variants (`SET SESSION_REPLICATION_ROLE`, `SET CONSTRAINTS`, etc.) — a broad `SET ` prefix allows privilege escalation (`SET ROLE`)
+- **MIME validation**: Reject empty `file.type` and `application/octet-stream` to prevent whitelist bypass
+- **Multi-step DB mutations**: Wrap in `prisma.$transaction()` for atomicity (e.g., bidirectional relations, reordering, import operations)
