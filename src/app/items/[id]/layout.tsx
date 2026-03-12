@@ -24,7 +24,7 @@ export default async function ItemLayout({
     if (!item) return notFound();
 
     const projectItems = await prisma.item.findMany({
-        where: { projectId: item.projectId },
+        where: { projectId: item.projectId, isDeleted: false },
         select: { id: true, fullId: true, title: true, parentId: true, projectId: true },
         orderBy: { fullId: 'asc' }
     });

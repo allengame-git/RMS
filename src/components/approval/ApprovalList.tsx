@@ -39,7 +39,7 @@
 "use client";
 
 import { approveRequest, rejectRequest, cancelChangeRequest } from "@/actions/approval";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { formatDate, formatDateTime } from "@/lib/date-utils";
 import DOMPurify from "isomorphic-dompurify";
 
@@ -125,6 +125,13 @@ const getComparableReferences = (refs: Reference[]) => {
 export default function ApprovalList({ requests, currentUsername, currentUserRole }: { requests: ApprovalRequest[]; currentUsername: string; currentUserRole: string }) {
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [loading, setLoading] = useState<number | null>(null);
+    const detailRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (expandedId !== null && detailRef.current) {
+            detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [expandedId]);
     const [confirmDialog, setConfirmDialog] = useState<{ id: number; action: 'approve' | 'reject' | 'cancel' } | null>(null);
     const [errorDialog, setErrorDialog] = useState<string | null>(null);
     const [reviewNote, setReviewNote] = useState('');
@@ -213,7 +220,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                 gap: '1.5rem',
                 marginBottom: '2rem'
             }}>
-                {requests.map(req => {
+                {requests.map((req, index) => {
                     const data = JSON.parse(req.data);
                     const isExpanded = expandedId === req.id;
                     const submitterUsername = req.submittedBy?.username || req.submitterName || '(已刪除)';
@@ -225,6 +232,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                             className="glass"
                             onClick={() => handleCardClick(req.id)}
                             style={{
+                                order: index,
                                 padding: "1.5rem",
                                 borderRadius: "var(--radius-md)",
                                 cursor: "pointer",
@@ -338,21 +346,22 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                         </div>
                     );
                 })}
-            </div>
 
-            {/* Expanded Detail Panel */}
+            {/* Detail Panel - 顯示在被點擊的 card 下方 */}
             {expandedId !== null && (() => {
+                const expandedIndex = requests.findIndex(r => r.id === expandedId);
                 const req = requests.find(r => r.id === expandedId);
                 if (!req) return null;
 
                 const data = JSON.parse(req.data);
 
                 return (
-                    <div className="glass" style={{
+                    <div ref={detailRef} className="glass" style={{
+                        gridColumn: "1 / -1",
+                        order: expandedIndex,
                         padding: "2rem",
                         borderRadius: "var(--radius-lg)",
                         border: "2px solid var(--color-primary)",
-                        marginTop: "2rem"
                     }}>
                         {/* Detail Header */}
                         <div style={{
@@ -887,6 +896,7 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
                     </div>
                 );
             })()}
+            </div>
 
             {/* Confirmation Dialog */}
             {confirmDialog && (() => {

@@ -87,6 +87,7 @@ interface ChangeRequestWithIncludes {
 interface ApprovalData {
     title: string;
     content: string | null;
+    fullId?: string;
     attachments?: { name: string; path: string; size: number; type: string }[];
     relatedItems?: { id: number; description?: string }[];
     references?: { fileId: number; citation?: string }[];
@@ -163,13 +164,16 @@ export async function submitCreateItemRequest(
 
     const submitReason = formData.get("submitReason") as string || null;
 
+    // 提交時就預分配 fullId，確保編號順序對應提交順序
+    const fullId = await generateNextItemId(projectId, parentId);
+
     const data = JSON.stringify({
         title,
         content,
         attachments,
         relatedItems,
         references,
-        // 注意：不再預分配 fullId，改為在審核通過時於交易內生成，避免並發競態條件
+        fullId,
     });
 
     try {
@@ -500,8 +504,8 @@ async function handleItemCreateApproval(
 ) {
     if (!request.targetProjectId) throw new Error("Missing target project");
 
-    // 在交易內動態生成 fullId，確保唯一性（避免並發競態條件）
-    const fullId = await generateNextItemId(
+    // 優先使用提交時預分配的 fullId，若不存在則 fallback 動態產生（相容舊資料）
+    const fullId = data.fullId || await generateNextItemId(
         request.targetProjectId,
         request.targetParentId,
         tx
