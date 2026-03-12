@@ -170,11 +170,17 @@ export async function POST(request: NextRequest) {
         // 在單一交易中執行所有語句，任一失敗即全部回滾
         // timeout: 大量資料 (2000+ items) 可能需要較長時間
         await prisma.$transaction(async (tx) => {
+            // 關閉 FK 觸發器，避免 INSERT 順序導致的 foreign key 違規
+            await tx.$executeRawUnsafe(`SET session_replication_role = 'replica'`);
+
             for (const statement of statements) {
                 if (statement) {
                     await tx.$executeRawUnsafe(statement);
                 }
             }
+
+            // 恢復 FK 觸發器
+            await tx.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`);
         }, {
             maxWait: 30000,  // 等待取得連線的最大時間 (30s)
             timeout: 120000, // 交易執行的最大時間 (120s)
