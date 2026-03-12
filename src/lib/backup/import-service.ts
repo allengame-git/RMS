@@ -592,6 +592,9 @@ export async function importProjectData(
                     filesRestored,
                 },
             };
+        }, {
+            maxWait: 30000,  // 等待取得連線的最大時間 (30s)
+            timeout: 120000, // 交易執行的最大時間 (120s)
         });
     } catch (error) {
         return {

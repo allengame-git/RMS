@@ -168,12 +168,16 @@ export async function POST(request: NextRequest) {
         }
 
         // 在單一交易中執行所有語句，任一失敗即全部回滾
+        // timeout: 大量資料 (2000+ items) 可能需要較長時間
         await prisma.$transaction(async (tx) => {
             for (const statement of statements) {
                 if (statement) {
                     await tx.$executeRawUnsafe(statement);
                 }
             }
+        }, {
+            maxWait: 30000,  // 等待取得連線的最大時間 (30s)
+            timeout: 120000, // 交易執行的最大時間 (120s)
         });
 
         // 6. 強制登出所有使用者
