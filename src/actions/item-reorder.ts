@@ -22,6 +22,36 @@ export interface ReorderResult {
 // ==================== Helper Functions ====================
 
 /**
+ * Check if any of the given item IDs have PENDING ChangeRequests.
+ * Returns an error message if blocked, or null if clear.
+ */
+async function checkPendingChangeRequests(
+  itemIds: number[]
+): Promise<string | null> {
+  if (itemIds.length === 0) return null;
+
+  const pending = await prisma.changeRequest.findMany({
+    where: {
+      itemId: { in: itemIds },
+      status: "PENDING",
+    },
+    select: {
+      item: { select: { fullId: true } },
+    },
+  });
+
+  if (pending.length > 0) {
+    const affectedIds = pending
+      .map((p) => p.item?.fullId)
+      .filter(Boolean)
+      .join("、");
+    return `以下項目有待審核的變更申請，無法進行操作：${affectedIds}`;
+  }
+
+  return null;
+}
+
+/**
  * Walks up the parent chain from targetId to detect cycles.
  * Returns true if any ancestor of targetId === itemId.
  */
@@ -177,6 +207,12 @@ export async function reorderItems(
     return { success: true, data: { changes: [] } };
   }
 
+  // Check for pending ChangeRequests on affected items
+  const pendingError = await checkPendingChangeRequests(
+    actualChanges.map((c) => c.itemId)
+  );
+  if (pendingError) return { success: false, error: pendingError };
+
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await batchCascadeFullIdChanges(tx, actualChanges, projectId);
@@ -309,6 +345,10 @@ export async function moveItem(
   });
   if (!item) return { success: false, error: "找不到該項目" };
   if (item.isDeleted) return { success: false, error: "無法移動已刪除的項目" };
+
+  // Check for pending ChangeRequests on the item being moved
+  const pendingError = await checkPendingChangeRequests([itemId]);
+  if (pendingError) return { success: false, error: pendingError };
 
   // Cycle check
   if (newParentId !== null) {
@@ -455,6 +495,12 @@ export async function renumberItems(
   if (actualChanges.length === 0) {
     return { success: true, data: { changes: [] } };
   }
+
+  // Check for pending ChangeRequests on affected items
+  const pendingError = await checkPendingChangeRequests(
+    actualChanges.map((c) => c.itemId)
+  );
+  if (pendingError) return { success: false, error: pendingError };
 
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
