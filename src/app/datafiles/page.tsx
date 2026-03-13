@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getDataFiles, getDataFileYears } from '@/actions/data-files';
 import DataFileList from '@/components/datafile/DataFileList';
+import Link from 'next/link';
 
 export default async function DataFilesPage({
     searchParams
@@ -49,7 +50,7 @@ export default async function DataFilesPage({
                 </div>
 
                 {canUpload && (
-                    <a
+                    <Link
                         href="/datafiles/upload"
                         className="btn btn-primary"
                         style={{
@@ -66,7 +67,7 @@ export default async function DataFilesPage({
                             <line x1="12" y1="3" x2="12" y2="15" />
                         </svg>
                         上傳檔案
-                    </a>
+                    </Link>
                 )}
             </div>
 
@@ -85,22 +86,22 @@ export default async function DataFilesPage({
                 }}>
                     年份篩選：
                 </span>
-                <a
+                <Link
                     href="/datafiles"
                     className={`btn ${!selectedYear ? 'btn-primary' : 'btn-outline'}`}
                     style={{ textDecoration: 'none', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
                 >
                     全部
-                </a>
+                </Link>
                 {years.map(year => (
-                    <a
+                    <Link
                         key={year}
                         href={`/datafiles?year=${year}`}
                         className={`btn ${selectedYear === year ? 'btn-primary' : 'btn-outline'}`}
                         style={{ textDecoration: 'none', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
                     >
                         {year}
-                    </a>
+                    </Link>
                 ))}
             </div>
 
