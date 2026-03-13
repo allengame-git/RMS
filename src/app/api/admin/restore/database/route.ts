@@ -127,9 +127,9 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        // 備份檔案驗證通過，不顯示 log 以保持 terminal 乾淨
+        // 備份檔案驗證通過
 
-        // 5. 執行 SQL (使用 $executeRawUnsafe 逐行執行，包裹在交易中)
+        // 5. 解析並過濾 SQL 語句
         const statements = sql
             .split(';\n')
             .map(s => s.trim())
@@ -144,80 +144,64 @@ export async function POST(request: NextRequest) {
             'SET CONSTRAINTS',
             'SET STATEMENT_TIMEOUT',
             'SET LOCK_TIMEOUT',
-            'BEGIN',
-            'COMMIT',
         ];
 
         // 過濾與驗證所有語句類型
         const filteredStatements: string[] = [];
         for (const statement of statements) {
             if (!statement) continue;
-            
-            // 略過舊備份檔內的 session_replication_role 設定 (一般帳號無權限執行)
-            // 使用正則表達式檢查，避免因換行或多餘空白導致 startsWith 比對失敗
-            if (/SET\s+session_replication_role/i.test(statement)) {
-                continue;
-            }
 
             const upper = statement.toUpperCase().trimStart();
+
+            // 略過 BEGIN/COMMIT（由 Prisma $transaction 管理交易邊界）
+            if (upper === 'BEGIN' || upper === 'COMMIT') continue;
+
+            // 略過 session_replication_role 設定（一般帳號無權限，改用 DISABLE TRIGGER）
+            if (/SET\s+session_replication_role/i.test(statement)) continue;
+
             const isAllowed = ALLOWED_SQL_PREFIXES.some(prefix => upper.startsWith(prefix));
             if (!isAllowed) {
                 return NextResponse.json({
                     error: `SQL 包含不允許的語句類型，已中止還原。問題語句：${statement.slice(0, 80)}...`
                 }, { status: 400 });
             }
-            
+
             filteredStatements.push(statement);
         }
 
-        // 手動管理 transaction (Prisma 的 $transaction API 不允許內部手動 SAVEPOINT)
-        await prisma.$executeRawUnsafe('BEGIN');
-        
-        try {
-            // timeout: 大量資料 (2000+ items) 可能需要較長時間，設定連線 timeout
-            await prisma.$executeRawUnsafe(`SET LOCAL statement_timeout = '120s'`);
-            
-            let pendingStatements = [...filteredStatements];
-            let previousPendingCount = -1;
+        // 6. 在 Prisma interactive transaction 內執行還原
+        //    - 使用 DISABLE TRIGGER ALL 停用所有 FK 觸發器，避免插入順序問題
+        //    - 整個操作具原子性：全部成功或全部回滾
+        //    - 不需要 superuser 權限（表擁有者即可操作）
 
-            // 只要還有未執行的語句，且數量有在減少（代表沒有卡死）
-            while (pendingStatements.length > 0 && pendingStatements.length !== previousPendingCount) {
-                previousPendingCount = pendingStatements.length;
-                const nextPending: string[] = [];
+        // 需要停用/啟用觸發器的所有資料表
+        const ALL_TABLES = [
+            'User', 'ProjectCategory', 'Project', 'Item',
+            'ItemRelation', 'ItemReference', 'ChangeRequest', 'ItemHistory',
+            'QCDocumentApproval', 'QCDocumentRevision',
+            'DataFile', 'DataFileChangeRequest', 'DataFileHistory',
+            'Notification', 'LoginLog',
+        ];
 
-                for (const statement of pendingStatements) {
-                    if (!statement) continue;
-
-                    try {
-                        // 建立 SAVEPOINT 以防 FK constraint error 導致整個 transaction aborted
-                        await prisma.$executeRawUnsafe(`SAVEPOINT statement_sp`);
-                        await prisma.$executeRawUnsafe(statement);
-                        await prisma.$executeRawUnsafe(`RELEASE SAVEPOINT statement_sp`);
-                    } catch (error: any) {
-                        // 捕捉 Error: Code: 23503 (foreign_key_violation)
-                        await prisma.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT statement_sp`);
-                        
-                        if (error?.message?.includes('23503') || error?.code === 'P2003' || error?.message?.includes('foreign key')) {
-                            nextPending.push(statement);
-                        } else {
-                            // 其他非預期的語法/約束錯誤，直接丟出結束 transaction
-                            throw error;
-                        }
-                    }
-                }
-
-                pendingStatements = nextPending;
+        await prisma.$transaction(async (tx) => {
+            // 停用所有表的觸發器（含 FK 約束檢查）
+            for (const table of ALL_TABLES) {
+                await tx.$executeRawUnsafe(`ALTER TABLE "${table}" DISABLE TRIGGER ALL`);
             }
 
-            if (pendingStatements.length > 0) {
-                throw new Error(`復原失敗：存在 ${pendingStatements.length} 條無法解決的外鍵相依性錯誤。`);
+            // 執行所有 TRUNCATE + DELETE + INSERT 語句
+            for (const stmt of filteredStatements) {
+                await tx.$executeRawUnsafe(stmt);
             }
-            
-            await prisma.$executeRawUnsafe('COMMIT');
-        } catch (error) {
-            await prisma.$executeRawUnsafe('ROLLBACK');
-            throw error;
-        }
+
+            // 重新啟用所有表的觸發器
+            for (const table of ALL_TABLES) {
+                await tx.$executeRawUnsafe(`ALTER TABLE "${table}" ENABLE TRIGGER ALL`);
+            }
+        }, {
+            maxWait: 30000,   // 等待取得連線的最大時間 (30 秒)
+            timeout: 600000,  // 交易執行的最大時間 (10 分鐘)
+        });
 
         // 6. 強制登出所有使用者
         await forceLogoutAllUsers();

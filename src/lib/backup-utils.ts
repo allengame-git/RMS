@@ -43,12 +43,12 @@ const TABLES = [
     'Project',
     'Item',
     'ItemRelation',
+    'DataFile',          // 必須在 ItemReference 之前（ItemReference.fileId → DataFile.id）
     'ItemReference',
     'ChangeRequest',
     'ItemHistory',
     'QCDocumentApproval',
     'QCDocumentRevision',
-    'DataFile',
     'DataFileChangeRequest',
     'DataFileHistory',
     'Notification',
