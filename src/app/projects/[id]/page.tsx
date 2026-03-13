@@ -8,6 +8,7 @@ import { buildItemTree } from "@/lib/tree-utils";
 import ItemTree from "@/components/item/ItemTree";
 import ProjectSearch from "@/components/search/ProjectSearch";
 import RootManageMenu from "@/components/item/RootManageMenu";
+import DeletedItemsSection from "@/components/item/DeletedItemsSection";
 
 export const dynamic = 'force-dynamic';
 
@@ -115,6 +116,11 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                     )}
                 </div>
             </div>
+
+            {/* Deleted Items Section — ADMIN/INSPECTOR only */}
+            {canManage && (
+                <DeletedItemsSection projectId={projectId} treeNodes={rootNodes} />
+            )}
         </div>
     );
 }
