@@ -36,10 +36,11 @@ export const config = {
          * - /auth/login (登入頁面)
          * - /api/auth (NextAuth API)
          * - /api/health (健康檢查)
+         * - /api/admin/restore (還原 API，檔案可能超過 middleware 10MB 限制，路由內部有 ADMIN 權限檢查)
          * - /_next/static (靜態檔案)
          * - /_next/image (圖片最佳化)
          * - /favicon.ico (網站圖示)
          */
-        "/((?!auth/login|api/auth|api/health|_next/static|_next/image|favicon.ico).*)",
+        "/((?!auth/login|api/auth|api/health|api/admin/restore|_next/static|_next/image|favicon.ico).*)",
     ],
 };
