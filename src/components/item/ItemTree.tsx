@@ -10,23 +10,16 @@
  * - 當前項目高亮
  * - 新增子項目表單
  * - 點擊導航到項目詳情
+ * - 管理選單（排序、移動、重新編號）
  *
  * ## Props
  * - `nodes`：樹狀節點資料（ItemNode[]）
  * - `level`：當前層級（用於縮排）
  * - `canEdit`：是否可編輯
+ * - `canManage`：是否可管理排序/移動/重新編號（ADMIN/INSPECTOR）
  * - `projectId`：專案 ID
  * - `currentItemId`：當前檢視的項目 ID
- *
- * ## 視覺設計
- * - 層級縮排
- * - 展開/摺疊箭頭
- * - 當前項目藍色背景
- * - hover 效果
- *
- * ## 使用場景
- * - 專案頁面的側邊欄導航
- * - 項目詳情頁的相關項目導航
+ * - `allNodes`：完整樹狀結構（供移動對話框使用）
  *
  * @see /src/lib/tree-utils.ts - buildItemTree 函式
  * @see /src/app/projects/[id]/page.tsx - 專案頁面
@@ -36,18 +29,23 @@
 
 import { ItemNode } from '@/lib/tree-utils';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import CreateItemForm from './CreateItemForm';
+import ReorderDialog from './ReorderDialog';
+import MoveItemDialog from './MoveItemDialog';
+import RenumberDialog from './RenumberDialog';
 
 interface ItemTreeProps {
     nodes: ItemNode[];
     level?: number;
     canEdit?: boolean;
+    canManage?: boolean;
     projectId?: number;
     currentItemId?: number;
+    allNodes?: ItemNode[];
 }
 
-export default function ItemTree({ nodes, level = 0, canEdit = false, projectId, currentItemId }: ItemTreeProps) {
+export default function ItemTree({ nodes, level = 0, canEdit = false, canManage = false, projectId, currentItemId, allNodes }: ItemTreeProps) {
     if (!nodes || nodes.length === 0) return null;
 
     return (
@@ -63,8 +61,10 @@ export default function ItemTree({ nodes, level = 0, canEdit = false, projectId,
                     node={node}
                     level={level}
                     canEdit={canEdit}
+                    canManage={canManage}
                     projectId={projectId}
                     currentItemId={currentItemId}
+                    allNodes={allNodes || nodes}
                 />
             ))}
         </div>
@@ -75,15 +75,34 @@ interface AccordionItemProps {
     node: ItemNode;
     level: number;
     canEdit: boolean;
+    canManage: boolean;
     projectId?: number;
     currentItemId?: number;
+    allNodes: ItemNode[];
 }
 
-function AccordionItem({ node, level, canEdit, projectId, currentItemId }: AccordionItemProps) {
+type DialogType = 'reorder' | 'move' | 'renumber' | null;
+
+function AccordionItem({ node, level, canEdit, canManage, projectId, currentItemId, allNodes }: AccordionItemProps) {
     const hasChildren = node.children && node.children.length > 0;
     const [isExpanded, setIsExpanded] = useState(level === 0);
     const isCurrentItem = currentItemId === node.id;
     const isRootLevel = level === 0;
+    const [showMenu, setShowMenu] = useState(false);
+    const [activeDialog, setActiveDialog] = useState<DialogType>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        if (!showMenu) return;
+        const handleClick = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setShowMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [showMenu]);
 
     return (
         <div
@@ -234,6 +253,110 @@ function AccordionItem({ node, level, canEdit, projectId, currentItemId }: Accor
                         />
                     </div>
                 )}
+
+                {/* Manage Menu */}
+                {canManage && projectId && (
+                    <div
+                        ref={menuRef}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ position: 'relative', flexShrink: 0 }}
+                    >
+                        <button
+                            title="管理選單"
+                            className="manage-menu-btn"
+                            onClick={() => setShowMenu(!showMenu)}
+                            style={{
+                                width: '28px',
+                                height: '28px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--color-border)',
+                                background: showMenu ? 'var(--color-bg-elevated)' : 'var(--color-bg-surface)',
+                                cursor: 'pointer',
+                                color: 'var(--color-text-muted)',
+                                fontSize: '1rem',
+                                transition: 'all 0.15s ease',
+                                letterSpacing: '1px',
+                            }}
+                        >
+                            ⋮
+                        </button>
+
+                        {showMenu && (
+                            <div style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: '100%',
+                                marginTop: '4px',
+                                backgroundColor: 'var(--color-bg-surface)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 'var(--radius-sm)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                zIndex: 1000,
+                                minWidth: '160px',
+                                overflow: 'hidden',
+                            }}>
+                                {hasChildren && (
+                                    <button
+                                        onClick={() => { setShowMenu(false); setActiveDialog('reorder'); }}
+                                        style={{
+                                            display: 'block',
+                                            width: '100%',
+                                            padding: '0.6rem 1rem',
+                                            border: 'none',
+                                            background: 'none',
+                                            textAlign: 'left',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem',
+                                            color: 'var(--color-text)',
+                                        }}
+                                        className="manage-menu-item"
+                                    >
+                                        管理子項目順序
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { setShowMenu(false); setActiveDialog('move'); }}
+                                    style={{
+                                        display: 'block',
+                                        width: '100%',
+                                        padding: '0.6rem 1rem',
+                                        border: 'none',
+                                        background: 'none',
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        fontSize: '0.9rem',
+                                        color: 'var(--color-text)',
+                                    }}
+                                    className="manage-menu-item"
+                                >
+                                    移動項目
+                                </button>
+                                {hasChildren && (
+                                    <button
+                                        onClick={() => { setShowMenu(false); setActiveDialog('renumber'); }}
+                                        style={{
+                                            display: 'block',
+                                            width: '100%',
+                                            padding: '0.6rem 1rem',
+                                            border: 'none',
+                                            background: 'none',
+                                            textAlign: 'left',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem',
+                                            color: 'var(--color-text)',
+                                        }}
+                                        className="manage-menu-item"
+                                    >
+                                        重新編號子項目
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Accordion Content (Children) */}
@@ -258,12 +381,42 @@ function AccordionItem({ node, level, canEdit, projectId, currentItemId }: Accor
                             nodes={node.children}
                             level={level + 1}
                             canEdit={canEdit}
+                            canManage={canManage}
                             projectId={projectId}
                             currentItemId={currentItemId}
+                            allNodes={allNodes}
                         />
                     </div>
                 )}
             </div>
+
+            {/* Dialogs */}
+            {activeDialog === 'reorder' && projectId && hasChildren && (
+                <ReorderDialog
+                    items={node.children.map(c => ({ id: c.id, fullId: c.fullId, title: c.title }))}
+                    parentId={node.id}
+                    projectId={projectId}
+                    onClose={() => setActiveDialog(null)}
+                />
+            )}
+            {activeDialog === 'move' && projectId && (
+                <MoveItemDialog
+                    itemId={node.id}
+                    itemFullId={node.fullId}
+                    itemTitle={node.title}
+                    projectId={projectId}
+                    treeNodes={allNodes}
+                    onClose={() => setActiveDialog(null)}
+                />
+            )}
+            {activeDialog === 'renumber' && projectId && hasChildren && (
+                <RenumberDialog
+                    parentId={node.id}
+                    parentFullId={node.fullId}
+                    projectId={projectId}
+                    onClose={() => setActiveDialog(null)}
+                />
+            )}
 
             <style jsx>{`
                 .accordion-panel:hover {
@@ -285,6 +438,14 @@ function AccordionItem({ node, level, canEdit, projectId, currentItemId }: Accor
                     background-color: var(--color-primary) !important;
                     color: white !important;
                     border-color: var(--color-primary) !important;
+                }
+                .manage-menu-btn:hover {
+                    background-color: var(--color-bg-elevated) !important;
+                    border-color: var(--color-primary) !important;
+                    color: var(--color-primary) !important;
+                }
+                .manage-menu-item:hover {
+                    background-color: var(--color-bg-elevated) !important;
                 }
             `}</style>
         </div>

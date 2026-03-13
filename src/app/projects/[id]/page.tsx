@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { buildItemTree } from "@/lib/tree-utils";
 import ItemTree from "@/components/item/ItemTree";
 import ProjectSearch from "@/components/search/ProjectSearch";
+import RootManageMenu from "@/components/item/RootManageMenu";
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
     const session = await getServerSession(authOptions);
     const canEdit = session?.user.role === "ADMIN" || session?.user.role === "EDITOR" || session?.user.role === "INSPECTOR";
+    const canManage = session?.user.role === "ADMIN" || session?.user.role === "INSPECTOR";
 
     const rootNodes = buildItemTree(project.items);
     const rootItemCount = rootNodes.length;
@@ -82,7 +84,10 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                         </span>
                         項目列表
                     </h2>
-                    {canEdit && <CreateItemForm projectId={projectId} codePrefix={project.codePrefix} />}
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        {canManage && <RootManageMenu projectId={projectId} rootNodes={rootNodes} />}
+                        {canEdit && <CreateItemForm projectId={projectId} codePrefix={project.codePrefix} />}
+                    </div>
                 </div>
 
                 <div className="item-list-body">
@@ -106,7 +111,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                             )}
                         </div>
                     ) : (
-                        <ItemTree nodes={rootNodes} canEdit={canEdit} projectId={projectId} />
+                        <ItemTree nodes={rootNodes} canEdit={canEdit} canManage={canManage} projectId={projectId} allNodes={rootNodes} />
                     )}
                 </div>
             </div>
