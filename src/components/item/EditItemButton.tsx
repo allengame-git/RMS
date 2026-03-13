@@ -192,17 +192,21 @@ export default function EditItemButton({ item, isDisabled = false }: EditItemBut
             const result = await submitUpdateItemRequest({}, formData);
             if (result.error) {
                 setStatus({ error: result.error });
+                setIsSubmitting(false);
+                isSubmittingRef.current = false;
             } else {
                 setStatus({ message: result.message });
-                router.refresh(); // 強制刷新頁面資料
+                router.refresh();
+                // 保持鎖定狀態避免重複提交，延遲後關閉
                 setTimeout(() => {
                     setIsModalOpen(false);
                     setStatus(null);
+                    setIsSubmitting(false);
+                    isSubmittingRef.current = false;
                 }, 1500);
             }
         } catch {
             setStatus({ error: "An unexpected error occurred." });
-        } finally {
             setIsSubmitting(false);
             isSubmittingRef.current = false;
         }

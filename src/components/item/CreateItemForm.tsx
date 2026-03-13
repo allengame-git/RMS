@@ -140,30 +140,35 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
 
-    // Reset local lock when server action returns state
+    // Reset local lock when server action returns state (only on error)
     useEffect(() => {
-        setIsLocalSubmitting(false);
+        if (state.error) {
+            setIsLocalSubmitting(false);
+        }
     }, [state]);
 
     useEffect(() => {
         if (state.message) {
             setSuccessMessage(state.message);
-            // 延遲關閉 modal 讓用戶看到成功訊息
-            setTimeout(() => {
+            // 保持鎖定狀態避免重複提交
+            setIsLocalSubmitting(true);
+            const timer = setTimeout(() => {
                 setIsOpen(false);
                 setContent("");
                 setRelatedItems([]);
                 setReferences([]);
                 setSuccessMessage(null);
-                router.refresh(); // 強制刷新頁面資料
+                setIsLocalSubmitting(false);
+                router.refresh();
             }, 1500);
+            return () => clearTimeout(timer);
         }
     }, [state.message, router]);
 
-    // Close modal on escape key
+    // Close modal on escape key (only when not submitting)
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setIsOpen(false);
+            if (e.key === 'Escape' && !isLocalSubmitting && !successMessage) setIsOpen(false);
         };
         if (isOpen && modal) {
             window.addEventListener('keydown', handleEsc);
@@ -350,7 +355,12 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
                     type="button"
                     onClick={() => setIsOpen(false)}
                     className="btn btn-outline"
-                    style={{ padding: "0.6rem 1.25rem" }}
+                    disabled={isLocalSubmitting || !!successMessage}
+                    style={{
+                        padding: "0.6rem 1.25rem",
+                        opacity: isLocalSubmitting || successMessage ? 0.5 : 1,
+                        cursor: isLocalSubmitting || successMessage ? 'not-allowed' : 'pointer',
+                    }}
                 >
                     取消
                 </button>
