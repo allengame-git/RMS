@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
         if (file.name.endsWith('.sql')) {
             // 直接讀取 SQL 檔案
             sql = buffer.toString('utf-8');
-            console.log('📄 直接讀取 SQL 檔案:', file.name);
         } else if (file.name.endsWith('.zip')) {
             // 處理 ZIP 檔案（原有邏輯）
             const tempDir = path.join(os.tmpdir(), `rms-restore-${Date.now()}`);
@@ -98,7 +97,6 @@ export async function POST(request: NextRequest) {
 
             // 清理暫存檔案
             fs.rmSync(tempDir, { recursive: true });
-            console.log('📦 從 ZIP 檔案讀取 SQL:', file.name);
         } else {
             return NextResponse.json({ error: '不支援的檔案格式，請上傳 .sql 或 .zip 檔案' }, { status: 400 });
         }
@@ -129,10 +127,7 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        console.log('📊 備份檔案驗證通過：');
-        console.log(`  - 總 INSERT 語句數: ${insertMatches.length}`);
-        console.log(`  - 使用者記錄數: ${userInsertMatches.length}`);
-        console.log(`  - 管理員帳號數: ${adminInsertMatches.length}`);
+        // 備份檔案驗證通過，不顯示 log 以保持 terminal 乾淨
 
         // 5. 執行 SQL (使用 $executeRawUnsafe 逐行執行，包裹在交易中)
         const statements = sql
@@ -157,13 +152,14 @@ export async function POST(request: NextRequest) {
         const filteredStatements: string[] = [];
         for (const statement of statements) {
             if (!statement) continue;
-            const upper = statement.toUpperCase().trimStart();
             
             // 略過舊備份檔內的 session_replication_role 設定 (一般帳號無權限執行)
-            if (upper.startsWith('SET SESSION_REPLICATION_ROLE')) {
+            // 使用正則表達式檢查，避免因換行或多餘空白導致 startsWith 比對失敗
+            if (/SET\s+session_replication_role/i.test(statement)) {
                 continue;
             }
 
+            const upper = statement.toUpperCase().trimStart();
             const isAllowed = ALLOWED_SQL_PREFIXES.some(prefix => upper.startsWith(prefix));
             if (!isAllowed) {
                 return NextResponse.json({
