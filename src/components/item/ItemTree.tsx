@@ -91,18 +91,34 @@ function AccordionItem({ node, level, canEdit, canManage, projectId, currentItem
     const [showMenu, setShowMenu] = useState(false);
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const menuBtnRef = useRef<HTMLButtonElement>(null);
+    const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
     // Close menu when clicking outside
     useEffect(() => {
         if (!showMenu) return;
         const handleClick = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+                menuBtnRef.current && !menuBtnRef.current.contains(e.target as Node)) {
                 setShowMenu(false);
             }
         };
+        const handleScroll = () => setShowMenu(false);
         document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
+        window.addEventListener('scroll', handleScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', handleClick);
+            window.removeEventListener('scroll', handleScroll, true);
+        };
     }, [showMenu]);
+
+    const toggleMenu = () => {
+        if (!showMenu && menuBtnRef.current) {
+            const rect = menuBtnRef.current.getBoundingClientRect();
+            setMenuPos({ top: rect.bottom + 4, left: rect.right });
+        }
+        setShowMenu(!showMenu);
+    };
 
     return (
         <div
@@ -257,14 +273,14 @@ function AccordionItem({ node, level, canEdit, canManage, projectId, currentItem
                 {/* Manage Menu */}
                 {canManage && projectId && (
                     <div
-                        ref={menuRef}
                         onClick={(e) => e.stopPropagation()}
-                        style={{ position: 'relative', flexShrink: 0 }}
+                        style={{ flexShrink: 0 }}
                     >
                         <button
+                            ref={menuBtnRef}
                             title="管理選單"
                             className="manage-menu-btn"
-                            onClick={() => setShowMenu(!showMenu)}
+                            onClick={toggleMenu}
                             style={{
                                 width: '28px',
                                 height: '28px',
@@ -285,16 +301,18 @@ function AccordionItem({ node, level, canEdit, canManage, projectId, currentItem
                         </button>
 
                         {showMenu && (
-                            <div style={{
-                                position: 'absolute',
-                                right: 0,
-                                top: '100%',
-                                marginTop: '4px',
+                            <div
+                                ref={menuRef}
+                                style={{
+                                position: 'fixed',
+                                top: menuPos.top,
+                                left: menuPos.left,
+                                transform: 'translateX(-100%)',
                                 backgroundColor: 'var(--color-bg-surface)',
                                 border: '1px solid var(--color-border)',
                                 borderRadius: 'var(--radius-sm)',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                zIndex: 1000,
+                                zIndex: 10000,
                                 minWidth: '160px',
                                 overflow: 'hidden',
                             }}>
