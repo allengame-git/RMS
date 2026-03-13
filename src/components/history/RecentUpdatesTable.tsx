@@ -72,7 +72,8 @@ function getChangeTypeLabel(changeType: string): { label: string; color: string;
         case 'CREATE': return { label: '新增', color: '#16a34a', bgColor: '#dcfce7' };
         case 'UPDATE': return { label: '編輯', color: '#ca8a04', bgColor: '#fef9c3' };
         case 'DELETE': return { label: '刪除', color: '#dc2626', bgColor: '#fee2e2' };
-        case 'RESTORE': return { label: '還原', color: '#2563eb', bgColor: '#dbeafe' };
+        case 'REORDER': return { label: '排序', color: '#7c3aed', bgColor: 'rgba(168, 85, 247, 0.1)' };
+        case 'RESTORE': return { label: '還原', color: '#d97706', bgColor: 'rgba(245, 158, 11, 0.1)' };
         default: return { label: changeType, color: '#6b7280', bgColor: '#f3f4f6' };
     }
 }

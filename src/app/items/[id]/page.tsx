@@ -643,12 +643,16 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                                                 fontWeight: 600,
                                                 backgroundColor: record.changeType === 'CREATE' ? 'rgba(34, 197, 94, 0.1)' :
                                                     record.changeType === 'UPDATE' ? 'rgba(59, 130, 246, 0.1)' :
-                                                        record.changeType === 'DELETE' ? 'rgba(239, 68, 68, 0.1)' : 'var(--color-bg-secondary)',
+                                                        record.changeType === 'DELETE' ? 'rgba(239, 68, 68, 0.1)' :
+                                                            record.changeType === 'REORDER' ? 'rgba(168, 85, 247, 0.1)' :
+                                                                record.changeType === 'RESTORE' ? 'rgba(245, 158, 11, 0.1)' : 'var(--color-bg-secondary)',
                                                 color: record.changeType === 'CREATE' ? '#16a34a' :
                                                     record.changeType === 'UPDATE' ? '#2563eb' :
-                                                        record.changeType === 'DELETE' ? '#dc2626' : 'var(--color-text)',
+                                                        record.changeType === 'DELETE' ? '#dc2626' :
+                                                            record.changeType === 'REORDER' ? '#7c3aed' :
+                                                                record.changeType === 'RESTORE' ? '#d97706' : 'var(--color-text)',
                                             }}>
-                                                {record.changeType === 'CREATE' ? '建立' : record.changeType === 'UPDATE' ? '更新' : record.changeType === 'DELETE' ? '刪除' : record.changeType}
+                                                {record.changeType === 'CREATE' ? '建立' : record.changeType === 'UPDATE' ? '更新' : record.changeType === 'DELETE' ? '刪除' : record.changeType === 'REORDER' ? '排序' : record.changeType === 'RESTORE' ? '還原' : record.changeType}
                                             </span>
                                         </td>
                                         <td style={{ padding: '0.85rem 1rem' }}>{record.submittedBy?.username || record.submitterName || '(已刪除)'}</td>

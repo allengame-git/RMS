@@ -332,7 +332,9 @@ export default async function HistoryDetailPage({ params }: { params: Promise<{ 
         const styles: Record<string, { bg: string; color: string; label: string }> = {
             'CREATE': { bg: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', label: '建立' },
             'UPDATE': { bg: 'rgba(59, 130, 246, 0.1)', color: '#2563eb', label: '更新' },
-            'DELETE': { bg: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', label: '刪除' }
+            'DELETE': { bg: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', label: '刪除' },
+            'REORDER': { bg: 'rgba(168, 85, 247, 0.1)', color: '#7c3aed', label: '排序' },
+            'RESTORE': { bg: 'rgba(245, 158, 11, 0.1)', color: '#d97706', label: '還原' }
         };
         const style = styles[changeType] || { bg: 'var(--color-bg-secondary)', color: 'var(--color-text)', label: changeType };
         return (
