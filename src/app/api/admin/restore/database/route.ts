@@ -141,13 +141,11 @@ export async function POST(request: NextRequest) {
             .filter(s => s && !s.startsWith('--'));
 
         // SQL 語句類型白名單 — 僅允許備份還原所需的語句
-        // 注意：SET 僅允許特定變體，避免 SET ROLE / SET SESSION AUTHORIZATION 等權限提升
         const ALLOWED_SQL_PREFIXES = [
             'INSERT INTO',
             'DELETE FROM',
             'TRUNCATE TABLE',
             'TRUNCATE',
-            'SET SESSION_REPLICATION_ROLE',
             'SET CONSTRAINTS',
             'SET STATEMENT_TIMEOUT',
             'SET LOCK_TIMEOUT',
@@ -155,32 +153,66 @@ export async function POST(request: NextRequest) {
             'COMMIT',
         ];
 
-        // 驗證所有語句類型
+        // 過濾與驗證所有語句類型
+        const filteredStatements: string[] = [];
         for (const statement of statements) {
             if (!statement) continue;
             const upper = statement.toUpperCase().trimStart();
+            
+            // 略過舊備份檔內的 session_replication_role 設定 (一般帳號無權限執行)
+            if (upper.startsWith('SET SESSION_REPLICATION_ROLE')) {
+                continue;
+            }
+
             const isAllowed = ALLOWED_SQL_PREFIXES.some(prefix => upper.startsWith(prefix));
             if (!isAllowed) {
                 return NextResponse.json({
                     error: `SQL 包含不允許的語句類型，已中止還原。問題語句：${statement.slice(0, 80)}...`
                 }, { status: 400 });
             }
+            
+            filteredStatements.push(statement);
         }
 
         // 在單一交易中執行所有語句，任一失敗即全部回滾
         // timeout: 大量資料 (2000+ items) 可能需要較長時間
         await prisma.$transaction(async (tx) => {
-            // 關閉 FK 觸發器，避免 INSERT 順序導致的 foreign key 違規
-            await tx.$executeRawUnsafe(`SET session_replication_role = 'replica'`);
+            let pendingStatements = [...filteredStatements];
+            let previousPendingCount = -1;
 
-            for (const statement of statements) {
-                if (statement) {
-                    await tx.$executeRawUnsafe(statement);
+            // 只要還有未執行的語句，且數量有在減少（代表沒有卡死）
+            while (pendingStatements.length > 0 && pendingStatements.length !== previousPendingCount) {
+                previousPendingCount = pendingStatements.length;
+                const nextPending: string[] = [];
+
+                for (const statement of pendingStatements) {
+                    if (!statement) continue;
+
+                    try {
+                        // 建立 SAVEPOINT 以防 FK constraint error 導致整個 transaction aborted
+                        await tx.$executeRawUnsafe(`SAVEPOINT statement_sp`);
+                        await tx.$executeRawUnsafe(statement);
+                        await tx.$executeRawUnsafe(`RELEASE SAVEPOINT statement_sp`);
+                    } catch (error: any) {
+                        // 捕捉 Error: Code: 23503 (foreign_key_violation)
+                        // 若為外鍵違規，則 rollback 到 savepoint，將語句放入下一輪重試
+                        await tx.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT statement_sp`);
+                        
+                        if (error?.message?.includes('23503') || error?.code === 'P2003') {
+                            nextPending.push(statement);
+                        } else {
+                            // 其他非預期的語法/約束錯誤，直接丟出結束 transaction
+                            throw error;
+                        }
+                    }
                 }
+
+                pendingStatements = nextPending;
             }
 
-            // 恢復 FK 觸發器
-            await tx.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`);
+            if (pendingStatements.length > 0) {
+                throw new Error(`復原失敗：存在 ${pendingStatements.length} 條無法解決的外鍵相依性錯誤。`);
+            }
         }, {
             maxWait: 30000,  // 等待取得連線的最大時間 (30s)
             timeout: 120000, // 交易執行的最大時間 (120s)
