@@ -245,6 +245,7 @@ export async function restoreItem(
             restoredTo: newParentId,
           }),
           diff: null,
+          submittedById: session.user.id,
           reviewedById: session.user.id,
           reviewStatus: "APPROVED",
           reviewNote: `還原項目：${oldFullId} → ${newFullId}`,

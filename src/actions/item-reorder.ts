@@ -71,6 +71,7 @@ async function writeReorderHistory(
           newFullId: change.newFullId,
         }),
         diff: null,
+        submittedById: userId,
         reviewedById: userId,
         reviewStatus: "APPROVED",
         reviewNote: `${notePrefix}：${change.oldFullId} → ${change.newFullId}`,
