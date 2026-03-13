@@ -170,33 +170,51 @@ export async function POST(request: NextRequest) {
         }
 
         // 6. 在 Prisma interactive transaction 內執行還原
-        //    - 使用 DISABLE TRIGGER ALL 停用所有 FK 觸發器，避免插入順序問題
-        //    - 整個操作具原子性：全部成功或全部回滾
-        //    - 不需要 superuser 權限（表擁有者即可操作）
+        //    策略：動態卸除所有 FK 約束 → 執行還原 → 重建 FK 約束
+        //    - 不需要 superuser 權限（表擁有者即可 DROP/ADD CONSTRAINT）
+        //    - 整個操作具原子性：失敗時自動回滾（含約束還原）
+        //    - 無 FK 約束期間，插入順序不影響結果
 
-        // 需要停用/啟用觸發器的所有資料表
-        const ALL_TABLES = [
-            'User', 'ProjectCategory', 'Project', 'Item',
-            'ItemRelation', 'ItemReference', 'ChangeRequest', 'ItemHistory',
-            'QCDocumentApproval', 'QCDocumentRevision',
-            'DataFile', 'DataFileChangeRequest', 'DataFileHistory',
-            'Notification', 'LoginLog',
-        ];
+        // 定義 FK 約束資訊的型別
+        interface FKConstraint {
+            table_name: string;
+            constraint_name: string;
+            constraint_def: string;
+        }
 
         await prisma.$transaction(async (tx) => {
-            // 停用所有表的觸發器（含 FK 約束檢查）
-            for (const table of ALL_TABLES) {
-                await tx.$executeRawUnsafe(`ALTER TABLE "${table}" DISABLE TRIGGER ALL`);
+            // Step 1: 查詢所有 FK 約束的定義（用於還原後重建）
+            const fkConstraints = await tx.$queryRawUnsafe<FKConstraint[]>(`
+                SELECT
+                    tc.table_name,
+                    tc.constraint_name,
+                    pg_get_constraintdef(c.oid) AS constraint_def
+                FROM information_schema.table_constraints tc
+                JOIN pg_constraint c
+                    ON c.conname = tc.constraint_name
+                    AND c.connamespace = (SELECT oid FROM pg_namespace WHERE nspname = tc.table_schema)
+                WHERE tc.constraint_type = 'FOREIGN KEY'
+                    AND tc.table_schema = 'public'
+                ORDER BY tc.table_name
+            `);
+
+            // Step 2: 卸除所有 FK 約束
+            for (const fk of fkConstraints) {
+                await tx.$executeRawUnsafe(
+                    `ALTER TABLE "${fk.table_name}" DROP CONSTRAINT "${fk.constraint_name}"`
+                );
             }
 
-            // 執行所有 TRUNCATE + DELETE + INSERT 語句
+            // Step 3: 執行所有 TRUNCATE + DELETE + INSERT 語句
             for (const stmt of filteredStatements) {
                 await tx.$executeRawUnsafe(stmt);
             }
 
-            // 重新啟用所有表的觸發器
-            for (const table of ALL_TABLES) {
-                await tx.$executeRawUnsafe(`ALTER TABLE "${table}" ENABLE TRIGGER ALL`);
+            // Step 4: 重建所有 FK 約束
+            for (const fk of fkConstraints) {
+                await tx.$executeRawUnsafe(
+                    `ALTER TABLE "${fk.table_name}" ADD CONSTRAINT "${fk.constraint_name}" ${fk.constraint_def}`
+                );
             }
         }, {
             maxWait: 30000,   // 等待取得連線的最大時間 (30 秒)
