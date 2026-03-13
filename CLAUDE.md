@@ -62,7 +62,7 @@ NextAuth.js with Credentials provider and JWT session strategy. Auth config in `
 
 ### Middleware (Edge Auth)
 
-`src/middleware.ts` protects all routes at the edge using `next-auth/jwt`'s `getToken`. Excludes: `/auth/login`, `/api/auth`, `/api/health`, `_next/static`, `_next/image`, `favicon.ico`.
+`src/middleware.ts` protects all routes at the edge using `next-auth/jwt`'s `getToken`. Excludes: `/auth/login`, `/api/auth`, `/api/health`, `/api/admin/restore` (large file uploads bypass middleware body limit), `_next/static`, `_next/image`, `favicon.ico`.
 
 ### API Routes Pattern
 
@@ -70,7 +70,7 @@ REST endpoints under `src/app/api/`. All require session authentication. Server 
 
 ### Backup & Restore
 
-`src/lib/backup/` handles project import/export (ZIP with manifest.json). Admin restore endpoints at `src/app/api/admin/restore/{database,iso-docs,uploads}/`. Database restore uses SQL whitelist and transaction wrapping. File restores use symlink-aware recursive copy with path boundary checks.
+`src/lib/backup/` handles project import/export (ZIP with manifest.json). `src/lib/backup-utils.ts` handles full database export/import. Admin restore endpoints at `src/app/api/admin/restore/{database,iso-docs,uploads}/`. Database restore uses SQL whitelist, drops all FK constraints within a `prisma.$transaction`, executes statements, then recreates constraints. File restores (iso-docs, uploads) use `unzipper` streaming to extract directly to target directories with Zip Slip protection.
 
 ### Styling
 
@@ -99,7 +99,6 @@ Uses `pdf-lib` (pure JS, no browser dependency) in `src/lib/pdf-generator.ts` fo
 
 - **Open redirect prevention**: Validate `notification.link` with `/^\/[^/]/` regex, not just `startsWith('/')` — protocol-relative URLs (`//evil.com`) bypass the naive check
 - **ZIP Slip**: Always verify `path.resolve(entry)` stays within the target directory before extraction
-- **Recursive copy boundary**: `copyRecursive` must pin the boundary to the original root dest (`rootDest` parameter), not the current recursion level's `dest`
-- **SQL restore whitelist**: Only allow specific `SET` variants (`SET SESSION_REPLICATION_ROLE`, `SET CONSTRAINTS`, etc.) — a broad `SET ` prefix allows privilege escalation (`SET ROLE`)
+- **SQL restore whitelist**: Only allow specific prefixes (`INSERT INTO`, `DELETE FROM`, `TRUNCATE`, `SET CONSTRAINTS`, `SET STATEMENT_TIMEOUT`, `SET LOCK_TIMEOUT`). Filter out `BEGIN`/`COMMIT` (Prisma manages transaction) and `SET session_replication_role` (no permission). A broad `SET ` prefix allows privilege escalation (`SET ROLE`)
 - **MIME validation**: Reject empty `file.type` and `application/octet-stream` to prevent whitelist bypass
 - **Multi-step DB mutations**: Wrap in `prisma.$transaction()` for atomicity (e.g., bidirectional relations, reordering, import operations)

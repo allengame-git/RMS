@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: 'standalone',
-    serverExternalPackages: ['@pdf-lib/fontkit', 'pdf-lib'],
+    serverExternalPackages: ['@pdf-lib/fontkit', 'pdf-lib', 'unzipper'],
     images: {
         unoptimized: true,
     },
