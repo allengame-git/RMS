@@ -170,9 +170,13 @@ export async function POST(request: NextRequest) {
             filteredStatements.push(statement);
         }
 
-        // 在單一交易中執行所有語句，任一失敗即全部回滾
-        // timeout: 大量資料 (2000+ items) 可能需要較長時間
-        await prisma.$transaction(async (tx) => {
+        // 手動管理 transaction (Prisma 的 $transaction API 不允許內部手動 SAVEPOINT)
+        await prisma.$executeRawUnsafe('BEGIN');
+        
+        try {
+            // timeout: 大量資料 (2000+ items) 可能需要較長時間，設定連線 timeout
+            await prisma.$executeRawUnsafe(`SET LOCAL statement_timeout = '120s'`);
+            
             let pendingStatements = [...filteredStatements];
             let previousPendingCount = -1;
 
@@ -186,15 +190,14 @@ export async function POST(request: NextRequest) {
 
                     try {
                         // 建立 SAVEPOINT 以防 FK constraint error 導致整個 transaction aborted
-                        await tx.$executeRawUnsafe(`SAVEPOINT statement_sp`);
-                        await tx.$executeRawUnsafe(statement);
-                        await tx.$executeRawUnsafe(`RELEASE SAVEPOINT statement_sp`);
+                        await prisma.$executeRawUnsafe(`SAVEPOINT statement_sp`);
+                        await prisma.$executeRawUnsafe(statement);
+                        await prisma.$executeRawUnsafe(`RELEASE SAVEPOINT statement_sp`);
                     } catch (error: any) {
                         // 捕捉 Error: Code: 23503 (foreign_key_violation)
-                        // 若為外鍵違規，則 rollback 到 savepoint，將語句放入下一輪重試
-                        await tx.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT statement_sp`);
+                        await prisma.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT statement_sp`);
                         
-                        if (error?.message?.includes('23503') || error?.code === 'P2003') {
+                        if (error?.message?.includes('23503') || error?.code === 'P2003' || error?.message?.includes('foreign key')) {
                             nextPending.push(statement);
                         } else {
                             // 其他非預期的語法/約束錯誤，直接丟出結束 transaction
@@ -209,10 +212,12 @@ export async function POST(request: NextRequest) {
             if (pendingStatements.length > 0) {
                 throw new Error(`復原失敗：存在 ${pendingStatements.length} 條無法解決的外鍵相依性錯誤。`);
             }
-        }, {
-            maxWait: 30000,  // 等待取得連線的最大時間 (30s)
-            timeout: 120000, // 交易執行的最大時間 (120s)
-        });
+            
+            await prisma.$executeRawUnsafe('COMMIT');
+        } catch (error) {
+            await prisma.$executeRawUnsafe('ROLLBACK');
+            throw error;
+        }
 
         // 6. 強制登出所有使用者
         await forceLogoutAllUsers();
