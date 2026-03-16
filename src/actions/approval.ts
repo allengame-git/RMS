@@ -493,6 +493,75 @@ export async function cancelChangeRequest(requestId: number) {
     return { message: "Request cancelled successfully" };
 }
 
+/**
+ * 編輯待審核的變更申請
+ *
+ * 允許原提交者在審核前修改 PENDING 狀態的 ChangeRequest 內容。
+ * 直接更新同一筆記錄的 data、submitReason、updatedAt。
+ *
+ * @param requestId ChangeRequest ID
+ * @param formData 包含更新後的 title、content、relatedItems、references、submitReason
+ */
+export async function updatePendingRequest(
+    requestId: number,
+    formData: FormData
+): Promise<ApprovalState> {
+    const session = await getServerSession(authOptions);
+    if (!session || !canEdit(session.user.role)) {
+        return { error: "權限不足" };
+    }
+
+    const request = await prisma.changeRequest.findUnique({
+        where: { id: requestId },
+    });
+
+    if (!request) return { error: "找不到該申請" };
+    if (request.status !== "PENDING") return { error: "只有待審核的申請才能編輯" };
+    if (request.submittedById !== session.user.id) return { error: "只有原提交者才能編輯此申請" };
+
+    const title = formData.get("title") as string;
+    const content = formData.get("content") as string;
+    const submitReason = formData.get("submitReason") as string || null;
+
+    if (!title) return { error: "標題為必填" };
+
+    // Parse existing data to preserve fields not in the form (e.g., fullId for CREATE)
+    const existingData = JSON.parse(request.data);
+
+    const relatedItemsStr = formData.get("relatedItems") as string;
+    const relatedItems = relatedItemsStr ? JSON.parse(relatedItemsStr) : [];
+    const referencesStr = formData.get("references") as string;
+    const references = referencesStr ? JSON.parse(referencesStr) : [];
+
+    const updatedData = {
+        ...existingData,
+        title,
+        content,
+        relatedItems,
+        references,
+    };
+
+    try {
+        await prisma.changeRequest.update({
+            where: { id: requestId },
+            data: {
+                data: JSON.stringify(updatedData),
+                submitReason,
+                updatedAt: new Date(),
+            },
+        });
+
+        revalidatePath("/admin/approval");
+        if (request.targetProjectId) revalidatePath(`/projects/${request.targetProjectId}`);
+        if (request.itemId) revalidatePath(`/items/${request.itemId}`);
+
+        return { message: "申請已更新" };
+    } catch (e) {
+        console.error("Failed to update pending request:", e);
+        return { error: "更新申請失敗" };
+    }
+}
+
 // ==================== Approval Handlers (Private) ====================
 
 async function handleItemCreateApproval(
