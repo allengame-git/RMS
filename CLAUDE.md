@@ -66,7 +66,7 @@ NextAuth.js with Credentials provider and JWT session strategy. Auth config in `
 
 ### Middleware (Edge Auth)
 
-`src/middleware.ts` protects all routes at the edge using `next-auth/jwt`'s `getToken`. Excludes: `/auth/login`, `/api/auth`, `/api/health`, `/api/admin/restore` (large file uploads bypass middleware body limit), `_next/static`, `_next/image`, `favicon.ico`.
+`src/middleware.ts` protects all routes at the edge using `next-auth/jwt`'s `getToken`. Edge middleware has a **10MB body size limit** — upload routes must be excluded and handle auth internally. Excludes: `/auth/login`, `/api/auth`, `/api/health`, `/api/admin/restore`, `/api/datafiles/upload` (100MB), `/api/upload` (20MB), `_next/static`, `_next/image`, `favicon.ico`.
 
 ### API Routes Pattern
 

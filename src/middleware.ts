@@ -9,6 +9,9 @@
  * - /auth/login：登入頁面
  * - /api/auth：NextAuth 認證 API
  * - /api/health：健康檢查端點
+ * - /api/admin/restore：還原 API（超過 middleware 10MB 限制）
+ * - /api/datafiles/upload：檔案上傳（最大 100MB，超過 middleware 10MB 限制）
+ * - /api/upload：一般上傳（最大 20MB，超過 middleware 10MB 限制）
  * - /_next：Next.js 靜態資源
  * - /favicon.ico：網站圖示
  */
