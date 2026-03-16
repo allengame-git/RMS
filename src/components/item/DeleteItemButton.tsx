@@ -44,25 +44,28 @@ interface DeleteItemButtonProps {
 export default function DeleteItemButton({ itemId, childCount, isDisabled = false }: DeleteItemButtonProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDialog, setShowDialog] = useState(false);
+    const [deleteReason, setDeleteReason] = useState("");
 
     const handleDeleteClick = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        setDeleteReason("");
         setShowDialog(true);
     };
 
     const handleConfirm = async () => {
+        if (!deleteReason.trim()) return;
         setShowDialog(false);
         setIsSubmitting(true);
         try {
-            const result = await submitDeleteItemRequest(itemId);
+            const result = await submitDeleteItemRequest(itemId, deleteReason.trim());
             if (result.error) {
                 alert(result.error);
             } else {
                 alert(result.message);
             }
         } catch {
-            alert("An unexpected error occurred.");
+            alert("發生未預期的錯誤");
         } finally {
             setIsSubmitting(false);
         }
@@ -91,7 +94,7 @@ export default function DeleteItemButton({ itemId, childCount, isDisabled = fals
                         borderRadius: 'var(--radius-sm)'
                     }}
                 >
-                    Delete (Has Children)
+                    刪除（有子項目）
                 </button>
             </div>
         );
@@ -102,7 +105,7 @@ export default function DeleteItemButton({ itemId, childCount, isDisabled = fals
             <button
                 onClick={handleDeleteClick}
                 disabled={isDisabled || isSubmitting}
-                title={isDisabled ? "Changes pending approval" : "Request deletion"}
+                title={isDisabled ? "有待審核的變更申請" : "申請刪除"}
                 type="button"
                 style={{
                     color: 'var(--color-danger)',
@@ -115,7 +118,7 @@ export default function DeleteItemButton({ itemId, childCount, isDisabled = fals
                     opacity: (isDisabled || isSubmitting) ? 0.5 : 1
                 }}
             >
-                {isSubmitting ? "Requesting..." : "Delete"}
+                {isSubmitting ? "提交中..." : "刪除"}
             </button>
 
             {showDialog && (
@@ -168,9 +171,32 @@ export default function DeleteItemButton({ itemId, childCount, isDisabled = fals
                             </button>
                         </div>
 
-                        <p style={{ marginBottom: '2rem', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
+                        <p style={{ marginBottom: '1rem', lineHeight: '1.6', color: 'var(--color-text-secondary)' }}>
                             您確定要申請刪除此項目嗎？此操作需要審核批准。
                         </p>
+
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                                刪除原因（必填）
+                            </label>
+                            <textarea
+                                value={deleteReason}
+                                onChange={(e) => setDeleteReason(e.target.value)}
+                                placeholder="請說明刪除此項目的原因..."
+                                required
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: '1px solid var(--color-border)',
+                                    background: 'var(--color-background)',
+                                    color: 'var(--color-text)',
+                                    minHeight: '80px',
+                                    resize: 'vertical',
+                                    fontSize: '0.9rem'
+                                }}
+                            />
+                        </div>
 
                         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                             <button
@@ -187,11 +213,14 @@ export default function DeleteItemButton({ itemId, childCount, isDisabled = fals
                                 onClick={handleConfirm}
                                 type="button"
                                 className="btn"
+                                disabled={!deleteReason.trim()}
                                 style={{
                                     padding: '0.6rem 1.5rem',
-                                    background: 'var(--color-danger)',
+                                    background: !deleteReason.trim() ? 'var(--color-text-muted)' : 'var(--color-danger)',
                                     border: 'none',
-                                    color: 'white'
+                                    color: 'white',
+                                    cursor: !deleteReason.trim() ? 'not-allowed' : 'pointer',
+                                    opacity: !deleteReason.trim() ? 0.6 : 1
                                 }}
                             >
                                 確認刪除
