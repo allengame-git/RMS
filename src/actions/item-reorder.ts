@@ -76,6 +76,37 @@ async function isDescendant(
 }
 
 /**
+ * Collects all descendant fullId changes that will result from a set of parent changes.
+ * Must be called BEFORE batchCascadeFullIdChanges so we can read the current fullIds.
+ */
+async function collectDescendantChanges(
+  tx: Prisma.TransactionClient,
+  changes: { itemId: number; oldFullId: string; newFullId: string }[]
+): Promise<{ itemId: number; oldFullId: string; newFullId: string }[]> {
+  const descendantChanges: { itemId: number; oldFullId: string; newFullId: string }[] = [];
+
+  for (const change of changes) {
+    if (change.oldFullId === change.newFullId) continue;
+
+    const descendants = await tx.item.findMany({
+      where: { fullId: { startsWith: `${change.oldFullId}-` } },
+      select: { id: true, fullId: true },
+    });
+
+    for (const desc of descendants) {
+      const newDescFullId = change.newFullId + desc.fullId.substring(change.oldFullId.length);
+      descendantChanges.push({
+        itemId: desc.id,
+        oldFullId: desc.fullId,
+        newFullId: newDescFullId,
+      });
+    }
+  }
+
+  return descendantChanges;
+}
+
+/**
  * Writes REORDER history records for a batch of fullId changes.
  */
 async function writeReorderHistory(
@@ -215,8 +246,10 @@ export async function reorderItems(
 
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const descendantChanges = await collectDescendantChanges(tx, actualChanges);
       await batchCascadeFullIdChanges(tx, actualChanges, projectId);
-      await writeReorderHistory(tx, actualChanges, session.user.id, projectId, "重新排序");
+      const allChanges = [...actualChanges, ...descendantChanges];
+      await writeReorderHistory(tx, allChanges, session.user.id, projectId, "重新排序");
     });
   } catch (error) {
     console.error("Reorder transaction failed:", error);
@@ -365,6 +398,8 @@ export async function moveItem(
 
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const descendantChanges = await collectDescendantChanges(tx, actualChanges);
+
       await tx.item.update({
         where: { id: itemId },
         data: { parentId: newParentId },
@@ -374,7 +409,8 @@ export async function moveItem(
         await batchCascadeFullIdChanges(tx, actualChanges, item.projectId);
       }
 
-      await writeReorderHistory(tx, actualChanges, session.user.id, item.projectId, "移動項目");
+      const allChanges = [...actualChanges, ...descendantChanges];
+      await writeReorderHistory(tx, allChanges, session.user.id, item.projectId, "移動項目");
     });
   } catch (error) {
     console.error("[moveItem] Transaction failed:", error);
@@ -504,8 +540,10 @@ export async function renumberItems(
 
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const descendantChanges = await collectDescendantChanges(tx, actualChanges);
       await batchCascadeFullIdChanges(tx, actualChanges, projectId);
-      await writeReorderHistory(tx, actualChanges, session.user.id, projectId, "重新編號");
+      const allChanges = [...actualChanges, ...descendantChanges];
+      await writeReorderHistory(tx, allChanges, session.user.id, projectId, "重新編號");
     });
   } catch (error) {
     console.error("[renumberItems] Error:", error);
