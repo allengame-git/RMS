@@ -283,10 +283,51 @@ export async function batchCascadeFullIdChanges(
   projectId: number
 ): Promise<void> {
   const TEMP_PREFIX = "__TEMP_";
+  const DELETED_PREFIX = "__DELETED_";
 
   // Filter out no-op changes
   const effectiveChanges = changes.filter((c) => c.oldFullId !== c.newFullId);
   if (effectiveChanges.length === 0) return;
+
+  // Collect all target fullIds (and their descendant patterns)
+  const targetFullIds = effectiveChanges.map((c) => c.newFullId);
+
+  // Move soft-deleted items out of the way if their fullId conflicts with a target.
+  // This prevents unique constraint violations when renumbering into gaps left by deleted items.
+  const changingItemIds = effectiveChanges.map((c) => c.itemId);
+  for (const targetFullId of targetFullIds) {
+    // Check for exact match conflicts with deleted items
+    const conflicting = await tx.item.findMany({
+      where: {
+        fullId: targetFullId,
+        isDeleted: true,
+        id: { notIn: changingItemIds },
+      },
+      select: { id: true, fullId: true },
+    });
+    for (const item of conflicting) {
+      await tx.item.update({
+        where: { id: item.id },
+        data: { fullId: `${DELETED_PREFIX}${item.fullId}` },
+      });
+    }
+
+    // Check for descendant conflicts (e.g., deleted RMS-1-2-1 when target is RMS-1-2)
+    const conflictingDescendants = await tx.item.findMany({
+      where: {
+        fullId: { startsWith: `${targetFullId}-` },
+        isDeleted: true,
+        id: { notIn: changingItemIds },
+      },
+      select: { id: true, fullId: true },
+    });
+    for (const item of conflictingDescendants) {
+      await tx.item.update({
+        where: { id: item.id },
+        data: { fullId: `${DELETED_PREFIX}${item.fullId}` },
+      });
+    }
+  }
 
   // Phase 1: oldFullId → __TEMP_ + newFullId
   for (const change of effectiveChanges) {
