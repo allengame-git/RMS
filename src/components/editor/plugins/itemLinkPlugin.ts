@@ -15,7 +15,8 @@
  * - 為符合格式的文字添加 `item-link-suggestion` class
  *
  * ## 編號格式
- * `/\b([A-Z]+-\d+(?:-\d+)*)\b/g`
+ * `/\b((?:[A-Z]+-)+\d+(?:-\d+)*)\b/g`
+ * 支援多段前綴：`RMS-1`, `RMS-DAREN-4-1`, `ABC-DEF-1-2-3`
  *
  * ## 使用方式
  * 此 Plugin 由 `ItemLink` 擴充功能自動載入。
@@ -26,7 +27,7 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
-const ITEM_ID_REGEX = /\b([A-Z]+-\d+(?:-\d+)*)\b/g;
+const ITEM_ID_REGEX = /\b((?:[A-Z]+-)+\d+(?:-\d+)*)\b/g;
 
 export const itemLinkPlugin = new Plugin({
     key: new PluginKey('itemLinkPlugin'),

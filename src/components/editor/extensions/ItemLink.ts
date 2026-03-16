@@ -11,8 +11,8 @@
  * - 點擊連結在新分頁開啟
  *
  * ## 編號格式
- * - 正規表達式：`/[A-Z]+-\d+(-\d+)*\/`
- * - 範例：`RMS-1`, `PROJ-A-1-2`
+ * - 正規表達式：`/((?:[A-Z]+-)+\d+(?:-\d+)*)/`
+ * - 範例：`RMS-1`, `RMS-DAREN-4-1`, `ABC-DEF-1-2-3`
  *
  * ## 連結屬性
  * - `fullId`：項目完整編號
@@ -130,7 +130,7 @@ export const ItemLink = Mark.create<ItemLinkOptions>({
     addInputRules() {
         return [
             new InputRule({
-                find: /([A-Z]+-\d+(?:-\d+)*)\s$/,
+                find: /((?:[A-Z]+-)+\d+(?:-\d+)*)\s$/,
                 handler: ({ state, range, match }) => {
                     const { tr } = state;
                     const start = range.from;
