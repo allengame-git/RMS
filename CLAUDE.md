@@ -48,7 +48,11 @@ npx vitest run path/to/test  # Run a single test file
 
 3. **Hierarchical Items**: Items form a tree structure within projects. Each item gets an auto-generated `fullId` (e.g., `WQ-1-1`) based on project `codePrefix` and hierarchy position. See `src/lib/item-utils.ts`.
 
-4. **Audit Trail**: Every change creates an `ItemHistory` record with JSON snapshot and diff. Login attempts are logged in `LoginLog`.
+4. **Soft Delete fullId Retention**: Soft-deleted items (`isDeleted: true`) still occupy their `fullId` in the database. `batchCascadeFullIdChanges` prefixes conflicting deleted items with `__DELETED_` before cascade. Always account for deleted items when computing fullId assignments.
+
+5. **Reorder/Move/Renumber Cascade**: These operations cascade fullId changes to all descendant items. Use `collectDescendantChanges()` before `batchCascadeFullIdChanges()` to capture child changes, then write history records for ALL affected items (not just direct targets).
+
+6. **Audit Trail**: Every change creates an `ItemHistory` record with JSON snapshot and diff. Login attempts are logged in `LoginLog`.
 
 ### Database (Prisma + PostgreSQL)
 
@@ -70,7 +74,7 @@ REST endpoints under `src/app/api/`. All require session authentication. Server 
 
 ### Backup & Restore
 
-`src/lib/backup/` handles project import/export (ZIP with manifest.json). `src/lib/backup-utils.ts` handles full database export/import. Admin restore endpoints at `src/app/api/admin/restore/{database,iso-docs,uploads}/`. Database restore uses SQL whitelist, drops all FK constraints within a `prisma.$transaction`, executes statements, then recreates constraints. File restores (iso-docs, uploads) use `unzipper` streaming to extract directly to target directories with Zip Slip protection.
+`src/lib/backup/` handles project import/export (ZIP with manifest.json). `src/lib/backup-utils.ts` handles full database export/import. Admin restore endpoints at `src/app/api/admin/restore/{database,iso-docs,uploads}/`. Database restore uses SQL whitelist, drops all FK constraints within a `prisma.$transaction`, executes statements, then recreates constraints. After restore, all PostgreSQL auto-increment sequences are reset to `MAX(id) + 1` to prevent unique constraint errors. File restores (iso-docs, uploads) use `unzipper` streaming to extract directly to target directories with Zip Slip protection.
 
 ### Styling
 
@@ -87,6 +91,7 @@ Uses `pdf-lib` (pure JS, no browser dependency) in `src/lib/pdf-generator.ts` fo
 ## Conventions
 
 - All user-facing text is in Traditional Chinese
+- changeType labels in history UI must use Chinese: CREATE→建立, UPDATE→更新, DELETE→刪除, REORDER→排序, RESTORE→還原
 - Server Actions return `{ success, error?, data? }` pattern
 - HTML content displayed from user input is sanitized with `isomorphic-dompurify`
 - File uploads are validated against a MIME type whitelist
