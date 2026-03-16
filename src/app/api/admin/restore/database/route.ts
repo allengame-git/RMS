@@ -216,6 +216,27 @@ export async function POST(request: NextRequest) {
                     `ALTER TABLE "${fk.table_name}" ADD CONSTRAINT "${fk.constraint_name}" ${fk.constraint_def}`
                 );
             }
+
+            // Step 5: 重置所有 auto-increment 序列
+            // 備份還原使用明確 id 值，導致序列不同步，需重置以避免 unique constraint 錯誤
+            const sequences = await tx.$queryRawUnsafe<{ sequence_name: string; table_name: string; column_name: string }[]>(`
+                SELECT
+                    s.relname AS sequence_name,
+                    t.relname AS table_name,
+                    a.attname AS column_name
+                FROM pg_class s
+                JOIN pg_depend d ON d.objid = s.oid
+                JOIN pg_class t ON d.refobjid = t.oid
+                JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+                WHERE s.relkind = 'S'
+                  AND t.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+            `);
+
+            for (const seq of sequences) {
+                await tx.$executeRawUnsafe(
+                    `SELECT setval('"${seq.sequence_name}"', COALESCE((SELECT MAX("${seq.column_name}") FROM "${seq.table_name}"), 0) + 1)`
+                );
+            }
         }, {
             maxWait: 30000,   // 等待取得連線的最大時間 (30 秒)
             timeout: 600000,  // 交易執行的最大時間 (10 分鐘)
