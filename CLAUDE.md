@@ -82,7 +82,7 @@ Vanilla CSS with CSS variables for theming (no Tailwind). Global styles in `glob
 
 ### Rich Text Editor
 
-Tiptap (ProseMirror-based) with custom extensions in `src/components/editor/`. Supports tables, images, links, and formatted text.
+Tiptap (ProseMirror-based) with custom extensions in `src/components/editor/`. Supports tables, images, links, and formatted text. Custom `ItemLink` extension auto-converts fullId patterns to clickable links. **Important**: Project `codePrefix` can contain hyphens (e.g., `RMS-DAREN`), so fullId regex must use `(?:[A-Z]+-)+\d+` not `[A-Z]+-\d+`.
 
 ### PDF Generation
 
@@ -99,6 +99,7 @@ Uses `pdf-lib` (pure JS, no browser dependency) in `src/lib/pdf-generator.ts` fo
 - ESLint: `@typescript-eslint/no-explicit-any` and unused vars are warnings (underscore-prefixed vars ignored)
 - Next.js standalone output mode for Docker deployment
 - Server Actions body size limit: 100MB (for file uploads)
+- After modifying Tiptap/ProseMirror plugins, must restart dev server and clear `.next` cache — hot reload may not recompile plugins correctly
 
 ## Security Gotchas
 

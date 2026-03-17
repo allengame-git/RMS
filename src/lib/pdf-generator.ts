@@ -87,6 +87,59 @@ interface Item {
 }
 
 /**
+ * Format a diff value for human-readable PDF display.
+ * Converts HTML content, relatedItems arrays, references arrays, and attachments
+ * into plain text instead of raw HTML/JSON.
+ */
+function formatDiffValue(
+    key: string,
+    val: unknown,
+    stripHtml: (html: string | null | undefined) => string
+): string {
+    if (val === null || val === undefined) return '(空白)';
+
+    // HTML content field
+    if (key === 'content') {
+        return stripHtml(val as string);
+    }
+
+    // Related items: array of { id, fullId, title, description }
+    if (key === 'relatedItems' && Array.isArray(val)) {
+        if (val.length === 0) return '(無關聯項目)';
+        return val.map((r: any) => {
+            const parts = [r.fullId, r.title].filter(Boolean).join(' - ');
+            return r.description ? `${parts} (${r.description})` : parts;
+        }).join('、');
+    }
+
+    // References: array of { fileId, dataCode, dataName, dataYear, author, citation }
+    if (key === 'references' && Array.isArray(val)) {
+        if (val.length === 0) return '(無參考文獻)';
+        return val.map((r: any) => {
+            const parts = [r.dataCode, r.dataName].filter(Boolean).join(' - ');
+            return r.citation ? `${parts} (${r.citation})` : parts;
+        }).join('、');
+    }
+
+    // Attachments: JSON string or array of { name, fileName, path }
+    if (key === 'attachments') {
+        try {
+            const files = typeof val === 'string' ? JSON.parse(val) : val;
+            if (Array.isArray(files)) {
+                if (files.length === 0) return '(無附件)';
+                return files.map((f: any) => f.name || f.dataName || f.fileName || '未命名').join('、');
+            }
+        } catch { /* fall through */ }
+        // If it's an HTML string (legacy), strip tags
+        if (typeof val === 'string') return stripHtml(val);
+    }
+
+    // Fallback: plain string
+    if (typeof val === 'string') return stripHtml(val);
+    return String(val);
+}
+
+/**
  * Generate History Summary Pages using pdf-lib (no Puppeteer)
  * Returns additional pages to be appended to the main QC document
  */
@@ -205,7 +258,7 @@ const generateHistorySummaryPages = async (
             // Old value
             page.drawText('修改前:', { x: margin + 10, y, size: 9, font, color: red });
             y -= lineHeight;
-            const oldText = key === 'content' ? stripHtml(value.old) : (typeof value.old === 'object' ? JSON.stringify(value.old) : String(value.old || '(空白)'));
+            const oldText = formatDiffValue(key, value.old, stripHtml);
             const oldLines = wrapText(oldText.slice(0, 500), font, 8, width - margin - 80);
             for (let i = 0; i < Math.min(oldLines.length, 4); i++) {
                 page.drawText(oldLines[i], { x: margin + 20, y, size: 8, font, color: gray });
@@ -220,7 +273,7 @@ const generateHistorySummaryPages = async (
             // New value
             page.drawText('修改後:', { x: margin + 10, y, size: 9, font, color: green });
             y -= lineHeight;
-            const newText = key === 'content' ? stripHtml(value.new) : (typeof value.new === 'object' ? JSON.stringify(value.new) : String(value.new || '(空白)'));
+            const newText = formatDiffValue(key, value.new, stripHtml);
             const newLines = wrapText(newText.slice(0, 500), font, 8, width - margin - 80);
             for (let i = 0; i < Math.min(newLines.length, 4); i++) {
                 page.drawText(newLines[i], { x: margin + 20, y, size: 8, font, color: gray });
