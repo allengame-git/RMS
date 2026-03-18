@@ -10,6 +10,7 @@
  * - 根據使用者資格過濾顯示內容
  * - QC 審核操作（通過/拒絕）
  * - PM 核定操作（通過/要求修訂）
+ * - 批次核准功能（多選後一次核准）
  * - 審查意見輸入
  *
  * ## 審核狀態
@@ -35,6 +36,7 @@ import {
     approveAsQC,
     approveAsPM,
     rejectQCDocument,
+    batchApproveAsPM,
 } from "@/actions/qc-approval";
 
 interface QCDocumentApproval {
@@ -87,9 +89,12 @@ export default function QCDocumentApprovalList({
     onRefresh,
 }: Props) {
     const [processingId, setProcessingId] = useState<number | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [batchProcessing, setBatchProcessing] = useState(false);
+    const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
     const [confirmDialog, setConfirmDialog] = useState<{
         isOpen: boolean;
-        type: 'APPROVE' | 'REJECT';
+        type: 'APPROVE' | 'REJECT' | 'BATCH_APPROVE';
         approval: QCDocumentApproval | null;
         note: string;
     }>({
@@ -98,6 +103,32 @@ export default function QCDocumentApprovalList({
         approval: null,
         note: ''
     });
+
+    // Filter approvals that PM can batch-approve
+    const batchApprovableIds = approvals
+        .filter(a => a.status === "PENDING_PM" && userQualifications.isPM)
+        .map(a => a.id);
+
+    const selectedBatchIds = [...selectedIds].filter(id => batchApprovableIds.includes(id));
+
+    const handleToggleSelect = (id: number) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleToggleAll = () => {
+        if (selectedBatchIds.length === batchApprovableIds.length) {
+            // Deselect all
+            setSelectedIds(new Set());
+        } else {
+            // Select all approvable
+            setSelectedIds(new Set(batchApprovableIds));
+        }
+    };
 
     const handleActionClick = (approval: QCDocumentApproval, type: 'APPROVE' | 'REJECT') => {
         setConfirmDialog({
@@ -108,9 +139,18 @@ export default function QCDocumentApprovalList({
         });
     };
 
+    const handleBatchApproveClick = () => {
+        if (selectedBatchIds.length === 0) return;
+        setConfirmDialog({
+            isOpen: true,
+            type: 'BATCH_APPROVE',
+            approval: null,
+            note: ''
+        });
+    };
+
     const handleConfirm = async () => {
         const { type, approval, note } = confirmDialog;
-        if (!approval) return;
 
         if (type === 'REJECT' && !note.trim()) {
             alert('請填寫駁回原因');
@@ -118,6 +158,34 @@ export default function QCDocumentApprovalList({
         }
 
         setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+
+        // Batch approve
+        if (type === 'BATCH_APPROVE') {
+            setBatchProcessing(true);
+            setBatchProgress({ done: 0, total: selectedBatchIds.length });
+            try {
+                const result = await batchApproveAsPM(selectedBatchIds, note || undefined);
+                setBatchProgress(null);
+
+                if (result.failed.length > 0) {
+                    const failedItems = result.failed.map(f => `ID ${f.id}: ${f.error}`).join('\n');
+                    alert(`已完成 ${result.successful.length} 筆，${result.failed.length} 筆失敗：\n${failedItems}`);
+                }
+
+                setSelectedIds(new Set());
+                onRefresh();
+            } catch (err) {
+                console.error("Batch approval failed:", err);
+                alert("批次核准失敗");
+            } finally {
+                setBatchProcessing(false);
+                setBatchProgress(null);
+            }
+            return;
+        }
+
+        // Single approve/reject
+        if (!approval) return;
         setProcessingId(approval.id);
 
         try {
@@ -168,6 +236,10 @@ export default function QCDocumentApprovalList({
         return false;
     };
 
+    const canBatchSelect = (approval: QCDocumentApproval) => {
+        return approval.status === "PENDING_PM" && userQualifications.isPM;
+    };
+
     if (approvals.length === 0) {
         return (
             <div
@@ -184,6 +256,50 @@ export default function QCDocumentApprovalList({
 
     return (
         <>
+            {/* Batch action bar */}
+            {batchApprovableIds.length > 0 && (
+                <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "1rem",
+                    padding: "0.75rem 1rem",
+                    marginBottom: "0.5rem",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: "var(--color-bg-elevated)",
+                    border: "1px solid var(--color-border)",
+                }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.9rem" }}>
+                        <input
+                            type="checkbox"
+                            checked={selectedBatchIds.length === batchApprovableIds.length && batchApprovableIds.length > 0}
+                            onChange={handleToggleAll}
+                            disabled={batchProcessing}
+                            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                        />
+                        全選待 PM 核定 ({batchApprovableIds.length})
+                    </label>
+
+                    {selectedBatchIds.length > 0 && (
+                        <>
+                            <span style={{ color: "var(--color-text-muted)", fontSize: "0.85rem" }}>
+                                已選 {selectedBatchIds.length} 筆
+                            </span>
+                            <button
+                                onClick={handleBatchApproveClick}
+                                disabled={batchProcessing}
+                                className="btn btn-primary"
+                                style={{ padding: "0.25rem 1rem", fontSize: "0.9rem" }}
+                            >
+                                {batchProcessing
+                                    ? (batchProgress ? `處理中 (${batchProgress.done}/${batchProgress.total})...` : "處理中...")
+                                    : `批次核准 (${selectedBatchIds.length})`
+                                }
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
+
             <div className="glass" style={{ borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
@@ -193,6 +309,9 @@ export default function QCDocumentApprovalList({
                                 backgroundColor: "rgba(0,0,0,0.02)",
                             }}
                         >
+                            {batchApprovableIds.length > 0 && (
+                                <th style={{ padding: "1rem 0.5rem", textAlign: "center", width: "40px" }}></th>
+                            )}
                             <th style={{ padding: "1rem", textAlign: "left" }}>QC 編號</th>
                             <th style={{ padding: "1rem", textAlign: "left" }}>項目</th>
                             <th style={{ padding: "1rem", textAlign: "left" }}>版本</th>
@@ -206,12 +325,29 @@ export default function QCDocumentApprovalList({
                         {approvals.map((approval) => {
                             const status = getStatusLabel(approval.status);
                             const history = approval.itemHistory;
+                            const isSelected = selectedIds.has(approval.id);
 
                             return (
                                 <tr
                                     key={approval.id}
-                                    style={{ borderBottom: "1px solid var(--color-border)" }}
+                                    style={{
+                                        borderBottom: "1px solid var(--color-border)",
+                                        backgroundColor: isSelected ? "rgba(59, 130, 246, 0.05)" : undefined,
+                                    }}
                                 >
+                                    {batchApprovableIds.length > 0 && (
+                                        <td style={{ padding: "1rem 0.5rem", textAlign: "center" }}>
+                                            {canBatchSelect(approval) && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => handleToggleSelect(approval.id)}
+                                                    disabled={batchProcessing || processingId === approval.id}
+                                                    style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                                                />
+                                            )}
+                                        </td>
+                                    )}
                                     <td style={{ padding: "1rem", fontWeight: "bold" }}>
                                         <div>QC-{String(history.id).padStart(4, "0")}</div>
                                         {approval.revisionCount > 0 ? (
@@ -289,7 +425,7 @@ export default function QCDocumentApprovalList({
                                                     textDecoration: "none",
                                                 }}
                                             >
-                                                📄 檢視
+                                                檢視
                                             </a>
                                         ) : (
                                             <span style={{ color: "var(--color-text-muted)" }}>-</span>
@@ -300,7 +436,7 @@ export default function QCDocumentApprovalList({
                                             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
                                                 <button
                                                     onClick={() => handleActionClick(approval, 'APPROVE')}
-                                                    disabled={processingId === approval.id}
+                                                    disabled={processingId === approval.id || batchProcessing}
                                                     className="btn btn-primary"
                                                     style={{ padding: "0.25rem 1rem", fontSize: "0.9rem" }}
                                                 >
@@ -308,7 +444,7 @@ export default function QCDocumentApprovalList({
                                                 </button>
                                                 <button
                                                     onClick={() => handleActionClick(approval, 'REJECT')}
-                                                    disabled={processingId === approval.id}
+                                                    disabled={processingId === approval.id || batchProcessing}
                                                     className="btn btn-outline"
                                                     style={{
                                                         padding: "0.25rem 1rem",
@@ -333,7 +469,7 @@ export default function QCDocumentApprovalList({
                 </table>
             </div>
 
-            {confirmDialog.isOpen && confirmDialog.approval && (
+            {confirmDialog.isOpen && (
                 <div style={{
                     position: 'fixed',
                     top: 0,
@@ -356,25 +492,66 @@ export default function QCDocumentApprovalList({
                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                         border: '1px solid var(--color-border)'
                     }}>
-                        <h3 style={{ marginTop: 0, marginBottom: "1rem", color: confirmDialog.type === 'APPROVE' ? 'var(--color-text-main)' : '#ef4444' }}>
-                            {confirmDialog.type === 'APPROVE' ? '確認核准品質文件' : '確認駁回品質文件'}
+                        <h3 style={{
+                            marginTop: 0,
+                            marginBottom: "1rem",
+                            color: confirmDialog.type === 'REJECT' ? '#ef4444' : 'var(--color-text-main)'
+                        }}>
+                            {confirmDialog.type === 'BATCH_APPROVE'
+                                ? `確認批次核准 ${selectedBatchIds.length} 筆品質文件`
+                                : confirmDialog.type === 'APPROVE'
+                                    ? '確認核准品質文件'
+                                    : '確認駁回品質文件'
+                            }
                         </h3>
 
                         <div style={{ marginBottom: "1.5rem" }}>
-                            <p style={{ marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                                項目: <strong>{confirmDialog.approval.itemHistory.itemFullId}</strong>
-                            </p>
-                            <p style={{ marginBottom: "1rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                                標題: {confirmDialog.approval.itemHistory.itemTitle}
-                            </p>
+                            {confirmDialog.type === 'BATCH_APPROVE' ? (
+                                <div style={{ marginBottom: "1rem" }}>
+                                    <p style={{ fontSize: "0.9rem", color: "var(--color-text-muted)", marginBottom: "0.5rem" }}>
+                                        將核准以下 {selectedBatchIds.length} 筆品質文件：
+                                    </p>
+                                    <div style={{
+                                        maxHeight: "150px",
+                                        overflowY: "auto",
+                                        border: "1px solid var(--color-border)",
+                                        borderRadius: "var(--radius-sm)",
+                                        padding: "0.5rem",
+                                        fontSize: "0.85rem",
+                                    }}>
+                                        {approvals
+                                            .filter(a => selectedBatchIds.includes(a.id))
+                                            .map(a => (
+                                                <div key={a.id} style={{ padding: "0.25rem 0" }}>
+                                                    <strong>{a.itemHistory.itemFullId}</strong> - {a.itemHistory.itemTitle}
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+                            ) : confirmDialog.approval && (
+                                <>
+                                    <p style={{ marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
+                                        項目: <strong>{confirmDialog.approval.itemHistory.itemFullId}</strong>
+                                    </p>
+                                    <p style={{ marginBottom: "1rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
+                                        標題: {confirmDialog.approval.itemHistory.itemTitle}
+                                    </p>
+                                </>
+                            )}
 
                             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600 }}>
-                                {confirmDialog.type === 'APPROVE' ? '審查意見 (選填)' : '駁回原因 (必填)'}
+                                {confirmDialog.type === 'REJECT'
+                                    ? '駁回原因 (必填)'
+                                    : confirmDialog.type === 'BATCH_APPROVE'
+                                        ? '審查意見 (選填，套用至所有項目)'
+                                        : '審查意見 (選填)'
+                                }
                             </label>
                             <textarea
                                 value={confirmDialog.note}
                                 onChange={(e) => setConfirmDialog(prev => ({ ...prev, note: e.target.value }))}
-                                placeholder={confirmDialog.type === 'APPROVE' ? "請輸入審查意見..." : "請輸入駁回原因..."}
+                                placeholder={confirmDialog.type === 'REJECT' ? "請輸入駁回原因..." : "請輸入審查意見..."}
                                 style={{
                                     width: "100%",
                                     padding: "0.75rem",
@@ -403,7 +580,12 @@ export default function QCDocumentApprovalList({
                                     borderColor: confirmDialog.type === 'REJECT' ? '#ef4444' : undefined,
                                 }}
                             >
-                                確認{confirmDialog.type === 'APPROVE' ? '核准' : '駁回'}
+                                {confirmDialog.type === 'BATCH_APPROVE'
+                                    ? `確認核准 ${selectedBatchIds.length} 筆`
+                                    : confirmDialog.type === 'APPROVE'
+                                        ? '確認核准'
+                                        : '確認駁回'
+                                }
                             </button>
                         </div>
                     </div>
