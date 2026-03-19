@@ -126,6 +126,21 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 | `vitest` | 單元測試框架 |
 | `@types/*` | TypeScript 型別定義 |
 
+### v2.2.1 (2026-03-19) - 批次審核、上傳修復與 PDF 改善
+
+- 📋 **PM 品質文件批次核准**:
+  - 支援多選待 PM 核定的品質文件，一次批次核准
+  - 逐筆生成 PDF，失敗項目不影響其他，可重試
+  - 批次處理中禁用所有操作按鈕，防止重複提交
+- 📄 **QC PDF 內容改善**:
+  - 歷史版本詳情中，關聯項目與參考文獻顯示人類可讀文字，不再輸出原始 HTML/JSON
+- 🔗 **ItemLink 多段前綴支援**:
+  - 修正 `RMS-DAREN-4-1` 等含連字號 codePrefix 的 fullId 無法正確辨識的問題
+  - 更新 InputRule 和 decoration plugin 的 regex
+- 📤 **檔案上傳修復 (>10MB)**:
+  - 排除 `/api/datafiles/upload` 和 `/api/upload` 於 Edge middleware
+  - 修復 24MB 以上檔案上傳失敗問題
+
 ### v2.2.0 (2026-03-16) - 項目排序/移動/重新編號 與 審核流程強化
 
 - 🔄 **項目排序 (Reorder)**:

@@ -1,11 +1,42 @@
 # NextSteps - 後續工作說明
 
 > 此文件供後續接手的 AI Agent 或開發者了解當前狀態與待辦事項。
-> 最後更新：2026-03-16
+> 最後更新：2026-03-19
 
 ---
 
-## 最近完成的變更 (v2.2.0)
+## 最近完成的變更 (v2.2.1)
+
+### 6. PM 品質文件批次核准
+
+**修改檔案**：
+- `src/actions/qc-approval.ts` — 新增 `batchApproveAsPM` Server Action，逐筆處理 PDF 生成與 DB 更新，per-item 錯誤處理
+- `src/components/approval/QCDocumentApprovalList.tsx` — 新增 checkbox 多選 UI、全選、批次核准確認對話框
+
+**設計要點**：
+- PDF 在 DB 更新之前生成，確保 PDF 失敗不會造成 DB 狀態不一致
+- 失敗項目保持 `PENDING_PM` 狀態，可再次單獨或批次核准
+- 批次處理中所有按鈕（checkbox、核准、駁回）均禁用
+
+### 7. QC PDF diff 人類可讀顯示
+
+- `src/lib/pdf-generator.ts` — 新增 `formatDiffValue()` 函式
+- `relatedItems` 顯示為 `fullId - 標題` 格式，`references` 顯示為 `dataCode - 名稱`，不再 `JSON.stringify`
+
+### 8. ItemLink 多段 codePrefix 修復
+
+- `src/components/editor/extensions/ItemLink.ts` — InputRule regex 改為 `((?:[A-Z]+-)+\d+(?:-\d+)*)`
+- `src/components/editor/plugins/itemLinkPlugin.ts` — decoration regex 同步更新
+- 修復 `RMS-DAREN-4-1` 只辨識到 `DAREN-4-1` 的問題
+
+### 9. 檔案上傳 >10MB 修復
+
+- `src/middleware.ts` — 排除 `/api/datafiles/upload` 和 `/api/upload` 於 Edge middleware matcher
+- Edge middleware 有 10MB body 限制，超過會截斷 request body 導致 FormData 解析失敗
+
+---
+
+## 先前完成的變更 (v2.2.0)
 
 ### 1. 項目排序 / 移動 / 重新編號
 
@@ -68,8 +99,8 @@
    - CSS Grid order 方式在某些排列下可能產生空格
    - 可考慮 `display: flex; flex-wrap: wrap` 替代
 
-6. **批量審核功能**
-   - 一次審核多筆申請，目前只能逐筆操作
+6. **DataFile 批量審核**
+   - 目前僅 QC 品質文件有批次核准，DataFile 審查和 Item 審查尚未支援批次操作
 
 ### 低優先級
 
@@ -99,3 +130,5 @@
 | 檔案審查 | `src/components/datafile/DataFileApprovalList.tsx` |
 | 備份還原 | `src/app/api/admin/restore/database/route.ts`, `src/lib/backup-utils.ts` |
 | 項目刪除 | `src/components/item/DeleteItemButton.tsx` |
+| PDF 生成 | `src/lib/pdf-generator.ts` |
+| ItemLink 擴充 | `src/components/editor/extensions/ItemLink.ts`, `src/components/editor/plugins/itemLinkPlugin.ts` |
