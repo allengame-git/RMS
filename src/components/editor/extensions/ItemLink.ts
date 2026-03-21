@@ -34,7 +34,7 @@
 import { Mark, mergeAttributes, InputRule } from '@tiptap/core';
 
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { itemLinkPlugin } from '../plugins/itemLinkPlugin';
+import { itemLinkPlugin, ITEM_ID_CORE_PATTERN } from '../plugins/itemLinkPlugin';
 import { itemLinkValidationPlugin } from '../plugins/itemLinkValidationPlugin';
 
 export interface ItemLinkOptions {
@@ -130,7 +130,7 @@ export const ItemLink = Mark.create<ItemLinkOptions>({
     addInputRules() {
         return [
             new InputRule({
-                find: /((?:[A-Z]+-)+\d+(?:-\d+)*)\s$/,
+                find: new RegExp(`(${ITEM_ID_CORE_PATTERN})\\s$`),
                 handler: ({ state, range, match }) => {
                     const { tr } = state;
                     const start = range.from;

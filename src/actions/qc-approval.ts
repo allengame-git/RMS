@@ -204,21 +204,13 @@ export async function approveAsQC(
     return { message: "QC approval completed" };
 }
 
-/**
- * Approve as PM - Generate PDF and complete the workflow
- * PDF must be generated successfully before updating status
- */
-export async function approveAsPM(
+/** Process a single PM approval: fetch data, generate PDF, update DB, send notification. */
+async function processSinglePMApproval(
     approvalId: number,
-    note?: string
-): Promise<QCApprovalState> {
-    const session = await getServerSession(authOptions);
-    if (!session) return { error: "Unauthorized" };
-
-    const user = await getUserQualifications(session.user.id);
-    if (!user?.isPM) return { error: "Unauthorized - PM qualification required" };
-
-    // Get the approval record
+    sessionUserId: string,
+    pmUsername: string,
+    note: string
+): Promise<{ error?: string }> {
     const approval = await prisma.qCDocumentApproval.findUnique({
         where: { id: approvalId },
         include: {
@@ -227,74 +219,58 @@ export async function approveAsPM(
         }
     });
 
-    if (!approval) return { error: "Approval record not found" };
-    if (approval.status !== "PENDING_PM") return { error: "Document is not pending PM approval" };
+    if (!approval) return { error: "記錄不存在" };
+    if (approval.status !== "PENDING_PM") return { error: "非待 PM 核定狀態" };
 
-    // Get submission date using helper
-    const submissionDate = await getSubmissionDate(approval.itemHistory.changeRequestId);
+    // Parallelize independent DB queries
+    const [submissionDate, fullHistory, reviewChain] = await Promise.all([
+        getSubmissionDate(approval.itemHistory.changeRequestId),
+        prisma.itemHistory.findUnique({
+            where: { id: approval.itemHistoryId },
+            include: {
+                project: true,
+                submittedBy: { select: { username: true } },
+                reviewedBy: { select: { username: true } }
+            }
+        }),
+        approval.itemHistory.changeRequestId
+            ? getRequestChain(approval.itemHistory.changeRequestId)
+            : Promise.resolve([] as unknown[])
+    ]);
 
-    // Fetch full history for PDF generation
-    const fullHistory = await prisma.itemHistory.findUnique({
-        where: { id: approval.itemHistoryId },
-        include: {
-            project: true,
-            submittedBy: { select: { username: true } },
-            reviewedBy: { select: { username: true } }
-        }
-    });
-
-    if (!fullHistory) {
-        return { error: "History record not found" };
-    }
-
-    // Get review chain
-    let reviewChain: unknown[] = [];
-    if (approval.itemHistory.changeRequestId) {
-        reviewChain = await getRequestChain(approval.itemHistory.changeRequestId);
-    }
+    if (!fullHistory) return { error: "歷史記錄不存在" };
 
     // Generate PDF - must succeed before updating status
-    let pdfPath: string;
-    try {
-        pdfPath = await generateQCDocument({
-            ...fullHistory,
-            submissionDate: submissionDate,
-            qcNote: approval.qcNote,
-            qcDate: approval.qcApprovedAt,
-            qcUser: approval.qcApprovedBy?.username,
-            pmNote: note || "同意",
-            pmDate: new Date(),
-            pmUser: user.username,
-            reviewChain
-        }, null);
-    } catch (err) {
-        console.error("Failed to generate PDF during PM approval:", err);
-        return { error: "PDF 生成失敗，請稍後再試" };
-    }
+    const pdfPath = await generateQCDocument({
+        ...fullHistory,
+        submissionDate,
+        qcNote: approval.qcNote,
+        qcDate: approval.qcApprovedAt,
+        qcUser: approval.qcApprovedBy?.username,
+        pmNote: note,
+        pmDate: new Date(),
+        pmUser: pmUsername,
+        reviewChain
+    }, null);
 
-    // All DB updates in a single transaction for consistency
-    try {
-        await prisma.$transaction([
-            prisma.itemHistory.update({
-                where: { id: approval.itemHistoryId },
-                data: { isoDocPath: pdfPath }
-            }),
-            prisma.qCDocumentApproval.update({
-                where: { id: approvalId },
-                data: {
-                    status: "COMPLETED",
-                    pmApprovedById: session.user.id,
-                    pmApprovedAt: new Date(),
-                    pmNote: note || "同意",
-                }
-            })
-        ]);
-    } catch (err) {
-        console.error("Failed to update database during PM approval:", err);
-        return { error: "資料庫更新失敗，請稍後再試" };
-    }
+    // DB updates in a single transaction
+    await prisma.$transaction([
+        prisma.itemHistory.update({
+            where: { id: approval.itemHistoryId },
+            data: { isoDocPath: pdfPath }
+        }),
+        prisma.qCDocumentApproval.update({
+            where: { id: approvalId },
+            data: {
+                status: "COMPLETED",
+                pmApprovedById: sessionUserId,
+                pmApprovedAt: new Date(),
+                pmNote: note,
+            }
+        })
+    ]);
 
-    // Send completion notification (non-critical, outside transaction)
+    // Send completion notification (non-critical)
     if (approval.itemHistory.submittedById) {
         await createNotification({
             userId: approval.itemHistory.submittedById,
@@ -307,6 +283,27 @@ export async function approveAsPM(
         });
     }
 
+    return {};
+}
+
+export async function approveAsPM(
+    approvalId: number,
+    note?: string
+): Promise<QCApprovalState> {
+    const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
+
+    const user = await getUserQualifications(session.user.id);
+    if (!user?.isPM) return { error: "Unauthorized - PM qualification required" };
+
+    try {
+        const result = await processSinglePMApproval(approvalId, session.user.id, user.username, note || "同意");
+        if (result.error) return { error: result.error };
+    } catch (err) {
+        console.error("Failed PM approval:", err);
+        return { error: "PM 核定失敗，請稍後再試" };
+    }
+
     revalidatePath("/admin/approvals");
     revalidatePath("/iso-docs");
     return { message: "PM approval completed - Document finalized" };
@@ -315,7 +312,6 @@ export async function approveAsPM(
 /**
  * Batch approve multiple QC documents as PM.
  * Processes each approval sequentially (PDF generation is I/O heavy).
- * Returns results for each item so the UI can show partial success.
  */
 export async function batchApproveAsPM(
     approvalIds: number[],
@@ -329,83 +325,16 @@ export async function batchApproveAsPM(
 
     const successful: number[] = [];
     const failed: { id: number; error: string }[] = [];
+    const pmNote = note || "同意";
 
     for (const approvalId of approvalIds) {
         try {
-            // Get the approval record
-            const approval = await prisma.qCDocumentApproval.findUnique({
-                where: { id: approvalId },
-                include: {
-                    itemHistory: true,
-                    qcApprovedBy: { select: { username: true } }
-                }
-            });
-
-            if (!approval) { failed.push({ id: approvalId, error: "記錄不存在" }); continue; }
-            if (approval.status !== "PENDING_PM") { failed.push({ id: approvalId, error: "非待 PM 核定狀態" }); continue; }
-
-            const submissionDate = await getSubmissionDate(approval.itemHistory.changeRequestId);
-
-            const fullHistory = await prisma.itemHistory.findUnique({
-                where: { id: approval.itemHistoryId },
-                include: {
-                    project: true,
-                    submittedBy: { select: { username: true } },
-                    reviewedBy: { select: { username: true } }
-                }
-            });
-
-            if (!fullHistory) { failed.push({ id: approvalId, error: "歷史記錄不存在" }); continue; }
-
-            let reviewChain: unknown[] = [];
-            if (approval.itemHistory.changeRequestId) {
-                reviewChain = await getRequestChain(approval.itemHistory.changeRequestId);
+            const result = await processSinglePMApproval(approvalId, session.user.id, user.username, pmNote);
+            if (result.error) {
+                failed.push({ id: approvalId, error: result.error });
+            } else {
+                successful.push(approvalId);
             }
-
-            // Generate PDF
-            const pdfPath = await generateQCDocument({
-                ...fullHistory,
-                submissionDate,
-                qcNote: approval.qcNote,
-                qcDate: approval.qcApprovedAt,
-                qcUser: approval.qcApprovedBy?.username,
-                pmNote: note || "同意",
-                pmDate: new Date(),
-                pmUser: user.username,
-                reviewChain
-            }, null);
-
-            // Update database
-            await prisma.$transaction([
-                prisma.itemHistory.update({
-                    where: { id: approval.itemHistoryId },
-                    data: { isoDocPath: pdfPath }
-                }),
-                prisma.qCDocumentApproval.update({
-                    where: { id: approvalId },
-                    data: {
-                        status: "COMPLETED",
-                        pmApprovedById: session.user.id,
-                        pmApprovedAt: new Date(),
-                        pmNote: note || "同意",
-                    }
-                })
-            ]);
-
-            // Send notification (non-critical)
-            if (approval.itemHistory.submittedById) {
-                await createNotification({
-                    userId: approval.itemHistory.submittedById,
-                    type: "COMPLETED",
-                    title: `品質文件審核完成`,
-                    message: `${approval.itemHistory.itemFullId} ${approval.itemHistory.itemTitle} - 已完成 PM 核定`,
-                    link: `/admin/history/detail/${approval.itemHistory.id}`,
-                    qcApprovalId: approvalId,
-                    itemHistoryId: approval.itemHistory.id,
-                });
-            }
-
-            successful.push(approvalId);
         } catch (err) {
             console.error(`Batch PM approval failed for id=${approvalId}:`, err);
             failed.push({ id: approvalId, error: "處理失敗" });

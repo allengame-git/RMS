@@ -27,56 +27,57 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
-const ITEM_ID_REGEX = /\b((?:[A-Z]+-)+\d+(?:-\d+)*)\b/g;
+/** Core regex pattern for item fullId (e.g. RMS-1, RMS-DAREN-4-1). Shared with ItemLink.ts. */
+export const ITEM_ID_CORE_PATTERN = '(?:[A-Z]+-)+\\d+(?:-\\d+)*';
+
+const ITEM_ID_REGEX = new RegExp(`\\b(${ITEM_ID_CORE_PATTERN})\\b`, 'g');
+
+/** Build decorations by scanning all text nodes for item ID patterns */
+function buildDecorations(doc: any): DecorationSet {
+    const decorations: Decoration[] = [];
+
+    doc.descendants((node: any, pos: number) => {
+        if (!node.isText || !node.text) return;
+        if (node.marks.some((m: any) => m.type.name === 'itemLink')) return;
+
+        const text = node.text;
+        let match;
+        ITEM_ID_REGEX.lastIndex = 0;
+
+        while ((match = ITEM_ID_REGEX.exec(text)) !== null) {
+            const from = pos + match.index;
+            const to = from + match[0].length;
+            decorations.push(
+                Decoration.inline(from, to, {
+                    class: 'item-id-candidate',
+                    'data-item-id': match[1],
+                    title: 'Click to convert to link'
+                })
+            );
+        }
+    });
+
+    return DecorationSet.create(doc, decorations);
+}
 
 export const itemLinkPlugin = new Plugin({
     key: new PluginKey('itemLinkPlugin'),
 
     state: {
-        init() {
-            return DecorationSet.empty;
+        init(_config: any, state: any) {
+            return buildDecorations(state.doc);
         },
-        apply(tr, oldState) {
-            return oldState.map(tr.mapping, tr.doc);
+        apply(tr: any, oldSet: DecorationSet) {
+            if (!tr.docChanged) {
+                return oldSet.map(tr.mapping, tr.doc);
+            }
+            return buildDecorations(tr.doc);
         },
     },
 
     props: {
         decorations(state) {
-            const decorations: Decoration[] = [];
-            const { doc } = state;
-
-            doc.descendants((node, pos) => {
-                if (!node.isText || !node.text) {
-                    return;
-                }
-
-                // Skip if already has itemLink mark
-                if (node.marks.some(m => m.type.name === 'itemLink')) {
-                    return;
-                }
-
-                const text = node.text;
-                let match;
-
-                // Reset regex lastIndex
-                ITEM_ID_REGEX.lastIndex = 0;
-
-                while ((match = ITEM_ID_REGEX.exec(text)) !== null) {
-                    const from = pos + match.index;
-                    const to = from + match[0].length;
-
-                    decorations.push(
-                        Decoration.inline(from, to, {
-                            class: 'item-id-candidate',
-                            'data-item-id': match[1],
-                            title: 'Click to convert to link'
-                        })
-                    );
-                }
-            });
-
-            return DecorationSet.create(doc, decorations);
+            return this.getState(state) as DecorationSet;
         },
 
         handleClick(view, pos, event) {

@@ -86,16 +86,25 @@ interface Item {
     title: string;
 }
 
+/** Strip HTML tags for plain text display in PDF */
+function stripHtml(html: string | null | undefined): string {
+    if (!html) return '(無內容)';
+    return html
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/\s+/g, ' ')
+        .trim() || '(無內容)';
+}
+
 /**
  * Format a diff value for human-readable PDF display.
  * Converts HTML content, relatedItems arrays, references arrays, and attachments
  * into plain text instead of raw HTML/JSON.
  */
-function formatDiffValue(
-    key: string,
-    val: unknown,
-    stripHtml: (html: string | null | undefined) => string
-): string {
+function formatDiffValue(key: string, val: unknown): string {
     if (val === null || val === undefined) return '(空白)';
 
     // HTML content field
@@ -166,19 +175,6 @@ const generateHistorySummaryPages = async (
         const h = String(d.getHours()).padStart(2, '0');
         const min = String(d.getMinutes()).padStart(2, '0');
         return `${y}/${m}/${day} ${h}:${min}`;
-    };
-
-    // Strip HTML tags for plain text display
-    const stripHtml = (html: string | null | undefined): string => {
-        if (!html) return '(無內容)';
-        return html
-            .replace(/<[^>]*>/g, ' ')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&amp;/g, '&')
-            .replace(/\s+/g, ' ')
-            .trim() || '(無內容)';
     };
 
     // Create new page
@@ -258,7 +254,7 @@ const generateHistorySummaryPages = async (
             // Old value
             page.drawText('修改前:', { x: margin + 10, y, size: 9, font, color: red });
             y -= lineHeight;
-            const oldText = formatDiffValue(key, value.old, stripHtml);
+            const oldText = formatDiffValue(key, value.old);
             const oldLines = wrapText(oldText.slice(0, 500), font, 8, width - margin - 80);
             for (let i = 0; i < Math.min(oldLines.length, 4); i++) {
                 page.drawText(oldLines[i], { x: margin + 20, y, size: 8, font, color: gray });
@@ -273,7 +269,7 @@ const generateHistorySummaryPages = async (
             // New value
             page.drawText('修改後:', { x: margin + 10, y, size: 9, font, color: green });
             y -= lineHeight;
-            const newText = formatDiffValue(key, value.new, stripHtml);
+            const newText = formatDiffValue(key, value.new);
             const newLines = wrapText(newText.slice(0, 500), font, 8, width - margin - 80);
             for (let i = 0; i < Math.min(newLines.length, 4); i++) {
                 page.drawText(newLines[i], { x: margin + 20, y, size: 8, font, color: gray });

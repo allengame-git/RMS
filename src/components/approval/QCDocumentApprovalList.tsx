@@ -91,7 +91,6 @@ export default function QCDocumentApprovalList({
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [batchProcessing, setBatchProcessing] = useState(false);
-    const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
     const [confirmDialog, setConfirmDialog] = useState<{
         isOpen: boolean;
         type: 'APPROVE' | 'REJECT' | 'BATCH_APPROVE';
@@ -162,10 +161,8 @@ export default function QCDocumentApprovalList({
         // Batch approve
         if (type === 'BATCH_APPROVE') {
             setBatchProcessing(true);
-            setBatchProgress({ done: 0, total: selectedBatchIds.length });
             try {
                 const result = await batchApproveAsPM(selectedBatchIds, note || undefined);
-                setBatchProgress(null);
 
                 if (result.failed.length > 0) {
                     const failedItems = result.failed.map(f => `ID ${f.id}: ${f.error}`).join('\n');
@@ -179,7 +176,6 @@ export default function QCDocumentApprovalList({
                 alert("批次核准失敗");
             } finally {
                 setBatchProcessing(false);
-                setBatchProgress(null);
             }
             return;
         }
@@ -291,7 +287,7 @@ export default function QCDocumentApprovalList({
                                 style={{ padding: "0.25rem 1rem", fontSize: "0.9rem" }}
                             >
                                 {batchProcessing
-                                    ? (batchProgress ? `處理中 (${batchProgress.done}/${batchProgress.total})...` : "處理中...")
+                                    ? "批次核准處理中..."
                                     : `批次核准 (${selectedBatchIds.length})`
                                 }
                             </button>
