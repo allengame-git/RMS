@@ -111,7 +111,7 @@ export default function UploadDataFileForm() {
             const uploadData = await uploadRes.json();
 
             // Submit create request
-            await submitCreateDataFileRequest({
+            const result = await submitCreateDataFileRequest({
                 dataYear,
                 dataName,
                 dataCode,
@@ -122,6 +122,11 @@ export default function UploadDataFileForm() {
                 fileSize: uploadData.fileSize,
                 mimeType: uploadData.mimeType
             });
+
+            if ('error' in result && result.error) {
+                setError(result.error);
+                return;
+            }
 
             alert('申請已提交，等待審核後將上架');
             router.push('/datafiles');

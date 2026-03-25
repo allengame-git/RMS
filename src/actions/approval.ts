@@ -465,18 +465,18 @@ export async function getPendingRequests() {
  * 撤回操作是「物理刪除」，資料庫中不會保留此次申請記錄。
  *
  * @param requestId ChangeRequest ID
- * @throws Error 如果申請不存在、權限不足或狀態非 PENDING
+ * @returns ApprovalState 包含 error 或 message
  */
-export async function cancelChangeRequest(requestId: number) {
+export async function cancelChangeRequest(requestId: number): Promise<ApprovalState> {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error("Unauthorized");
+    if (!session) return { error: "Unauthorized" };
 
     const request = await prisma.changeRequest.findUnique({
         where: { id: requestId },
         include: { submittedBy: true }
     });
 
-    if (!request) throw new Error("Request not found");
+    if (!request) return { error: "Request not found" };
 
     // Check permissions: Admin or Original Submitter
     // 從 DB 驗證當前角色（防止 JWT 過期不同步）
@@ -485,23 +485,28 @@ export async function cancelChangeRequest(requestId: number) {
     const isSubmitter = request.submittedById === session.user.id;
 
     if (!isAdmin && !isSubmitter) {
-        throw new Error("You do not have permission to cancel this request");
+        return { error: "You do not have permission to cancel this request" };
     }
 
     if (request.status !== "PENDING") {
-        throw new Error("Only pending requests can be cancelled");
+        return { error: "Only pending requests can be cancelled" };
     }
 
-    await prisma.changeRequest.delete({
-        where: { id: requestId }
-    });
+    try {
+        await prisma.changeRequest.delete({
+            where: { id: requestId }
+        });
 
-    // Revalidate relevant paths
-    revalidatePath("/admin/approval");
-    if (request.targetProjectId) revalidatePath(`/projects/${request.targetProjectId}`);
-    if (request.itemId) revalidatePath(`/items/${request.itemId}`);
+        // Revalidate relevant paths
+        revalidatePath("/admin/approval");
+        if (request.targetProjectId) revalidatePath(`/projects/${request.targetProjectId}`);
+        if (request.itemId) revalidatePath(`/items/${request.itemId}`);
 
-    return { message: "Request cancelled successfully" };
+        return { message: "Request cancelled successfully" };
+    } catch (e) {
+        console.error("Failed to cancel request:", e);
+        return { error: "Failed to cancel request" };
+    }
 }
 
 /**
@@ -878,13 +883,13 @@ async function handleItemDeleteApproval(
 
 // ==================== Public Actions ====================
 
-export async function approveRequest(requestId: number, reviewNote?: string) {
+export async function approveRequest(requestId: number, reviewNote?: string): Promise<ApprovalState> {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error("Unauthorized");
+    if (!session) return { error: "Unauthorized" };
 
     // 從 DB 驗證當前角色（防止 JWT 過期不同步）
     const currentRole = await getUserCurrentRole(session.user.id);
-    if (!currentRole || !canReview(currentRole)) throw new Error("Unauthorized");
+    if (!currentRole || !canReview(currentRole)) return { error: "Unauthorized" };
 
     const request = await prisma.changeRequest.findUnique({
         where: { id: requestId },
@@ -895,10 +900,10 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
         }
     });
 
-    if (!request || request.status !== "PENDING") throw new Error("Invalid request");
+    if (!request || request.status !== "PENDING") return { error: "Invalid request" };
 
     if (currentRole !== "ADMIN" && request.submittedById === session.user.id) {
-        throw new Error("You cannot approve your own change request");
+        return { error: "You cannot approve your own change request" };
     }
 
     const data = JSON.parse(request.data);
@@ -959,20 +964,21 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
         if (request.targetProjectId) revalidatePath(`/projects/${request.targetProjectId}`);
         if (request.itemId) revalidatePath(`/items/${request.itemId}`);
 
+        return { message: "Request approved successfully" };
     } catch (e: unknown) {
         console.error("Failed to approve request", e);
         const message = e instanceof Error ? e.message : "Unknown error";
-        throw new Error(`Failed to apply change: ${message}`);
+        return { error: `Failed to apply change: ${message}` };
     }
 }
 
-export async function rejectRequest(requestId: number, reviewNote?: string) {
+export async function rejectRequest(requestId: number, reviewNote?: string): Promise<ApprovalState> {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error("Unauthorized");
+    if (!session) return { error: "Unauthorized" };
 
     // 從 DB 驗證當前角色（防止 JWT 過期不同步）
     const currentRole = await getUserCurrentRole(session.user.id);
-    if (!currentRole || !canReview(currentRole)) throw new Error("Unauthorized");
+    if (!currentRole || !canReview(currentRole)) return { error: "Unauthorized" };
 
     // Get request details for notification
     const request = await prisma.changeRequest.findUnique({
@@ -983,34 +989,41 @@ export async function rejectRequest(requestId: number, reviewNote?: string) {
         }
     });
 
-    if (!request) throw new Error("Request not found");
+    if (!request) return { error: "Request not found" };
 
-    await prisma.changeRequest.update({
-        where: { id: requestId },
-        data: {
-            status: "REJECTED",
-            reviewedById: session.user.id,
-            reviewNote: reviewNote || null,
-            updatedAt: new Date()
-        }
-    });
-
-    // Send notification to submitter
-    if (request.submittedById) {
-        const itemId = request.item?.fullId || request.targetProject?.codePrefix || "項目";
-        const itemTitle = request.item?.title || request.targetProject?.title || "";
-
-        await createNotification({
-            userId: request.submittedById,
-            type: "REJECTION",
-            title: `變更申請已退回`,
-            message: `${itemId} ${itemTitle} - ${reviewNote || "無審查意見"}`,
-            link: `/admin/rejected-requests/${requestId}`,
-            changeRequestId: requestId,
+    try {
+        await prisma.changeRequest.update({
+            where: { id: requestId },
+            data: {
+                status: "REJECTED",
+                reviewedById: session.user.id,
+                reviewNote: reviewNote || null,
+                updatedAt: new Date()
+            }
         });
-    }
 
-    revalidatePath("/admin/approval");
+        // Send notification to submitter
+        if (request.submittedById) {
+            const itemId = request.item?.fullId || request.targetProject?.codePrefix || "項目";
+            const itemTitle = request.item?.title || request.targetProject?.title || "";
+
+            await createNotification({
+                userId: request.submittedById,
+                type: "REJECTION",
+                title: `變更申請已退回`,
+                message: `${itemId} ${itemTitle} - ${reviewNote || "無審查意見"}`,
+                link: `/admin/rejected-requests/${requestId}`,
+                changeRequestId: requestId,
+            });
+        }
+
+        revalidatePath("/admin/approval");
+        return { message: "Request rejected successfully" };
+    } catch (e: unknown) {
+        console.error("Failed to reject request:", e);
+        const message = e instanceof Error ? e.message : "Unknown error";
+        return { error: `Failed to reject request: ${message}` };
+    }
 }
 
 // --- Cancel Rejected Request ---

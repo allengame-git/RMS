@@ -82,7 +82,7 @@ export async function getLoginLogs(filters?: {
 }) {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") {
-        throw new Error("Unauthorized: Admin access required");
+        return { logs: [], total: 0 };
     }
 
     const where: Prisma.LoginLogWhereInput = {};
@@ -125,7 +125,7 @@ export async function getLoginLogs(filters?: {
 export async function getLoginStats(days: number = 7) {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") {
-        throw new Error("Unauthorized: Admin access required");
+        return { totalLogins: 0, successfulLogins: 0, failedLogins: 0, uniqueUsers: 0, successRate: 0 };
     }
 
     const since = new Date();

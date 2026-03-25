@@ -192,12 +192,19 @@ export default function DataFileApprovalList({
         if (!confirmDialog) return;
         setLoading(true);
         try {
+            let result: { success?: boolean; error?: string };
             if (confirmDialog.action === 'approve') {
-                await approveDataFileRequest(confirmDialog.id);
+                result = await approveDataFileRequest(confirmDialog.id);
             } else if (confirmDialog.action === 'reject') {
-                await rejectDataFileRequest(confirmDialog.id);
+                result = await rejectDataFileRequest(confirmDialog.id);
             } else if (confirmDialog.action === 'cancel') {
-                await cancelDataFileChangeRequest(confirmDialog.id);
+                result = await cancelDataFileChangeRequest(confirmDialog.id);
+            } else {
+                return;
+            }
+            if ('error' in result && result.error) {
+                alert(result.error);
+                return;
             }
             router.refresh();
         } catch (err: any) {

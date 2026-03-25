@@ -33,13 +33,18 @@ export default function EditDataFileButton({ file }: { file: DataFile }) {
         try {
             const formData = new FormData(e.currentTarget);
 
-            await submitUpdateDataFileRequest(file.id, {
+            const result = await submitUpdateDataFileRequest(file.id, {
                 dataYear: parseInt(formData.get('dataYear') as string),
                 dataName: formData.get('dataName') as string,
                 dataCode: formData.get('dataCode') as string,
                 author: formData.get('author') as string,
                 description: formData.get('description') as string
             });
+
+            if ('error' in result && result.error) {
+                setError(result.error);
+                return;
+            }
 
             alert('修改申請已提交，等待審核');
             setShowModal(false);

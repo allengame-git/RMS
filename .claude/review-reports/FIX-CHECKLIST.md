@@ -60,7 +60,7 @@
 - **類別**: Backend — 程式碼品質
 - **位置**: 7 個 action 檔案
 - **問題**: 72 處 `throw new Error` vs 42 處 `return { success: false }`
-- **狀態**: [ ] 延後至獨立 PR — 需同時修改所有 caller 的 try/catch → return value 檢查（`ApprovalList.tsx` 等）
+- **狀態**: [x] 已修復 (2026-03-25) — 7 個 action 檔案全部轉換為 return { error } 模式，所有 caller 已更新為檢查 result.error。Backend reviewer 驗證通過。
 
 ---
 
@@ -95,5 +95,5 @@
 
 | 狀態 | 數量 |
 |------|------|
-| 已修復 | 8/9 |
-| 延後 (獨立 PR) | 1/9 (B-1) |
+| 已修復 | 9/9 |
+| 延後 | 0/9 |

@@ -58,7 +58,7 @@ const getCurrentRole = async (userId: string) => {
  */
 export async function getDataFiles(year?: number) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
+    if (!session) return [];
 
     const files = await prisma.dataFile.findMany({
         where: {
@@ -90,7 +90,7 @@ export async function getDataFiles(year?: number) {
  */
 export async function getDataFile(id: number) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
+    if (!session) return null;
 
     const file = await prisma.dataFile.findUnique({
         where: { id },
@@ -114,7 +114,7 @@ export async function getDataFile(id: number) {
  */
 export async function getDataFileYears() {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
+    if (!session) return [];
 
     const years = await prisma.dataFile.findMany({
         where: { isDeleted: false },
@@ -131,7 +131,7 @@ export async function getDataFileYears() {
  */
 export async function searchDataFiles(query: string, year?: number) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
+    if (!session) return [];
 
     const files = await prisma.dataFile.findMany({
         where: {
@@ -169,8 +169,8 @@ export async function submitCreateDataFileRequest(data: {
     mimeType: string;
 }) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
-    if (session.user.role === 'VIEWER') throw new Error('Permission denied');
+    if (!session) return { success: false as const, error: 'Unauthorized' };
+    if (session.user.role === 'VIEWER') return { success: false as const, error: 'Permission denied' };
 
     // Auto-generate dataCode if not provided
     let finalDataCode = data.dataCode?.trim();
@@ -183,7 +183,7 @@ export async function submitCreateDataFileRequest(data: {
     const existing = await prisma.dataFile.findUnique({
         where: { dataCode: finalDataCode }
     });
-    if (existing) throw new Error('資料編碼已存在');
+    if (existing) return { success: false as const, error: '資料編碼已存在' };
 
     // Check pending requests with same dataCode
     const pendingRequest = await prisma.dataFileChangeRequest.findFirst({
@@ -193,19 +193,25 @@ export async function submitCreateDataFileRequest(data: {
             data: { contains: finalDataCode }
         }
     });
-    if (pendingRequest) throw new Error('已有相同資料編碼的申請待審核中');
+    if (pendingRequest) return { success: false as const, error: '已有相同資料編碼的申請待審核中' };
 
-    const request = await prisma.dataFileChangeRequest.create({
-        data: {
-            type: 'FILE_CREATE',
-            status: 'PENDING',
-            data: JSON.stringify({ ...data, dataCode: finalDataCode }),
-            submittedById: session.user.id
-        }
-    });
+    try {
+        const request = await prisma.dataFileChangeRequest.create({
+            data: {
+                type: 'FILE_CREATE',
+                status: 'PENDING',
+                data: JSON.stringify({ ...data, dataCode: finalDataCode }),
+                submittedById: session.user.id
+            }
+        });
 
-    revalidatePath('/admin/approval');
-    return request;
+        revalidatePath('/admin/approval');
+        return { success: true as const, data: request };
+    } catch (e: unknown) {
+        console.error("Failed to submit create data file request", e);
+        const message = e instanceof Error ? e.message : "Unknown error";
+        return { success: false as const, error: message };
+    }
 }
 
 /**
@@ -222,34 +228,40 @@ export async function submitUpdateDataFileRequest(
     }
 ) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
-    if (session.user.role === 'VIEWER') throw new Error('Permission denied');
+    if (!session) return { success: false as const, error: 'Unauthorized' };
+    if (session.user.role === 'VIEWER') return { success: false as const, error: 'Permission denied' };
 
     const file = await prisma.dataFile.findUnique({ where: { id: fileId } });
-    if (!file) throw new Error('File not found');
-    if (file.isDeleted) throw new Error('File is deleted');
+    if (!file) return { success: false as const, error: 'File not found' };
+    if (file.isDeleted) return { success: false as const, error: 'File is deleted' };
 
     // Check if new dataCode conflicts
     if (data.dataCode && data.dataCode !== file.dataCode) {
         const existing = await prisma.dataFile.findUnique({
             where: { dataCode: data.dataCode }
         });
-        if (existing) throw new Error('資料編碼已存在');
+        if (existing) return { success: false as const, error: '資料編碼已存在' };
     }
 
-    const request = await prisma.dataFileChangeRequest.create({
-        data: {
-            type: 'FILE_UPDATE',
-            status: 'PENDING',
-            fileId,
-            data: JSON.stringify(data),
-            submittedById: session.user.id
-        }
-    });
+    try {
+        const request = await prisma.dataFileChangeRequest.create({
+            data: {
+                type: 'FILE_UPDATE',
+                status: 'PENDING',
+                fileId,
+                data: JSON.stringify(data),
+                submittedById: session.user.id
+            }
+        });
 
-    revalidatePath('/admin/approval');
-    revalidatePath(`/datafiles/${fileId}`);
-    return request;
+        revalidatePath('/admin/approval');
+        revalidatePath(`/datafiles/${fileId}`);
+        return { success: true as const, data: request };
+    } catch (e: unknown) {
+        console.error("Failed to submit update data file request", e);
+        const message = e instanceof Error ? e.message : "Unknown error";
+        return { success: false as const, error: message };
+    }
 }
 
 /**
@@ -257,26 +269,32 @@ export async function submitUpdateDataFileRequest(
  */
 export async function submitDeleteDataFileRequest(fileId: number) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
-    if (session.user.role === 'VIEWER') throw new Error('Permission denied');
+    if (!session) return { success: false as const, error: 'Unauthorized' };
+    if (session.user.role === 'VIEWER') return { success: false as const, error: 'Permission denied' };
 
     const file = await prisma.dataFile.findUnique({ where: { id: fileId } });
-    if (!file) throw new Error('File not found');
-    if (file.isDeleted) throw new Error('File already deleted');
+    if (!file) return { success: false as const, error: 'File not found' };
+    if (file.isDeleted) return { success: false as const, error: 'File already deleted' };
 
-    const request = await prisma.dataFileChangeRequest.create({
-        data: {
-            type: 'FILE_DELETE',
-            status: 'PENDING',
-            fileId,
-            data: JSON.stringify({ reason: 'User requested deletion' }),
-            submittedById: session.user.id
-        }
-    });
+    try {
+        const request = await prisma.dataFileChangeRequest.create({
+            data: {
+                type: 'FILE_DELETE',
+                status: 'PENDING',
+                fileId,
+                data: JSON.stringify({ reason: 'User requested deletion' }),
+                submittedById: session.user.id
+            }
+        });
 
-    revalidatePath('/admin/approval');
-    revalidatePath(`/datafiles/${fileId}`);
-    return request;
+        revalidatePath('/admin/approval');
+        revalidatePath(`/datafiles/${fileId}`);
+        return { success: true as const, data: request };
+    } catch (e: unknown) {
+        console.error("Failed to submit delete data file request", e);
+        const message = e instanceof Error ? e.message : "Unknown error";
+        return { success: false as const, error: message };
+    }
 }
 
 // ============================================
@@ -288,7 +306,7 @@ export async function submitDeleteDataFileRequest(fileId: number) {
  */
 export async function getPendingDataFileRequests() {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
+    if (!session) return [];
 
     // Filter for non-reviewers: can only see their own requests
     const isReviewer = ['ADMIN', 'INSPECTOR'].includes(session.user.role);
@@ -320,34 +338,40 @@ export async function getPendingDataFileRequests() {
  */
 export async function cancelDataFileChangeRequest(requestId: number) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error("Unauthorized");
+    if (!session) return { success: false as const, error: "Unauthorized" };
 
     const request = await prisma.dataFileChangeRequest.findUnique({
         where: { id: requestId }
     });
 
-    if (!request) throw new Error("Request not found");
+    if (!request) return { success: false as const, error: "Request not found" };
 
     // Check permissions: Admin or Original Submitter
     const isAdmin = session.user.role === "ADMIN";
     const isSubmitter = request.submittedById === session.user.id;
 
     if (!isAdmin && !isSubmitter) {
-        throw new Error("You do not have permission to cancel this request");
+        return { success: false as const, error: "You do not have permission to cancel this request" };
     }
 
     if (request.status !== "PENDING") {
-        throw new Error("Only pending requests can be cancelled");
+        return { success: false as const, error: "Only pending requests can be cancelled" };
     }
 
-    await prisma.dataFileChangeRequest.delete({
-        where: { id: requestId }
-    });
+    try {
+        await prisma.dataFileChangeRequest.delete({
+            where: { id: requestId }
+        });
 
-    revalidatePath("/admin/approval");
-    if (request.fileId) revalidatePath(`/datafiles/${request.fileId}`);
+        revalidatePath("/admin/approval");
+        if (request.fileId) revalidatePath(`/datafiles/${request.fileId}`);
 
-    return { message: "Request cancelled successfully" };
+        return { success: true as const, message: "Request cancelled successfully" };
+    } catch (e: unknown) {
+        console.error("Failed to cancel data file change request", e);
+        const message = e instanceof Error ? e.message : "Unknown error";
+        return { success: false as const, error: message };
+    }
 }
 
 /**
@@ -355,12 +379,12 @@ export async function cancelDataFileChangeRequest(requestId: number) {
  */
 export async function approveDataFileRequest(requestId: number) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
+    if (!session) return { success: false as const, error: 'Unauthorized' };
 
     // 從 DB 驗證當前角色（防止 JWT 過期不同步）
     const currentRole = await getCurrentRole(session.user.id);
     if (!currentRole || !['ADMIN', 'INSPECTOR'].includes(currentRole)) {
-        throw new Error('Permission denied');
+        return { success: false as const, error: 'Permission denied' };
     }
 
     const request = await prisma.dataFileChangeRequest.findUnique({
@@ -368,12 +392,12 @@ export async function approveDataFileRequest(requestId: number) {
         include: { file: true, submittedBy: true }
     });
 
-    if (!request) throw new Error('Request not found');
-    if (request.status !== 'PENDING') throw new Error('Request already processed');
+    if (!request) return { success: false as const, error: 'Request not found' };
+    if (request.status !== 'PENDING') return { success: false as const, error: 'Request already processed' };
 
     // Self-approval prevention (except ADMIN)
     if (currentRole !== 'ADMIN' && request.submittedById === session.user.id) {
-        throw new Error('您不能審核自己提交的申請');
+        return { success: false as const, error: '您不能審核自己提交的申請' };
     }
 
     const data = JSON.parse(request.data);
@@ -486,7 +510,7 @@ export async function approveDataFileRequest(requestId: number) {
     } catch (e: unknown) {
         console.error("Failed to approve data file request", e);
         const message = e instanceof Error ? e.message : "Unknown error";
-        throw new Error(`Failed to apply change: ${message}`);
+        return { success: false as const, error: `Failed to apply change: ${message}` };
     }
 }
 
@@ -495,35 +519,41 @@ export async function approveDataFileRequest(requestId: number) {
  */
 export async function rejectDataFileRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error('Unauthorized');
+    if (!session) return { success: false as const, error: 'Unauthorized' };
 
     // 從 DB 驗證當前角色（防止 JWT 過期不同步）
     const rejectRole = await getCurrentRole(session.user.id);
     if (!rejectRole || !['ADMIN', 'INSPECTOR', 'EDITOR'].includes(rejectRole)) {
-        throw new Error('Permission denied');
+        return { success: false as const, error: 'Permission denied' };
     }
 
     const request = await prisma.dataFileChangeRequest.findUnique({
         where: { id: requestId }
     });
 
-    if (!request) throw new Error('Request not found');
-    if (request.status !== 'PENDING') throw new Error('Request already processed');
+    if (!request) return { success: false as const, error: 'Request not found' };
+    if (request.status !== 'PENDING') return { success: false as const, error: 'Request already processed' };
 
     // EDITOR 僅能撤回自己的申請，不可拒絕他人的申請
     if (rejectRole === 'EDITOR' && request.submittedById !== session.user.id) {
-        throw new Error('編輯者僅能撤回自己的申請');
+        return { success: false as const, error: '編輯者僅能撤回自己的申請' };
     }
 
-    await prisma.dataFileChangeRequest.update({
-        where: { id: requestId },
-        data: {
-            status: 'REJECTED',
-            reviewedById: session.user.id,
-            reviewNote
-        }
-    });
+    try {
+        await prisma.dataFileChangeRequest.update({
+            where: { id: requestId },
+            data: {
+                status: 'REJECTED',
+                reviewedById: session.user.id,
+                reviewNote
+            }
+        });
 
-    revalidatePath('/admin/approval');
-    return { success: true };
+        revalidatePath('/admin/approval');
+        return { success: true as const };
+    } catch (e: unknown) {
+        console.error("Failed to reject data file request", e);
+        const message = e instanceof Error ? e.message : "Unknown error";
+        return { success: false as const, error: message };
+    }
 }

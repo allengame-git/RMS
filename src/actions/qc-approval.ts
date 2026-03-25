@@ -89,10 +89,10 @@ const APPROVAL_INCLUDE = {
  */
 export async function getPendingQCApprovals() {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error("Unauthorized");
+    if (!session) return [];
 
     const user = await getUserQualifications(session.user.id);
-    if (!user?.isQC) throw new Error("Unauthorized - QC qualification required");
+    if (!user?.isQC) return [];
 
     return await prisma.qCDocumentApproval.findMany({
         where: { status: "PENDING_QC" },
@@ -106,10 +106,10 @@ export async function getPendingQCApprovals() {
  */
 export async function getPendingPMApprovals() {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error("Unauthorized");
+    if (!session) return [];
 
     const user = await getUserQualifications(session.user.id);
-    if (!user?.isPM) throw new Error("Unauthorized - PM qualification required");
+    if (!user?.isPM) return [];
 
     return await prisma.qCDocumentApproval.findMany({
         where: { status: "PENDING_PM" },
@@ -132,7 +132,7 @@ export async function getPendingPMApprovals() {
  */
 export async function getQCDocumentApprovals() {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error("Unauthorized");
+    if (!session) return [];
 
     const user = await getUserQualifications(session.user.id);
 

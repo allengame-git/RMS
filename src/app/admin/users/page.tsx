@@ -157,13 +157,11 @@ export default function UserManagementPage() {
 
     const handleDelete = async (userId: string) => {
         if (!confirm('您確定要刪除此使用者嗎？')) return;
-        try {
-            await deleteUser(userId);
+        const result = await deleteUser(userId);
+        if (result.error) {
+            alert('刪除使用者失敗: ' + result.error);
+        } else {
             fetchUsers();
-        } catch (err: unknown) {
-            console.error('Delete user error:', err);
-            const message = err instanceof Error ? err.message : '未知錯誤';
-            alert('刪除使用者失敗: ' + message);
         }
     };
 

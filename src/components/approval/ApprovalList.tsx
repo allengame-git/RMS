@@ -183,24 +183,27 @@ export default function ApprovalList({ requests, currentUsername, currentUserRol
         setConfirmDialog(null);
         setLoading(id);
 
-        try {
-            if (action === 'approve') {
-                await approveRequest(id, reviewNote || undefined);
-            } else if (action === 'reject') {
-                await rejectRequest(id, reviewNote || undefined);
-            } else if (action === 'cancel') {
-                await cancelChangeRequest(id);
-            }
-            setReviewNote('');
-            // Success - reload page
-            setTimeout(() => {
-                window.location.reload();
-            }, 100);
-        } catch (error: any) {
-            console.error(`Failed to ${action} request:`, error);
-            setErrorDialog(error.message || 'Unknown error occurred');
-            setLoading(null);
+        let result;
+        if (action === 'approve') {
+            result = await approveRequest(id, reviewNote || undefined);
+        } else if (action === 'reject') {
+            result = await rejectRequest(id, reviewNote || undefined);
+        } else if (action === 'cancel') {
+            result = await cancelChangeRequest(id);
         }
+
+        if (result?.error) {
+            console.error(`Failed to ${action} request:`, result.error);
+            setErrorDialog(result.error);
+            setLoading(null);
+            return;
+        }
+
+        setReviewNote('');
+        // Success - reload page
+        setTimeout(() => {
+            window.location.reload();
+        }, 100);
     };
 
     const handleCancel = (e: React.MouseEvent) => {

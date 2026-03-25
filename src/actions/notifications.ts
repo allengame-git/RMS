@@ -120,7 +120,7 @@ export async function getUnreadCount(): Promise<number> {
  */
 export async function markAsRead(notificationId: string) {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    if (!session?.user?.id) return;
 
     await prisma.notification.updateMany({
         where: {
@@ -138,7 +138,7 @@ export async function markAsRead(notificationId: string) {
  */
 export async function markAllAsRead() {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    if (!session?.user?.id) return;
 
     await prisma.notification.updateMany({
         where: {
@@ -156,7 +156,7 @@ export async function markAllAsRead() {
  */
 export async function deleteNotification(notificationId: string) {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    if (!session?.user?.id) return;
 
     await prisma.notification.deleteMany({
         where: {
@@ -173,7 +173,7 @@ export async function deleteNotification(notificationId: string) {
  */
 export async function clearReadNotifications() {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    if (!session?.user?.id) return;
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -194,7 +194,7 @@ export async function clearReadNotifications() {
  */
 export async function deleteAllReadNotifications() {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error("Unauthorized");
+    if (!session?.user?.id) return;
 
     await prisma.notification.deleteMany({
         where: {

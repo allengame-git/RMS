@@ -24,7 +24,11 @@ export default function DeleteDataFileButton({
     const handleDelete = async () => {
         setLoading(true);
         try {
-            await submitDeleteDataFileRequest(fileId);
+            const result = await submitDeleteDataFileRequest(fileId);
+            if ('error' in result && result.error) {
+                alert(result.error);
+                return;
+            }
             alert('刪除申請已提交，等待審核');
             router.push('/datafiles');
         } catch (err: any) {

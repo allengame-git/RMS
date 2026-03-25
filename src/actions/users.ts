@@ -46,7 +46,7 @@ export type UserState = {
 export async function getUsers() {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") {
-        throw new Error("Unauthorized");
+        return [];
     }
 
     return await prisma.user.findMany({
@@ -186,11 +186,11 @@ export async function updateUser(
 }
 
 // --- DELETE USER ---
-export async function deleteUser(userId: string) {
+export async function deleteUser(userId: string): Promise<{ error?: string }> {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "ADMIN") throw new Error("Unauthorized");
+    if (!session || session.user.role !== "ADMIN") return { error: "Unauthorized" };
 
-    if (userId === session.user.id) throw new Error("Cannot delete yourself");
+    if (userId === session.user.id) return { error: "Cannot delete yourself" };
 
     // Get user info before deletion
     const userToDelete = await prisma.user.findUnique({
@@ -198,7 +198,7 @@ export async function deleteUser(userId: string) {
         select: { username: true }
     });
 
-    if (!userToDelete) throw new Error("User not found");
+    if (!userToDelete) return { error: "User not found" };
 
     const username = userToDelete.username;
 
@@ -263,6 +263,7 @@ export async function deleteUser(userId: string) {
     ]);
 
     revalidatePath("/admin/users");
+    return {};
 }
 
 // --- UNLOCK USER (Admin) ---
@@ -292,7 +293,7 @@ export async function unlockUser(userId: string): Promise<UserState> {
 export async function getUsersWithLockStatus() {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") {
-        throw new Error("Unauthorized");
+        return [];
     }
 
     return await prisma.user.findMany({

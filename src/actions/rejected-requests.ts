@@ -32,19 +32,19 @@ import { revalidatePath } from "next/cache";
  * Mark a rejected request as resubmitted (changes status from REJECTED to RESUBMITTED)
  * This is called after creating a new change request based on the rejected one
  */
-export async function markRejectedAsResubmitted(requestId: number) {
+export async function markRejectedAsResubmitted(requestId: number): Promise<{ success?: boolean; error?: string }> {
     const session = await getServerSession(authOptions);
-    if (!session) throw new Error("Unauthorized");
+    if (!session) return { error: "Unauthorized" };
 
     const request = await prisma.changeRequest.findUnique({
         where: { id: requestId }
     });
 
-    if (!request) throw new Error("Request not found");
+    if (!request) return { error: "Request not found" };
 
     // Verify ownership
     if (request.submittedById !== session.user.id && session.user.role !== "ADMIN") {
-        throw new Error("Unauthorized");
+        return { error: "Unauthorized" };
     }
 
     // Update status to indicate it was resubmitted

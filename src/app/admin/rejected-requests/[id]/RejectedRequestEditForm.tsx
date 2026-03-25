@@ -157,7 +157,10 @@ export default function RejectedRequestEditForm({ request }: Props) {
                 setStatus({ error: result.error });
             } else {
                 // Mark the original rejected request as resubmitted
-                await markRejectedAsResubmitted(request.id);
+                const markResult = await markRejectedAsResubmitted(request.id);
+                if (markResult.error) {
+                    console.error("Failed to mark as resubmitted:", markResult.error);
+                }
 
                 setStatus({ message: "已成功重新提交審查！" });
                 setTimeout(() => {
