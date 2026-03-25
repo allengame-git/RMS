@@ -31,6 +31,8 @@
 
 import { prisma } from '@/lib/prisma';
 import { naturalSort, generateSnippets, stripHtmlTags, type Snippet } from '@/lib/search-utils';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export interface SearchResult {
     id: number;
@@ -46,6 +48,9 @@ export async function searchProjectItems(
     projectId: number,
     query: string
 ): Promise<SearchResult[]> {
+    const session = await getServerSession(authOptions);
+    if (!session) return [];
+
     if (!query || query.trim().length < 2) {
         return [];
     }

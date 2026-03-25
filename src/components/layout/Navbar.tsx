@@ -31,19 +31,14 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import NotificationBell from "./NotificationBell";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function Navbar() {
     const pathname = usePathname();
     const { data: session } = useSession();
-    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    const { theme, toggleTheme } = useTheme();
     const [pendingCount, setPendingCount] = useState(0);
     const [hasApprovalAccess, setHasApprovalAccess] = useState(false);
-
-    useEffect(() => {
-        // Load theme on mount
-        const savedTheme = (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
-        setTheme(savedTheme);
-    }, []);
 
     /**
      * 定期抓取待審核數量
@@ -96,13 +91,6 @@ export default function Navbar() {
     }, [session]);
 
     const isActive = (path: string) => pathname === path ? "active" : "";
-
-    const toggleTheme = () => {
-        const newTheme = theme === 'light' ? 'dark' : 'light';
-        setTheme(newTheme);
-        localStorage.setItem('theme', newTheme);
-        document.documentElement.setAttribute('data-theme', newTheme);
-    };
 
     return (
         <nav className="glass" style={{

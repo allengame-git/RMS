@@ -34,8 +34,14 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function addRelatedItem(sourceItemId: number, targetFullId: string, description?: string) {
+    const session = await getServerSession(authOptions);
+    if (!session) return { success: false, error: "Unauthorized" };
+    if (session.user.role === "VIEWER") return { success: false, error: "權限不足" };
+
     try {
         // 1. Validate target item
         const targetItem = await prisma.item.findUnique({
@@ -105,6 +111,10 @@ export async function addRelatedItem(sourceItemId: number, targetFullId: string,
 }
 
 export async function removeRelatedItem(sourceItemId: number, targetItemId: number) {
+    const session = await getServerSession(authOptions);
+    if (!session) return { success: false, error: "Unauthorized" };
+    if (session.user.role === "VIEWER") return { success: false, error: "權限不足" };
+
     try {
         // Remove both directions for symmetry
         await prisma.itemRelation.deleteMany({
@@ -125,6 +135,10 @@ export async function removeRelatedItem(sourceItemId: number, targetItemId: numb
 }
 
 export async function updateRelatedItemDescription(sourceItemId: number, targetItemId: number, description: string) {
+    const session = await getServerSession(authOptions);
+    if (!session) return { success: false, error: "Unauthorized" };
+    if (session.user.role === "VIEWER") return { success: false, error: "權限不足" };
+
     try {
         // Update both directions
         await prisma.itemRelation.updateMany({
@@ -149,6 +163,9 @@ export async function updateRelatedItemDescription(sourceItemId: number, targetI
 
 // Get related items with description
 export async function getRelatedItems(itemId: number) {
+    const session = await getServerSession(authOptions);
+    if (!session) return [];
+
     const relations = await prisma.itemRelation.findMany({
         where: { sourceId: itemId },
         include: {

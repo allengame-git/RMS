@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
             fileName: originalName,
             filePath: relativePath,
             fileSize: file.size,
-            mimeType: file.type || 'application/octet-stream'
+            mimeType: file.type
         });
     } catch (error) {
         console.error('Upload error:', error);

@@ -4,6 +4,7 @@ import "./globals.css";
 import "./theme.css";
 import Navbar from "@/components/layout/Navbar";
 import SessionProviderWrapper from "@/components/auth/SessionProviderWrapper";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -30,8 +31,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <SessionProviderWrapper>
-          <Navbar />
-          {children}
+          <ThemeProvider>
+            <Navbar />
+            {children}
+          </ThemeProvider>
         </SessionProviderWrapper>
       </body>
     </html>

@@ -113,6 +113,15 @@ const canEdit = (role: string) => EDITABLE_ROLES.includes(role);
 /** 檢查使用者是否有審核權限 */
 const canReview = (role: string) => REVIEWER_ROLES.includes(role);
 
+/** 從 DB 取得使用者當前角色（避免 JWT 過期不同步） */
+const getUserCurrentRole = async (userId: string) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true }
+    });
+    return user?.role;
+};
+
 /** 將 ItemRelation 陣列映射為 snapshot 格式 */
 const mapRelationsToSnapshot = (relations: RelationWithTarget[]) =>
     relations.map(r => ({
@@ -470,7 +479,9 @@ export async function cancelChangeRequest(requestId: number) {
     if (!request) throw new Error("Request not found");
 
     // Check permissions: Admin or Original Submitter
-    const isAdmin = session.user.role === "ADMIN";
+    // 從 DB 驗證當前角色（防止 JWT 過期不同步）
+    const cancelRole = await getUserCurrentRole(session.user.id);
+    const isAdmin = cancelRole === "ADMIN";
     const isSubmitter = request.submittedById === session.user.id;
 
     if (!isAdmin && !isSubmitter) {
@@ -869,7 +880,11 @@ async function handleItemDeleteApproval(
 
 export async function approveRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
-    if (!session || !canReview(session.user.role)) throw new Error("Unauthorized");
+    if (!session) throw new Error("Unauthorized");
+
+    // 從 DB 驗證當前角色（防止 JWT 過期不同步）
+    const currentRole = await getUserCurrentRole(session.user.id);
+    if (!currentRole || !canReview(currentRole)) throw new Error("Unauthorized");
 
     const request = await prisma.changeRequest.findUnique({
         where: { id: requestId },
@@ -882,7 +897,7 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
 
     if (!request || request.status !== "PENDING") throw new Error("Invalid request");
 
-    if (session.user.role !== "ADMIN" && request.submittedById === session.user.id) {
+    if (currentRole !== "ADMIN" && request.submittedById === session.user.id) {
         throw new Error("You cannot approve your own change request");
     }
 
@@ -953,7 +968,11 @@ export async function approveRequest(requestId: number, reviewNote?: string) {
 
 export async function rejectRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
-    if (!session || !canReview(session.user.role)) throw new Error("Unauthorized");
+    if (!session) throw new Error("Unauthorized");
+
+    // 從 DB 驗證當前角色（防止 JWT 過期不同步）
+    const currentRole = await getUserCurrentRole(session.user.id);
+    if (!currentRole || !canReview(currentRole)) throw new Error("Unauthorized");
 
     // Get request details for notification
     const request = await prisma.changeRequest.findUnique({
@@ -1007,7 +1026,9 @@ export async function cancelRejectedRequest(requestId: number): Promise<Approval
     if (request.status !== "REJECTED") return { error: "只能取消被退回的申請" };
 
     // 權限檢查：只有原提交者或管理員可以取消
-    if (request.submittedById !== session.user.id && session.user.role !== "ADMIN") {
+    // 從 DB 驗證當前角色（防止 JWT 過期不同步）
+    const rejCancelRole = await getUserCurrentRole(session.user.id);
+    if (request.submittedById !== session.user.id && rejCancelRole !== "ADMIN") {
         return { error: "您沒有權限取消此申請" };
     }
 

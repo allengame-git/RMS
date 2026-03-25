@@ -40,6 +40,15 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
+/** 從 DB 取得使用者當前角色（避免 JWT 過期不同步） */
+const getCurrentRole = async (userId: string) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true }
+    });
+    return user?.role;
+};
+
 // ============================================
 // Query Actions
 // ============================================
@@ -347,7 +356,10 @@ export async function cancelDataFileChangeRequest(requestId: number) {
 export async function approveDataFileRequest(requestId: number) {
     const session = await getServerSession(authOptions);
     if (!session) throw new Error('Unauthorized');
-    if (!['ADMIN', 'INSPECTOR'].includes(session.user.role)) {
+
+    // 從 DB 驗證當前角色（防止 JWT 過期不同步）
+    const currentRole = await getCurrentRole(session.user.id);
+    if (!currentRole || !['ADMIN', 'INSPECTOR'].includes(currentRole)) {
         throw new Error('Permission denied');
     }
 
@@ -360,7 +372,7 @@ export async function approveDataFileRequest(requestId: number) {
     if (request.status !== 'PENDING') throw new Error('Request already processed');
 
     // Self-approval prevention (except ADMIN)
-    if (session.user.role !== 'ADMIN' && request.submittedById === session.user.id) {
+    if (currentRole !== 'ADMIN' && request.submittedById === session.user.id) {
         throw new Error('您不能審核自己提交的申請');
     }
 
@@ -484,7 +496,10 @@ export async function approveDataFileRequest(requestId: number) {
 export async function rejectDataFileRequest(requestId: number, reviewNote?: string) {
     const session = await getServerSession(authOptions);
     if (!session) throw new Error('Unauthorized');
-    if (!['ADMIN', 'INSPECTOR', 'EDITOR'].includes(session.user.role)) {
+
+    // 從 DB 驗證當前角色（防止 JWT 過期不同步）
+    const rejectRole = await getCurrentRole(session.user.id);
+    if (!rejectRole || !['ADMIN', 'INSPECTOR', 'EDITOR'].includes(rejectRole)) {
         throw new Error('Permission denied');
     }
 
@@ -496,7 +511,7 @@ export async function rejectDataFileRequest(requestId: number, reviewNote?: stri
     if (request.status !== 'PENDING') throw new Error('Request already processed');
 
     // EDITOR 僅能撤回自己的申請，不可拒絕他人的申請
-    if (session.user.role === 'EDITOR' && request.submittedById !== session.user.id) {
+    if (rejectRole === 'EDITOR' && request.submittedById !== session.user.id) {
         throw new Error('編輯者僅能撤回自己的申請');
     }
 

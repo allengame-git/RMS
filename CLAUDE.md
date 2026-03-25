@@ -82,7 +82,7 @@ Vanilla CSS with CSS variables for theming (no Tailwind). Global styles in `glob
 
 ### Rich Text Editor
 
-Tiptap (ProseMirror-based) with custom extensions in `src/components/editor/`. Supports tables, images, links, and formatted text. Custom `ItemLink` extension auto-converts fullId patterns to clickable links. **Important**: Project `codePrefix` can contain hyphens (e.g., `RMS-DAREN`), so fullId regex must use `(?:[A-Z]+-)+\d+` not `[A-Z]+-\d+`.
+Tiptap (ProseMirror-based) with custom extensions in `src/components/editor/`. Supports tables, images, links, and formatted text. Custom `ItemLink` extension auto-converts fullId patterns to clickable links. **Important**: Project `codePrefix` can contain hyphens (e.g., `RMS-DAREN`), so fullId regex must use `(?:[A-Z]+-)+\d+` not `[A-Z]+-\d+`. The core regex pattern is exported as `ITEM_ID_CORE_PATTERN` from `src/components/editor/plugins/itemLinkPlugin.ts` — always use this constant instead of duplicating the regex. The decoration plugin uses a `docChanged` guard to skip full-document regex scans on cursor-only transactions.
 
 ### PDF Generation
 

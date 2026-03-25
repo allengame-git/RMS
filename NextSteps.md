@@ -1,11 +1,24 @@
 # NextSteps - 後續工作說明
 
 > 此文件供後續接手的 AI Agent 或開發者了解當前狀態與待辦事項。
-> 最後更新：2026-03-19
+> 最後更新：2026-03-25
 
 ---
 
 ## 最近完成的變更 (v2.2.1)
+
+### 10. 程式碼重構 (2026-03-21)
+
+**修改檔案**：
+- `src/actions/qc-approval.ts` — 提取 `processSinglePMApproval()` 共用函式，`approveAsPM` 與 `batchApproveAsPM` 共用，減少 78 行；三個獨立 DB 查詢改用 `Promise.all` 平行化
+- `src/components/approval/QCDocumentApprovalList.tsx` — 移除無用的 `batchProgress` state（done counter 從未遞增）
+- `src/components/editor/plugins/itemLinkPlugin.ts` — 提取 `buildDecorations()` 函式，加入 `docChanged` 守衛避免游標移動觸發全文 regex 掃描；fullId regex 改用共用常數 `ITEM_ID_CORE_PATTERN`
+- `src/components/editor/extensions/ItemLink.ts` — 引用共用 `ITEM_ID_CORE_PATTERN` 取代內聯 regex
+- `src/lib/pdf-generator.ts` — `stripHtml` 提升為 module scope，移除不必要的參數
+
+**設計要點**：
+- `ITEM_ID_CORE_PATTERN` 從 `itemLinkPlugin.ts` export，`ItemLink.ts` import 使用，確保兩處 regex 永遠同步
+- `docChanged` 守衛：ProseMirror plugin 的 `apply` 方法在每次 transaction 都會觸發（包含純游標移動），加入 `if (!tr.docChanged) return old` 可避免無意義的全文掃描
 
 ### 6. PM 品質文件批次核准
 

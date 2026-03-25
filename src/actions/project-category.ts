@@ -42,6 +42,9 @@ export type CategoryState = {
  * Get all project categories ordered by sortOrder
  */
 export async function getCategories() {
+    const session = await getServerSession(authOptions);
+    if (!session) return [];
+
     const categories = await prisma.projectCategory.findMany({
         orderBy: { sortOrder: 'asc' },
         include: {

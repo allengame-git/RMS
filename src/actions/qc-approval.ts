@@ -199,7 +199,7 @@ export async function approveAsQC(
         }
     });
 
-    revalidatePath("/admin/approvals");
+    revalidatePath("/admin/approval");
     revalidatePath("/iso-docs");
     return { message: "QC approval completed" };
 }
@@ -304,7 +304,7 @@ export async function approveAsPM(
         return { error: "PM 核定失敗，請稍後再試" };
     }
 
-    revalidatePath("/admin/approvals");
+    revalidatePath("/admin/approval");
     revalidatePath("/iso-docs");
     return { message: "PM approval completed - Document finalized" };
 }
@@ -312,6 +312,11 @@ export async function approveAsPM(
 /**
  * Batch approve multiple QC documents as PM.
  * Processes each approval sequentially (PDF generation is I/O heavy).
+ *
+ * **設計決策：Partial Success 是預期行為**
+ * 每個核准會觸發 PDF 生成（I/O 密集），因此不使用 transaction 包裹整個迴圈。
+ * 如果某個核准失敗，其他已成功的核准不會被回滾。
+ * 回傳 `{ successful, failed }` 結構讓呼叫端可以顯示部分成功的結果。
  */
 export async function batchApproveAsPM(
     approvalIds: number[],
@@ -341,7 +346,7 @@ export async function batchApproveAsPM(
         }
     }
 
-    revalidatePath("/admin/approvals");
+    revalidatePath("/admin/approval");
     revalidatePath("/iso-docs");
     return { successful, failed };
 }
@@ -440,7 +445,7 @@ export async function rejectQCDocument(
         });
     }
 
-    revalidatePath("/admin/approvals");
+    revalidatePath("/admin/approval");
     revalidatePath("/admin/rejected-requests");
     revalidatePath("/iso-docs");
     return { message: "已退回要求修改" };
