@@ -10,7 +10,44 @@
 
 ### 1. 套用資料庫索引遷移
 
-PERF-05 新增了 4 組複合索引，需產生並套用 migration：
+PERF-05 新增了 4 組複合索引，需產生並套用 migration。
+
+#### 前置：確認 PostgreSQL 使用者權限
+
+Prisma migrate 需要 `CREATE` schema 權限與 `CREATEDB` 權限（用於建立 shadow database）。若執行 migrate 時出現 `P1010: User was denied access` 錯誤，需先授權。
+
+**Conda 安裝的 PostgreSQL：**
+
+```bash
+# Conda 環境下，初始化時的系統使用者即為超級使用者
+# 直接用該使用者連線授權
+psql -d rms_db -c "GRANT ALL ON SCHEMA public TO rms_user;"
+psql -d rms_db -c "ALTER USER rms_user CREATEDB;"
+```
+
+**Docker 部署的 PostgreSQL：**
+
+```bash
+# POSTGRES_USER 即為超級使用者，用該身份連線
+docker exec -it <container_name> psql -U rms_user -d rms_db -c "GRANT ALL ON SCHEMA public TO rms_user;"
+docker exec -it <container_name> psql -U rms_user -d rms_db -c "ALTER USER rms_user CREATEDB;"
+```
+
+> 將 `<container_name>` 替換為實際的 PostgreSQL container 名稱（如 `rms-postgres`）。
+
+**系統安裝的 PostgreSQL (Homebrew/apt)：**
+
+```bash
+# 使用 postgres 超級使用者連線
+# macOS Homebrew: 超級使用者為系統帳號（如 allen），省略 -U 即可
+# Linux: 使用 sudo -u postgres
+psql -d rms_db -c "GRANT ALL ON SCHEMA public TO rms_user;"
+psql -d rms_db -c "ALTER USER rms_user CREATEDB;"
+```
+
+> **注意：** 若本機同時執行 Homebrew PostgreSQL 與 Docker PostgreSQL（都綁定 port 5432），Prisma 會連到本機的 Homebrew 實例。需先停止本機 PostgreSQL（`brew services stop postgresql@16`），或將 Docker 映射改為其他 port（如 `5433:5432`）並更新 `.env` 中的 `DATABASE_URL`。
+
+#### 執行遷移
 
 ```bash
 npx prisma migrate dev --name add-composite-indexes
