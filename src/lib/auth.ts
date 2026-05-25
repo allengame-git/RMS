@@ -117,28 +117,45 @@ export const authOptions: NextAuthOptions = {
                 );
 
                 if (!isPasswordValid) {
-                    // 若鎖定已過期，重置計數器後再遞增（防止永久鎖定）
-                    const baseAttempts = (user.lockedUntil && user.lockedUntil <= new Date()) ? 0 : user.failedLoginAttempts;
-                    const newAttempts = baseAttempts + 1;
-                    const shouldLock = newAttempts >= LOCKOUT_CONFIG.maxAttempts;
+                    const lockExpired = user.lockedUntil && user.lockedUntil <= new Date();
 
-                    await prisma.user.update({
-                        where: { id: user.id },
-                        data: {
-                            failedLoginAttempts: newAttempts,
-                            lockedUntil: shouldLock
-                                ? new Date(Date.now() + LOCKOUT_CONFIG.lockoutMinutes * 60000)
-                                : null,
-                        },
-                    });
+                    if (lockExpired) {
+                        // Lock expired: reset counter to 1 and clear lock
+                        await prisma.user.update({
+                            where: { id: user.id },
+                            data: {
+                                failedLoginAttempts: 1,
+                                lockedUntil: null,
+                            },
+                        });
 
-                    if (shouldLock) {
-                        await logAttempt(false, `INVALID_PASSWORD (account now locked)`);
-                        throw new Error(`密碼錯誤次數過多，帳號已鎖定 ${LOCKOUT_CONFIG.lockoutMinutes} 分鐘`);
+                        await logAttempt(false, `INVALID_PASSWORD (attempt 1/${LOCKOUT_CONFIG.maxAttempts})`);
+                        return null;
+                    } else {
+                        // Atomically increment the failure counter
+                        const updated = await prisma.user.update({
+                            where: { id: user.id },
+                            data: {
+                                failedLoginAttempts: { increment: 1 },
+                            },
+                            select: { failedLoginAttempts: true },
+                        });
+
+                        if (updated.failedLoginAttempts >= LOCKOUT_CONFIG.maxAttempts) {
+                            await prisma.user.update({
+                                where: { id: user.id },
+                                data: {
+                                    lockedUntil: new Date(Date.now() + LOCKOUT_CONFIG.lockoutMinutes * 60000),
+                                },
+                            });
+
+                            await logAttempt(false, `INVALID_PASSWORD (account now locked)`);
+                            throw new Error(`密碼錯誤次數過多，帳號已鎖定 ${LOCKOUT_CONFIG.lockoutMinutes} 分鐘`);
+                        }
+
+                        await logAttempt(false, `INVALID_PASSWORD (attempt ${updated.failedLoginAttempts}/${LOCKOUT_CONFIG.maxAttempts})`);
+                        return null;
                     }
-
-                    await logAttempt(false, `INVALID_PASSWORD (attempt ${newAttempts}/${LOCKOUT_CONFIG.maxAttempts})`);
-                    return null;
                 }
 
                 // Login successful - reset failed attempts

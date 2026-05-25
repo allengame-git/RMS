@@ -22,7 +22,14 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         include: {
             items: {
                 where: { isDeleted: false },
-                orderBy: { fullId: 'asc' }
+                orderBy: { fullId: 'asc' },
+                select: {
+                    id: true,
+                    fullId: true,
+                    title: true,
+                    parentId: true,
+                    projectId: true,
+                },
             }
         }
     });

@@ -1,7 +1,7 @@
 # RMS 系統安裝指南 (Miniforge 環境)
 
-> **版本**: 2.0  
-> **日期**: 2026-01-20  
+> **版本**: 2.1  
+> **日期**: 2026-05-25  
 > **適用對象**: Windows/macOS/Linux 環境，使用 Miniforge 建立隔離開發環境
 
 ---
@@ -36,14 +36,16 @@
 
 | 類別 | 技術 | 說明 |
 |------|------|------|
-| 框架 | Next.js 14 | App Router 前後端整合 |
-| 語言 | TypeScript | 型別安全開發 |
+| 框架 | Next.js 15 | App Router 前後端整合 |
+| 前端 | React 19 | UI 框架 |
+| 語言 | TypeScript 5 | 型別安全開發 |
 | 資料庫 | PostgreSQL 15+ | 主資料庫 |
 | ORM | Prisma 5.22 | 資料庫架構管理 |
-| 認證 | NextAuth.js | 使用者身份驗證 |
+| 認證 | NextAuth.js 4 | 使用者身份驗證 |
 | 編輯器 | Tiptap 3 | 富文本編輯器 |
 | PDF | pdf-lib | PDF 生成與簽章 (純 JavaScript) |
-| 備份 | adm-zip / archiver | 系統與專案備份 |
+| 備份 | adm-zip / archiver / unzipper | 系統與專案備份還原 |
+| 測試 | Vitest | 單元測試框架 |
 
 > 💡 **注意**: 系統已改用純 `pdf-lib` 生成 PDF，**不再依賴 Puppeteer/Chromium**。
 
@@ -131,7 +133,7 @@ pg_ctl -D ~/postgres_data -l ~/postgres_data/logfile start
 
 # 建立資料庫與使用者
 createdb rms_db
-psql -d rms_db -c "CREATE USER rms_user WITH PASSWORD 'rms_secure_password_2026';"
+psql -d rms_db -c "CREATE USER rms_user WITH PASSWORD 'rms_password';"
 psql -d rms_db -c "GRANT ALL PRIVILEGES ON DATABASE rms_db TO rms_user;"
 psql -d rms_db -c "GRANT ALL PRIVILEGES ON SCHEMA public TO rms_user;"
 
@@ -162,7 +164,7 @@ brew services start postgresql@16
 
 # 建立資料庫與使用者
 createdb rms_db
-psql -d rms_db -c "CREATE USER rms_user WITH PASSWORD 'rms_secure_password_2026';"
+psql -d rms_db -c "CREATE USER rms_user WITH PASSWORD 'rms_password';"
 psql -d rms_db -c "GRANT ALL PRIVILEGES ON DATABASE rms_db TO rms_user;"
 psql -d rms_db -c "GRANT ALL PRIVILEGES ON SCHEMA public TO rms_user;"
 ```
@@ -180,7 +182,7 @@ sudo systemctl enable postgresql
 
 # 建立資料庫與使用者
 sudo -u postgres psql -c "CREATE DATABASE rms_db;"
-sudo -u postgres psql -c "CREATE USER rms_user WITH PASSWORD 'rms_secure_password_2026';"
+sudo -u postgres psql -c "CREATE USER rms_user WITH PASSWORD 'rms_password';"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE rms_db TO rms_user;"
 sudo -u postgres psql -d rms_db -c "GRANT ALL PRIVILEGES ON SCHEMA public TO rms_user;"
 ```
@@ -220,24 +222,35 @@ npm install
 cp .env.example .env
 ```
 
-編輯 `.env` 內容：
+編輯 `.env` 內容（需與步驟 3 建立的 PostgreSQL 使用者密碼一致）：
 
 ```env
 # PostgreSQL Database
-DATABASE_URL="postgresql://rms_user:rms_secure_password_2026@localhost:5432/rms_db?schema=public"
+DATABASE_URL="postgresql://rms_user:rms_password@localhost:5432/rms_db?schema=public"
 
 # NextAuth
 NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-secure-random-secret-key-here"
+NEXTAUTH_SECRET="your-secret-key-here"
+
+# Admin Seed Credentials
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=           # 必填，至少 12 字元，需包含大小寫字母與數字
+
+# Docker PostgreSQL Password (Docker 部署時使用)
+POSTGRES_PASSWORD="rms_secure_password"
 
 # Environment
 NODE_ENV="development"
 ```
 
-> 💡 **建議**: 使用以下指令產生安全的 NEXTAUTH_SECRET：
+> 💡 **建議**: 使用以下指令產生安全的密鑰：
 >
 > ```bash
+> # 產生 NEXTAUTH_SECRET
 > openssl rand -base64 32
+>
+> # 產生安全的管理員密碼 (至少 12 字元)
+> openssl rand -base64 16
 > ```
 
 ---
@@ -255,16 +268,19 @@ npx prisma generate
 # 執行資料庫遷移 (建立所有資料表)
 npx prisma db push
 
-# 建立預設管理員帳號
+# 設定管理員密碼 (必填，至少 12 字元，含大小寫與數字)
+export ADMIN_PASSWORD="YourStr0ngP@ssword"
+
+# 建立管理員帳號 (帳號預設為 admin，可透過 ADMIN_USERNAME 環境變數自訂)
 npx prisma db seed
 ```
 
-預設管理員帳號：
-
-- **帳號**: `admin`  
-- **密碼**: `adminpassword`
-
-> ⚠️ **重要**: 首次登入後請立即修改密碼！
+> ⚠️ **重要**:
+>
+> - `ADMIN_PASSWORD` 為必填環境變數，未設定或密碼強度不足時 seed 會拒絕執行
+> - 密碼需至少 12 字元，且包含大寫字母、小寫字母與數字
+> - 可在 `.env` 檔案中設定，或如上方範例透過環境變數傳入
+> - 帳號預設為 `admin`，可透過 `ADMIN_USERNAME` 環境變數自訂
 
 ---
 
@@ -407,8 +423,10 @@ crontab -e
 | `node: command not found` | 確認已執行 `conda activate rms` |
 | PostgreSQL 連線失敗 | 確認服務已啟動：`pg_ctl -D ~/postgres_data status` |
 | `prisma migrate` 失敗 | 檢查 `.env` 中的 `DATABASE_URL` 是否正確 |
+| `prisma db seed` 拒絕執行 | 確認已設定 `ADMIN_PASSWORD` 環境變數，且密碼符合強度要求 (12+ 字元、含大小寫與數字) |
 | Port 3000 已被佔用 | 執行 `lsof -i :3000` 找出佔用程序並終止 |
 | npm install 失敗 | 刪除 `node_modules` 與 `package-lock.json` 後重試 |
+| CSP 錯誤 (Console 報錯) | 若使用外部 CDN/字型，需在 `next.config.mjs` 的 CSP 標頭中加入對應來源 |
 
 ### PostgreSQL 服務管理
 
@@ -437,11 +455,27 @@ brew services stop postgresql@16
 | 啟用環境 | `conda activate rms` |
 | 開發模式 | `npm run dev` |
 | 生產建置 | `npm run build && npm start` |
+| TypeScript 檢查 | `npx tsc --noEmit` |
+| ESLint 檢查 | `npm run lint` |
+| 執行測試 | `npx vitest run` |
+| 執行單一測試 | `npx vitest run path/to/test` |
 | 資料庫 GUI | `npx prisma studio` |
 | 更新 Schema | `npx prisma db push` |
+| 建立遷移 | `npx prisma migrate dev --name <name>` |
+| 套用遷移 (正式) | `npx prisma migrate deploy` |
 | 重設資料庫 | `npx prisma db push --force-reset` |
 | 備份資料庫 | `pg_dump -U rms_user -d rms_db > backup.sql` |
 | 還原資料庫 | `psql -U rms_user -d rms_db < backup.sql` |
+
+---
+
+## 安全注意事項
+
+1. **管理員密碼**: 絕不使用預設或弱密碼，所有環境（含開發環境）皆須透過環境變數設定強密碼
+2. **安全標頭**: 系統已內建 CSP、X-Frame-Options、X-Content-Type-Options 等安全標頭，若使用 CDN 或外部資源需調整 CSP 設定
+3. **帳號鎖定**: 連續 5 次登入失敗將鎖定帳號 15 分鐘，管理員可從後台解鎖
+4. **檔案上傳**: 系統會驗證 MIME 類型、副檔名一致性，拒絕不匹配的上傳
+5. **備份還原**: 還原功能限 ADMIN 角色使用，且有 500MB 檔案大小上限
 
 ---
 
@@ -451,3 +485,5 @@ brew services stop postgresql@16
 - [docs/tech.md](docs/tech.md) - 技術文件與套件清單
 - [docs/deployment_guide.md](docs/deployment_guide.md) - 進階部署規劃
 - [docs/deployment_steps.md](docs/deployment_steps.md) - Step-by-Step 部署指南
+- [docs/security-performance-code-review-2026-05-25.md](docs/security-performance-code-review-2026-05-25.md) - 資安與效能審查報告
+- [docs/security-performance-fix-followup-2026-05-25.md](docs/security-performance-fix-followup-2026-05-25.md) - 修復後續步驟與驗證清單

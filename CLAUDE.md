@@ -20,7 +20,7 @@ npx vitest run       # Run tests (vitest configured, node environment)
 npx vitest run path/to/test  # Run a single test file
 ```
 
-**Database seeding:** `npx prisma db seed` (creates default admin user: admin/adminpassword)
+**Database seeding:** `npx prisma db seed` (requires `ADMIN_PASSWORD` env var; optional `ADMIN_USERNAME` defaults to `admin`)
 
 **Environment variables:** `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET` (see `.env.example`)
 

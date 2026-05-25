@@ -63,8 +63,8 @@ export async function searchProjectItems(
             projectId,
             isDeleted: false,
             OR: [
-                { title: { contains: trimmedQuery } },
-                { content: { contains: trimmedQuery } }
+                { title: { contains: trimmedQuery, mode: 'insensitive' } },
+                { content: { contains: trimmedQuery, mode: 'insensitive' } }
             ]
         },
         select: {

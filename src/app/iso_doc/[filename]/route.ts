@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { readFile } from 'fs/promises';
 import path from 'path';
-import { existsSync } from 'fs';
+import { createReadStream, existsSync, statSync } from 'fs';
+import { Readable } from 'stream';
 
 export async function GET(
     request: NextRequest,
@@ -41,14 +41,18 @@ export async function GET(
             return new NextResponse('File Not Found', { status: 404 });
         }
 
-        const fileBuffer = await readFile(filePath);
+        const stat = statSync(filePath);
 
         // Determine Content-Type
         const headers = new Headers();
         headers.set('Content-Type', 'application/pdf');
+        headers.set('Content-Length', stat.size.toString());
         headers.set('Content-Disposition', `inline; filename="${safeFilename}"`);
 
-        return new NextResponse(fileBuffer, {
+        const stream = createReadStream(filePath);
+        const webStream = Readable.toWeb(stream) as ReadableStream;
+
+        return new Response(webStream, {
             status: 200,
             headers,
         });

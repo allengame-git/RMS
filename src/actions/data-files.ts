@@ -56,7 +56,7 @@ const getCurrentRole = async (userId: string) => {
 /**
  * Get all data files with optional year filter
  */
-export async function getDataFiles(year?: number) {
+export async function getDataFiles(year?: number, take = 100, skip = 0) {
     const session = await getServerSession(authOptions);
     if (!session) return [];
 
@@ -74,7 +74,9 @@ export async function getDataFiles(year?: number) {
         orderBy: [
             { dataYear: 'desc' },
             { createdAt: 'desc' }
-        ]
+        ],
+        take,
+        skip,
     });
 
     // Map to include hasPendingRequest flag
@@ -129,7 +131,7 @@ export async function getDataFileYears() {
 /**
  * Search data files
  */
-export async function searchDataFiles(query: string, year?: number) {
+export async function searchDataFiles(query: string, year?: number, take = 50, skip = 0) {
     const session = await getServerSession(authOptions);
     if (!session) return [];
 
@@ -138,13 +140,15 @@ export async function searchDataFiles(query: string, year?: number) {
             isDeleted: false,
             ...(year ? { dataYear: year } : {}),
             OR: [
-                { dataName: { contains: query } },
-                { dataCode: { contains: query } },
-                { author: { contains: query } },
-                { description: { contains: query } }
+                { dataName: { contains: query, mode: 'insensitive' } },
+                { dataCode: { contains: query, mode: 'insensitive' } },
+                { author: { contains: query, mode: 'insensitive' } },
+                { description: { contains: query, mode: 'insensitive' } }
             ]
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
     });
 
     return files;

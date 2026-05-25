@@ -414,7 +414,7 @@ export async function submitDeleteProjectRequest(projectId: number): Promise<App
 
 // --- Admin Actions ---
 
-export async function getPendingRequests() {
+export async function getPendingRequests(take = 100, skip = 0) {
     const session = await getServerSession(authOptions);
     if (!session) return [];
 
@@ -454,7 +454,9 @@ export async function getPendingRequests() {
                 }
             }
         },
-        orderBy: { createdAt: "asc" }
+        orderBy: { createdAt: "asc" },
+        take,
+        skip,
     });
 }
 

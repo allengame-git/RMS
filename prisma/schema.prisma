@@ -117,6 +117,8 @@ model Item {
   references    ItemReference[]
   
   history ItemHistory[]
+
+  @@index([projectId, isDeleted, fullId])
 }
 
 // Explicit relation table for Related Items with description
@@ -187,6 +189,8 @@ model ChangeRequest {
   previousRequestId Int?           @unique
   previousRequest   ChangeRequest? @relation("RequestChain", fields: [previousRequestId], references: [id])
   childRequest      ChangeRequest? @relation("RequestChain")
+
+  @@index([status, createdAt])
 }
 
 model ItemHistory {
@@ -262,6 +266,8 @@ model QCDocumentApproval {
   
   // Revision history
   revisions       QCDocumentRevision[]
+
+  @@index([status, createdAt])
 }
 
 // ============================================
@@ -324,6 +330,7 @@ model DataFile {
   
   @@index([dataYear])
   @@index([dataCode])
+  @@index([isDeleted, dataYear, createdAt])
 }
 
 model DataFileChangeRequest {

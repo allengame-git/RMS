@@ -274,7 +274,7 @@ export async function getGlobalHistory(filters?: {
     changeType?: string;
     dateFrom?: Date;
     dateTo?: Date;
-}) {
+}, take = 200, skip = 0) {
     const where: Prisma.ItemHistoryWhereInput = {};
 
     if (filters?.projectId) where.projectId = filters.projectId;
@@ -294,7 +294,9 @@ export async function getGlobalHistory(filters?: {
             // Include item to check if deleted (if item is null, it's deleted - relying on SetNull if hard deleted, or check isDeleted if soft)
             item: { select: { id: true, isDeleted: true } }
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
     });
 
     return history;

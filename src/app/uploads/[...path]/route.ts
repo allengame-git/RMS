@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { readFile } from 'fs/promises';
 import path from 'path';
-import { existsSync } from 'fs';
+import { createReadStream, existsSync, statSync } from 'fs';
+import { Readable } from 'stream';
 
 /**
  * @file route.ts (uploads/[...path])
@@ -76,12 +76,13 @@ export async function GET(
             return new NextResponse('File Not Found', { status: 404 });
         }
 
-        const fileBuffer = await readFile(filePath);
+        const stat = statSync(filePath);
         const ext = path.extname(filePath).toLowerCase();
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
         const headers = new Headers();
         headers.set('Content-Type', contentType);
+        headers.set('Content-Length', stat.size.toString());
         const fileName = path.basename(filePath);
         const encodedFileName = encodeURIComponent(fileName);
 
@@ -93,7 +94,10 @@ export async function GET(
             headers.set('Content-Disposition', `inline; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
         }
 
-        return new NextResponse(fileBuffer, {
+        const stream = createReadStream(filePath);
+        const webStream = Readable.toWeb(stream) as ReadableStream;
+
+        return new Response(webStream, {
             status: 200,
             headers,
         });

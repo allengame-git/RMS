@@ -16,6 +16,7 @@ import { authOptions } from '@/lib/auth';
 import unzipper from 'unzipper';
 import path from 'path';
 import fs from 'fs';
+import { pipeline } from 'stream/promises';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,11 @@ export async function POST(request: NextRequest) {
 
         if (!file) {
             return NextResponse.json({ error: '請選擇備份檔案' }, { status: 400 });
+        }
+
+        const MAX_RESTORE_SIZE = 500 * 1024 * 1024; // 500MB
+        if (file.size > MAX_RESTORE_SIZE) {
+            return NextResponse.json({ error: '還原檔案大小超過限制 (最大 500MB)' }, { status: 400 });
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());
@@ -88,8 +94,7 @@ export async function POST(request: NextRequest) {
             fs.mkdirSync(path.dirname(destPath), { recursive: true });
 
             // 串流寫入檔案
-            const content = await entry.buffer();
-            fs.writeFileSync(destPath, content);
+            await pipeline(entry.stream(), fs.createWriteStream(destPath));
             restoredCount++;
         }
 

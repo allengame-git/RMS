@@ -87,7 +87,7 @@ const APPROVAL_INCLUDE = {
 /**
  * Get pending QC approvals for QC users
  */
-export async function getPendingQCApprovals() {
+export async function getPendingQCApprovals(take = 100, skip = 0) {
     const session = await getServerSession(authOptions);
     if (!session) return [];
 
@@ -97,14 +97,16 @@ export async function getPendingQCApprovals() {
     return await prisma.qCDocumentApproval.findMany({
         where: { status: "PENDING_QC" },
         include: APPROVAL_INCLUDE,
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        take,
+        skip,
     });
 }
 
 /**
  * Get pending PM approvals for PM users
  */
-export async function getPendingPMApprovals() {
+export async function getPendingPMApprovals(take = 100, skip = 0) {
     const session = await getServerSession(authOptions);
     if (!session) return [];
 
@@ -123,7 +125,9 @@ export async function getPendingPMApprovals() {
             },
             qcApprovedBy: { select: { id: true, username: true } }
         },
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        take,
+        skip,
     });
 }
 

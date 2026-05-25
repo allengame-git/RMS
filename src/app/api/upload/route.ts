@@ -53,6 +53,23 @@ const ALLOWED_TYPES = [
     'text/csv',
 ];
 
+/** MIME 類型與副檔名的對應表，用於驗證上傳檔案的一致性 */
+const MIME_EXTENSION_MAP: Record<string, string[]> = {
+    'application/pdf': ['.pdf'],
+    'application/msword': ['.doc'],
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    'application/vnd.ms-excel': ['.xls'],
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+    'application/vnd.ms-powerpoint': ['.ppt'],
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+    'image/jpeg': ['.jpg', '.jpeg'],
+    'image/png': ['.png'],
+    'image/gif': ['.gif'],
+    'image/webp': ['.webp'],
+    'text/plain': ['.txt', '.csv', '.log'],
+    'text/csv': ['.csv'],
+};
+
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
@@ -79,8 +96,16 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'File type not allowed' }, { status: 400 });
         }
 
+        // Validate MIME-to-extension consistency
+        const ext = path.extname(file.name).toLowerCase();
+        const allowedExts = MIME_EXTENSION_MAP[file.type];
+        if (!allowedExts || !allowedExts.includes(ext)) {
+            return NextResponse.json({
+                error: `檔案類型與副檔名不一致：${file.type} / ${ext}`
+            }, { status: 400 });
+        }
+
         // Generate safe unique filename using UUID to avoid OS encoding issues
-        const ext = path.extname(file.name);
         const filename = `${crypto.randomUUID()}${ext}`;
 
         // Create upload directory structure (year/month)
