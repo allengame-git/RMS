@@ -173,30 +173,33 @@ export async function submitCreateItemRequest(
 
     const submitReason = formData.get("submitReason") as string || null;
 
-    // 提交時就預分配 fullId，確保編號順序對應提交順序
-    const fullId = await generateNextItemId(projectId, parentId);
-
-    const data = JSON.stringify({
-        title,
-        content,
-        attachments,
-        relatedItems,
-        references,
-        fullId,
-    });
-
     try {
-        await prisma.changeRequest.create({
-            data: {
-                type: "CREATE",
-                status: "PENDING",
-                data,
-                targetProject: { connect: { id: projectId } },
-                targetParent: parentId ? { connect: { id: parentId } } : undefined,
-                submittedBy: { connect: { id: session.user.id } },
-                submitReason,
-            },
-        });
+        // Wrap fullId generation + request creation in a serializable transaction
+        // to prevent two concurrent submissions from getting the same fullId
+        await prisma.$transaction(async (tx) => {
+            const fullId = await generateNextItemId(projectId, parentId, tx);
+
+            const data = JSON.stringify({
+                title,
+                content,
+                attachments,
+                relatedItems,
+                references,
+                fullId,
+            });
+
+            await tx.changeRequest.create({
+                data: {
+                    type: "CREATE",
+                    status: "PENDING",
+                    data,
+                    targetProject: { connect: { id: projectId } },
+                    targetParent: parentId ? { connect: { id: parentId } } : undefined,
+                    submittedBy: { connect: { id: session.user.id } },
+                    submitReason,
+                },
+            });
+        }, { isolationLevel: 'Serializable' });
 
         revalidatePath(`/projects/${projectId}`);
         return { message: "Request submitted successfully! Waiting for approval." };
@@ -233,6 +236,17 @@ export async function submitUpdateItemRequest(
     // Check if item exists
     const item = await prisma.item.findUnique({ where: { id: itemId } });
     if (!item) return { error: "Item not found" };
+
+    // Check for existing PENDING requests on this item
+    const pendingChangeRequests = await prisma.changeRequest.count({
+        where: {
+            itemId: itemId,
+            status: "PENDING"
+        }
+    });
+    if (pendingChangeRequests > 0) {
+        return { error: "該項目有待審核的變更申請，請等待審核完成後再提交" };
+    }
 
     const data = JSON.stringify({ title, content, attachments, relatedItems, references });
     const submitReason = formData.get("submitReason") as string || null;

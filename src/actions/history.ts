@@ -174,14 +174,15 @@ export async function createHistoryRecord(
 /**
  * Get history for a specific item
  */
-export async function getItemHistory(itemId: number) {
+export async function getItemHistory(itemId: number, take = 200) {
     const history = await prisma.itemHistory.findMany({
         where: { itemId },
         include: {
             submittedBy: { select: { username: true } },
             reviewedBy: { select: { username: true } }
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        take,
     });
 
     return history;

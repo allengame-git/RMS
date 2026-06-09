@@ -132,28 +132,26 @@ export const authOptions: NextAuthOptions = {
                         await logAttempt(false, `INVALID_PASSWORD (attempt 1/${LOCKOUT_CONFIG.maxAttempts})`);
                         return null;
                     } else {
-                        // Atomically increment the failure counter
-                        const updated = await prisma.user.update({
+                        // Atomically increment counter and apply lock in a single update
+                        const newAttempts = (user.failedLoginAttempts || 0) + 1;
+                        const shouldLock = newAttempts >= LOCKOUT_CONFIG.maxAttempts;
+
+                        await prisma.user.update({
                             where: { id: user.id },
                             data: {
                                 failedLoginAttempts: { increment: 1 },
+                                ...(shouldLock ? {
+                                    lockedUntil: new Date(Date.now() + LOCKOUT_CONFIG.lockoutMinutes * 60000),
+                                } : {}),
                             },
-                            select: { failedLoginAttempts: true },
                         });
 
-                        if (updated.failedLoginAttempts >= LOCKOUT_CONFIG.maxAttempts) {
-                            await prisma.user.update({
-                                where: { id: user.id },
-                                data: {
-                                    lockedUntil: new Date(Date.now() + LOCKOUT_CONFIG.lockoutMinutes * 60000),
-                                },
-                            });
-
+                        if (shouldLock) {
                             await logAttempt(false, `INVALID_PASSWORD (account now locked)`);
                             throw new Error(`密碼錯誤次數過多，帳號已鎖定 ${LOCKOUT_CONFIG.lockoutMinutes} 分鐘`);
                         }
 
-                        await logAttempt(false, `INVALID_PASSWORD (attempt ${updated.failedLoginAttempts}/${LOCKOUT_CONFIG.maxAttempts})`);
+                        await logAttempt(false, `INVALID_PASSWORD (attempt ${newAttempts}/${LOCKOUT_CONFIG.maxAttempts})`);
                         return null;
                     }
                 }

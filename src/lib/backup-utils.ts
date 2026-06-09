@@ -150,7 +150,11 @@ export async function exportDatabaseToSQL(): Promise<string> {
             stats[table] = records.length;
 
             if (records.length > 0) {
-                sql += generateInsertStatements(table, records as Record<string, unknown>[]);
+                // Exclude password hashes from User table export
+                const sanitized = table === 'User'
+                    ? (records as Record<string, unknown>[]).map(r => ({ ...r, password: '**REDACTED**' }))
+                    : records as Record<string, unknown>[];
+                sql += generateInsertStatements(table, sanitized);
             }
         } catch (error) {
             console.error(`Error exporting table ${table}:`, error);

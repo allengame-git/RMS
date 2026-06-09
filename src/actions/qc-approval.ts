@@ -192,6 +192,11 @@ export async function approveAsQC(
     if (!approval) return { error: "Approval record not found" };
     if (approval.status !== "PENDING_QC") return { error: "Document is not pending QC approval" };
 
+    // Self-approval prevention: QC cannot approve their own submission
+    if (approval.itemHistory.submittedById === session.user.id) {
+        return { error: "您不能審核自己提交的文件" };
+    }
+
     // Update approval status (PDF will be generated only after PM approval)
     await prisma.qCDocumentApproval.update({
         where: { id: approvalId },
@@ -225,6 +230,11 @@ async function processSinglePMApproval(
 
     if (!approval) return { error: "記錄不存在" };
     if (approval.status !== "PENDING_PM") return { error: "非待 PM 核定狀態" };
+
+    // Self-approval prevention: PM cannot approve their own submission
+    if (approval.itemHistory.submittedById === sessionUserId) {
+        return { error: "您不能審核自己提交的文件" };
+    }
 
     // Parallelize independent DB queries
     const [submissionDate, fullHistory, reviewChain] = await Promise.all([
