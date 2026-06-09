@@ -127,8 +127,8 @@ export async function updateProject(
         revalidatePath("/projects");
         return { message: "專案更新成功" };
     } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : "未知錯誤";
-        return { error: "更新失敗: " + message };
+        console.error("Update project error:", e);
+        return { error: "更新失敗，請稍後再試" };
     }
 }
 
@@ -149,8 +149,8 @@ export async function deleteProject(id: number): Promise<ProjectState> {
         revalidatePath("/projects");
         return { message: "Project deleted successfully" };
     } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : "未知錯誤";
-        return { error: "刪除專案失敗: " + message };
+        console.error("Delete project error:", e);
+        return { error: "刪除專案失敗，請稍後再試" };
     }
 }
 
@@ -250,7 +250,8 @@ export async function copyProject(
                 }
             });
 
-            // Copy items with hierarchy
+            // Copy items with hierarchy (ItemRelations and ItemReferences are
+            // intentionally NOT copied — they reference source-project item IDs)
             if (sourceProject.items.length > 0) {
                 const idMap = new Map<number, number>();
                 const sortedItems = [...sourceProject.items].sort(

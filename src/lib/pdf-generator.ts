@@ -360,7 +360,7 @@ export const generateQCDocument = async (
         }
 
         if (!fontLoaded) {
-            console.warn('[generateQCDocument] No CJK font found, using Helvetica (Chinese characters may not display correctly)');
+            console.error('[generateQCDocument] WARNING: No CJK font found! Chinese characters will not display correctly. Please install ArialUnicode.ttf or NotoSansTC to public/fonts/');
         }
         // 確保 font 一定有值（fallback to Helvetica）
         if (!font!) {

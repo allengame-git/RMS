@@ -215,8 +215,7 @@ export async function submitCreateDataFileRequest(data: {
         return { success: true as const, data: request };
     } catch (e: unknown) {
         console.error("Failed to submit create data file request", e);
-        const message = e instanceof Error ? e.message : "Unknown error";
-        return { success: false as const, error: message };
+        return { success: false as const, error: "提交申請失敗，請稍後再試" };
     }
 }
 
@@ -265,8 +264,7 @@ export async function submitUpdateDataFileRequest(
         return { success: true as const, data: request };
     } catch (e: unknown) {
         console.error("Failed to submit update data file request", e);
-        const message = e instanceof Error ? e.message : "Unknown error";
-        return { success: false as const, error: message };
+        return { success: false as const, error: "提交更新申請失敗，請稍後再試" };
     }
 }
 
@@ -298,8 +296,7 @@ export async function submitDeleteDataFileRequest(fileId: number) {
         return { success: true as const, data: request };
     } catch (e: unknown) {
         console.error("Failed to submit delete data file request", e);
-        const message = e instanceof Error ? e.message : "Unknown error";
-        return { success: false as const, error: message };
+        return { success: false as const, error: "提交刪除申請失敗，請稍後再試" };
     }
 }
 
@@ -375,8 +372,7 @@ export async function cancelDataFileChangeRequest(requestId: number) {
         return { success: true as const, message: "Request cancelled successfully" };
     } catch (e: unknown) {
         console.error("Failed to cancel data file change request", e);
-        const message = e instanceof Error ? e.message : "Unknown error";
-        return { success: false as const, error: message };
+        return { success: false as const, error: "撤回申請失敗，請稍後再試" };
     }
 }
 

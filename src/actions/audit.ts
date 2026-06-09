@@ -174,6 +174,31 @@ export async function getRecentFailedAttempts(username: string, minutes: number 
 }
 
 /**
+ * Delete login logs older than the specified retention period (default: 90 days).
+ * Called by admin manually or can be wired into a scheduled job.
+ */
+export async function cleanupOldLoginLogs(retentionDays = 90) {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+        return { success: false, error: "Unauthorized" };
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - retentionDays);
+
+    try {
+        const { count } = await prisma.loginLog.deleteMany({
+            where: { createdAt: { lt: cutoff } }
+        });
+
+        return { success: true, deleted: count };
+    } catch (error) {
+        console.error("[cleanupOldLoginLogs] Failed:", error);
+        return { success: false, error: "清理失敗" };
+    }
+}
+
+/**
  * Export daily login logs to a JSON file
  * @param date - The date to export logs for (defaults to yesterday)
  * @returns Path to the exported file

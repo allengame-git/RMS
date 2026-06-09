@@ -179,8 +179,8 @@ export async function deleteCategory(id: number): Promise<CategoryState> {
         revalidatePath("/projects");
         return { message: "分區刪除成功" };
     } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : "未知錯誤";
-        return { error: "刪除分區失敗: " + message };
+        console.error("Delete category error:", e);
+        return { error: "刪除分區失敗，請稍後再試" };
     }
 }
 
@@ -210,7 +210,7 @@ export async function reorderCategories(orderedIds: number[]): Promise<CategoryS
         revalidatePath("/projects");
         return { message: "排序更新成功" };
     } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : "未知錯誤";
-        return { error: "排序更新失敗: " + message };
+        console.error("Reorder categories error:", e);
+        return { error: "排序更新失敗，請稍後再試" };
     }
 }

@@ -28,6 +28,8 @@ import os from 'os';
 
 export const dynamic = 'force-dynamic';
 
+let restoreInProgress = false;
+
 export async function POST(request: NextRequest) {
     try {
         // 1. 權限驗證
@@ -35,6 +37,12 @@ export async function POST(request: NextRequest) {
         if (!session || !session.user || (session.user as any).role !== 'ADMIN') {
             return NextResponse.json({ error: '權限不足，僅限管理員操作' }, { status: 403 });
         }
+
+        // Prevent concurrent restore operations
+        if (restoreInProgress) {
+            return NextResponse.json({ error: '另一個還原操作正在進行中，請稍後再試' }, { status: 409 });
+        }
+        restoreInProgress = true;
 
         // 2. 讀取上傳的檔案
         const formData = await request.formData();
@@ -245,6 +253,7 @@ export async function POST(request: NextRequest) {
         // 6. 強制登出所有使用者
         await forceLogoutAllUsers();
 
+        restoreInProgress = false;
         return NextResponse.json({
             success: true,
             message: '資料庫復原成功！所有使用者已登出，請重新登入。',
@@ -252,6 +261,7 @@ export async function POST(request: NextRequest) {
             fileType: file.name.endsWith('.sql') ? 'sql' : 'zip',
         });
     } catch (error) {
+        restoreInProgress = false;
         console.error('Database restore error:', error);
         return NextResponse.json(
             { error: '復原失敗: ' + (error instanceof Error ? error.message : '未知錯誤') },

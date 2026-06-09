@@ -91,8 +91,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'File size exceeds 20MB limit' }, { status: 400 });
         }
 
-        // Validate file type
-        if (!ALLOWED_TYPES.includes(file.type)) {
+        // Validate file type — reject empty MIME and application/octet-stream
+        if (!file.type || file.type === 'application/octet-stream' || !ALLOWED_TYPES.includes(file.type)) {
             return NextResponse.json({ error: 'File type not allowed' }, { status: 400 });
         }
 
