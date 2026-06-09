@@ -41,12 +41,12 @@ type SortOrder = 'asc' | 'desc';
 
 // 狀態標籤配置
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-    'REVISION_REQUIRED': { label: '待修訂', color: '#d97706', bgColor: 'rgba(249, 168, 37, 0.15)' },
-    'REJECTED': { label: '已退回', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' },
-    'COMPLETED': { label: '已完成', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.15)' },
-    'PENDING_QC': { label: '待 QC 簽核', color: '#eab308', bgColor: 'rgba(234, 179, 8, 0.15)' },
-    'PENDING_PM': { label: '待 PM 簽核', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.15)' },
-    'APPROVED': { label: '已核准', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.15)' }
+    'REVISION_REQUIRED': { label: '待修訂', color: 'var(--color-warning)', bgColor: 'rgba(249, 168, 37, 0.15)' },
+    'REJECTED': { label: '已退回', color: 'var(--color-danger)', bgColor: 'rgba(198, 40, 40, 0.15)' },
+    'COMPLETED': { label: '已完成', color: 'var(--color-success)', bgColor: 'rgba(46, 125, 50, 0.15)' },
+    'PENDING_QC': { label: '待 QC 簽核', color: 'var(--color-warning)', bgColor: 'rgba(249, 168, 37, 0.15)' },
+    'PENDING_PM': { label: '待 PM 簽核', color: 'var(--color-primary)', bgColor: 'rgba(59, 130, 246, 0.15)' },
+    'APPROVED': { label: '已核准', color: 'var(--color-success)', bgColor: 'rgba(46, 125, 50, 0.15)' }
 };
 
 export default function IsoDocList({ docs }: { docs: IsoDoc[] }) {

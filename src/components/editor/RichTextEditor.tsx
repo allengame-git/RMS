@@ -901,7 +901,7 @@ const RichTextEditor = ({ content, onChange, editable = true }: RichTextEditorPr
     };
 
     return (
-        <div className="rich-text-editor" style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+        <div className="rich-text-editor" style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: 'var(--color-bg-surface)' }}>
             {editable && <MenuBar editor={editor} onUploadImage={handleUploadImage} />}
             <div className="rich-text-content">
                 <EditorContent editor={editor} />

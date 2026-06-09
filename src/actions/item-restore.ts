@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { computeNewFullId, batchCascadeFullIdChanges } from "@/lib/fullid-cascade";
+import { collectDescendantChanges, writeReorderHistory } from "@/actions/item-reorder";
 
 // ==================== Type Definitions ====================
 
@@ -228,9 +229,20 @@ export async function restoreItem(
         },
       });
 
+      // Collect descendant changes before cascade (must read current fullIds first)
+      const descendantChanges = actualChanges.length > 0
+        ? await collectDescendantChanges(tx, actualChanges)
+        : [];
+
       // Apply fullId cascading changes if any
       if (actualChanges.length > 0) {
         await batchCascadeFullIdChanges(tx, actualChanges, projectId);
+      }
+
+      // Write history for all affected sibling/descendant items
+      const allCascadeChanges = [...actualChanges, ...descendantChanges];
+      if (allCascadeChanges.length > 0) {
+        await writeReorderHistory(tx, allCascadeChanges, session.user.id, projectId, "還原項目連動");
       }
 
       // Create RESTORE history record

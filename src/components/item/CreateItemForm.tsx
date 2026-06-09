@@ -228,7 +228,7 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
                     backgroundColor: "rgba(16, 185, 129, 0.1)",
                     border: "1px solid rgba(16, 185, 129, 0.3)",
                     borderRadius: "var(--radius-sm)",
-                    color: "#10b981",
+                    color: "var(--color-success)",
                     fontSize: "0.9rem",
                     display: "flex",
                     alignItems: "center",
@@ -245,10 +245,10 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
             {state.error && (
                 <div style={{
                     padding: "0.75rem 1rem",
-                    backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    backgroundColor: "rgba(198, 40, 40, 0.1)",
+                    border: "1px solid rgba(198, 40, 40, 0.3)",
                     borderRadius: "var(--radius-sm)",
-                    color: "#ef4444",
+                    color: "var(--color-danger)",
                     fontSize: "0.9rem"
                 }}>
                     {state.error}
@@ -263,7 +263,7 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
                     marginBottom: "0.4rem",
                     color: "var(--color-text-muted)"
                 }}>
-                    標題 <span style={{ color: "#ef4444" }}>*</span>
+                    標題 <span style={{ color: "var(--color-danger)" }}>*</span>
                 </label>
                 <input
                     name="title"
@@ -324,7 +324,7 @@ export default function CreateItemForm({ projectId, parentId, parentFullId, code
                     marginBottom: "0.4rem",
                     color: "var(--color-text-muted)"
                 }}>
-                    編輯原因 <span style={{ color: "#ef4444" }}>*</span>
+                    編輯原因 <span style={{ color: "var(--color-danger)" }}>*</span>
                 </label>
                 <textarea
                     name="submitReason"

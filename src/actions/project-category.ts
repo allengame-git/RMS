@@ -33,6 +33,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+const getCurrentRole = async (userId: string) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, isPM: true }
+    });
+    return user;
+};
+
 export type CategoryState = {
     message?: string;
     error?: string;
@@ -61,8 +69,10 @@ export async function getCategories() {
  */
 export async function createCategory(name: string, description?: string): Promise<CategoryState> {
     const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
 
-    if (!session || (session.user.role !== "ADMIN" && !session.user.isPM)) {
+    const currentUser = await getCurrentRole(session.user.id);
+    if (!currentUser || (currentUser.role !== "ADMIN" && !currentUser.isPM)) {
         return { error: "權限不足：僅管理員與專案經理可管理分區" };
     }
 
@@ -108,8 +118,10 @@ export async function updateCategory(
     description?: string
 ): Promise<CategoryState> {
     const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
 
-    if (!session || (session.user.role !== "ADMIN" && !session.user.isPM)) {
+    const currentUser = await getCurrentRole(session.user.id);
+    if (!currentUser || (currentUser.role !== "ADMIN" && !currentUser.isPM)) {
         return { error: "權限不足：僅管理員與專案經理可管理分區" };
     }
 
@@ -142,8 +154,10 @@ export async function updateCategory(
  */
 export async function deleteCategory(id: number): Promise<CategoryState> {
     const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
 
-    if (!session || session.user.role !== "ADMIN") {
+    const currentUser = await getCurrentRole(session.user.id);
+    if (!currentUser || currentUser.role !== "ADMIN") {
         return { error: "權限不足：僅管理員可刪除分區" };
     }
 
@@ -175,8 +189,10 @@ export async function deleteCategory(id: number): Promise<CategoryState> {
  */
 export async function reorderCategories(orderedIds: number[]): Promise<CategoryState> {
     const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
 
-    if (!session || (session.user.role !== "ADMIN" && !session.user.isPM)) {
+    const currentUser = await getCurrentRole(session.user.id);
+    if (!currentUser || (currentUser.role !== "ADMIN" && !currentUser.isPM)) {
         return { error: "權限不足" };
     }
 

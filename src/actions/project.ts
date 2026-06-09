@@ -35,6 +35,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+const getCurrentRole = async (userId: string) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, isPM: true }
+    });
+    return user;
+};
+
 export type ProjectState = {
     message?: string;
     error?: string;
@@ -42,8 +50,10 @@ export type ProjectState = {
 
 export async function createProject(prevState: ProjectState, formData: FormData): Promise<ProjectState> {
     const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
 
-    if (!session || !["ADMIN", "INSPECTOR"].includes(session.user.role)) {
+    const currentUser = await getCurrentRole(session.user.id);
+    if (!currentUser || !["ADMIN", "INSPECTOR"].includes(currentUser.role)) {
         return { error: "Unauthorized: 僅限管理員與審核者可建立專案。" };
     }
 
@@ -93,8 +103,10 @@ export async function updateProject(
     categoryId?: number | null
 ): Promise<ProjectState> {
     const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
 
-    if (!session || (session.user.role !== "ADMIN" && !session.user.isPM)) {
+    const currentUser = await getCurrentRole(session.user.id);
+    if (!currentUser || (currentUser.role !== "ADMIN" && !currentUser.isPM)) {
         return { error: "權限不足：僅管理員與專案經理可直接編輯專案" };
     }
 
@@ -122,8 +134,10 @@ export async function updateProject(
 
 export async function deleteProject(id: number): Promise<ProjectState> {
     const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
 
-    if (!session || session.user.role !== "ADMIN") {
+    const currentUser = await getCurrentRole(session.user.id);
+    if (!currentUser || currentUser.role !== "ADMIN") {
         return { error: "Unauthorized: Only Admins can delete projects." };
     }
 
@@ -167,8 +181,10 @@ export async function copyProject(
     newCategoryId?: number | null
 ): Promise<ProjectState> {
     const session = await getServerSession(authOptions);
+    if (!session) return { error: "Unauthorized" };
 
-    if (!session || session.user.role === "VIEWER") {
+    const currentUser = await getCurrentRole(session.user.id);
+    if (!currentUser || currentUser.role === "VIEWER") {
         return { error: "權限不足：僅編輯者以上可複製專案" };
     }
 

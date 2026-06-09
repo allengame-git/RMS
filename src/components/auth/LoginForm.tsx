@@ -119,10 +119,10 @@ export default function LoginForm() {
                 {error && (
                     <div style={{
                         padding: "0.75rem",
-                        backgroundColor: "#fee2e2",
-                        border: "1px solid #fca5a5",
+                        backgroundColor: "rgba(198, 40, 40, 0.1)",
+                        border: "1px solid rgba(198, 40, 40, 0.3)",
                         borderRadius: "0.5rem",
-                        color: "#dc2626",
+                        color: "var(--color-danger)",
                         fontSize: "0.9rem",
                         textAlign: "center",
                         fontWeight: 500

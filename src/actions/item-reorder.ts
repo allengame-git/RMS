@@ -79,7 +79,7 @@ async function isDescendant(
  * Collects all descendant fullId changes that will result from a set of parent changes.
  * Must be called BEFORE batchCascadeFullIdChanges so we can read the current fullIds.
  */
-async function collectDescendantChanges(
+export async function collectDescendantChanges(
   tx: Prisma.TransactionClient,
   changes: { itemId: number; oldFullId: string; newFullId: string }[]
 ): Promise<{ itemId: number; oldFullId: string; newFullId: string }[]> {
@@ -109,7 +109,7 @@ async function collectDescendantChanges(
 /**
  * Writes REORDER history records for a batch of fullId changes.
  */
-async function writeReorderHistory(
+export async function writeReorderHistory(
   tx: Prisma.TransactionClient,
   changes: { itemId: number; oldFullId: string; newFullId: string }[],
   userId: string,

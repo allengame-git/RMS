@@ -39,6 +39,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { unlink } from 'fs/promises';
+import path from 'path';
 
 /** 從 DB 取得使用者當前角色（避免 JWT 過期不同步） */
 const getCurrentRole = async (userId: string) => {
@@ -496,6 +498,18 @@ export async function approveDataFileRequest(requestId: number) {
                         dataYear: file.dataYear
                     }
                 });
+
+                // Remove physical file from disk
+                if (file.filePath) {
+                    try {
+                        const absolutePath = path.resolve(process.cwd(), file.filePath);
+                        if (absolutePath.startsWith(process.cwd())) {
+                            await unlink(absolutePath);
+                        }
+                    } catch {
+                        // File may already be missing — not a transaction-breaking error
+                    }
+                }
             }
 
             // Update request status
