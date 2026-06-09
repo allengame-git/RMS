@@ -1,11 +1,41 @@
 # NextSteps - 後續工作說明
 
 > 此文件供後續接手的 AI Agent 或開發者了解當前狀態與待辦事項。
-> 最後更新：2026-03-25
+> 最後更新：2026-06-09
 
 ---
 
-## 最近完成的變更 (v2.2.1)
+## 最近完成的變更 (v2.3.0)
+
+### 11. 全面程式碼審查與安全強化 (2026-06-09)
+
+**範圍**：四維度並行審查（架構、後端、前端、安全），修復 20 項問題（1 Critical + 5 High + 8 Medium + 6 Low）
+
+**主要修改檔案**：
+- `src/actions/project.ts`, `src/actions/project-category.ts` — 所有 mutation 改從 DB 重新驗證角色
+- `src/actions/qc-approval.ts` — QC/PM 自我審核防止
+- `src/actions/approval.ts` — UPDATE 重複 PENDING 檢查、fullId 生成改為 Serializable 交易
+- `src/actions/data-files.ts` — 實體檔案刪除、錯誤訊息泛用化
+- `src/actions/item-restore.ts` — 還原時記錄所有受影響子項目歷史
+- `src/actions/item-reorder.ts` — 匯出 `collectDescendantChanges`/`writeReorderHistory`
+- `src/actions/history.ts` — `getItemHistory` 新增 take 上限
+- `src/actions/audit.ts` — 新增 `cleanupOldLoginLogs`
+- `src/contexts/ThemeContext.tsx` — 修復 hydration mismatch
+- `src/lib/auth.ts` — 帳號鎖定原子化
+- `src/lib/backup-utils.ts` — 密碼雜湊遮蔽
+- `src/lib/pdf-generator.ts` — 字體遺失警告升級
+- `src/app/api/admin/restore/database/route.ts` — 並發還原鎖定
+- `src/app/api/upload/route.ts` — 空 MIME 檢查
+- 多個前端元件 — 硬編碼顏色替換為 CSS 變數
+- 新增 `error.tsx` (items, projects, approval) 與 `loading.tsx` (items)
+
+**尚未修復（延後）**：
+- M8: `admin/users/page.tsx` 整頁為 Client Component，可拆分為 Server + Client 但風險大（830 行）
+- M10: Tiptap itemLinkPlugin 全文 regex 重建可做增量更新，但邊界情況複雜
+
+---
+
+### v2.2.1 變更
 
 ### 10. 程式碼重構 (2026-03-21)
 
@@ -89,9 +119,7 @@
 
 ### 高優先級
 
-1. **`fullId` 並發衝突保護**
-   - `submitCreateItemRequest` 在 transaction 外產生 `fullId`，極端並發下可能重複
-   - 考慮在 `generateNextItemId` 使用 SELECT ... FOR UPDATE 或 DB 層 retry 邏輯
+1. ~~**`fullId` 並發衝突保護**~~ ✅ 已在 v2.3.0 修復（Serializable 交易）
 
 2. **DataFileApprovalList / QCDocumentApprovalList 同步修改**
    - 審查頁面 detail panel 位置問題（CSS Grid order 方式）
@@ -117,7 +145,17 @@
 
 ### 低優先級
 
-7. **審查頁面效能**
+7. **Admin Users 頁面 RSC 重構**
+   - `src/app/admin/users/page.tsx` 整頁為 `"use client"`（830 行），初始資料可改為 Server Component 取得後傳入
+   - 拆分為 `page.tsx`（Server Component 取 users/projects）+ `UserManagementClient.tsx`（Client Component）
+   - 風險：頁面依賴 `useSession()` 取 user ID 做 "ME" 標記和 ADMIN 權限檢查，需改為 props 傳入
+
+8. **Tiptap 裝飾插件增量更新**
+   - `src/components/editor/plugins/itemLinkPlugin.ts` 在每次 `docChanged` 時重建全文 regex 裝飾
+   - 大文件（>5000 字）可能有效能問題，可改為只更新變更範圍內的裝飾
+   - ProseMirror DecorationSet 的 `find/remove/add` API 可實現增量更新
+
+9. **審查頁面效能**
    - 大量 pending requests 時 `JSON.parse(req.data)` 每次 render 執行
    - 可用 `useMemo` 快取
 

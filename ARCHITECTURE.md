@@ -1,7 +1,7 @@
 # ARCHITECTURE.md
 
 > Technical architecture reference for AI agents and developers.
-> Last updated: 2026-03-25
+> Last updated: 2026-06-09
 
 ---
 
@@ -156,7 +156,9 @@ Login form → POST /api/auth/callback/credentials → bcrypt verify → JWT iss
 
 Additional flags: `isQC` (can approve QC stage), `isPM` (can approve PM stage).
 
-**Decision:** Self-review prevention — submitters cannot approve their own change requests, except ADMIN role which can self-approve.
+**Decision:** Self-review prevention — submitters cannot approve their own change requests, except ADMIN role which can self-approve for Item approvals. QC/PM approvals enforce self-review prevention for ALL users including ADMIN.
+
+**Decision:** Role re-validation — all privilege-sensitive Server Actions re-fetch the user's current role from the database via `getCurrentRole()`, never trusting JWT session claims alone. This prevents stale JWT privilege escalation after admin demotion.
 
 ---
 
@@ -207,5 +209,10 @@ Schema at `prisma/schema.prisma`. Key models:
 | State management | Zustand (minimal) | Only sidebar collapse state; most state is server-fetched | Redux, React Query |
 | Soft deletes | isDeleted flag | Preserve audit trail, enable restore | Hard deletes with archive table |
 | fullId cascade | Two-phase __TEMP_ rename | Avoid UNIQUE constraint violations during batch rename | Single-phase with deferred constraints |
-| Self-review | Blocked (except ADMIN) | Separation of duties for quality assurance | Allow all self-review |
+| Self-review | Blocked (except ADMIN for Items; always blocked for QC/PM) | Separation of duties for quality assurance | Allow all self-review |
 | Upload auth | Internal (not middleware) | Edge middleware 10MB body limit | Presigned URLs |
+| Role validation | Re-fetch from DB per mutation | JWT claims can be stale after demotion | Trust JWT only |
+| Error messages | Generic Chinese to client | Prevent DB internals leaking (constraint names, SQL) | Raw error forwarding |
+| fullId generation | Serializable transaction | Prevent concurrent CREATE submissions getting same fullId | Generate outside transaction |
+| Backup passwords | Redacted in SQL export | Prevent offline brute-force on leaked backups | Export full records |
+| DB restore | In-process lock flag | Prevent concurrent restore corrupting data | No protection |

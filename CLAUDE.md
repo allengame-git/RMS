@@ -108,3 +108,7 @@ Uses `pdf-lib` (pure JS, no browser dependency) in `src/lib/pdf-generator.ts` fo
 - **SQL restore whitelist**: Only allow specific prefixes (`INSERT INTO`, `DELETE FROM`, `TRUNCATE`, `SET CONSTRAINTS`, `SET STATEMENT_TIMEOUT`, `SET LOCK_TIMEOUT`). Filter out `BEGIN`/`COMMIT` (Prisma manages transaction) and `SET session_replication_role` (no permission). A broad `SET ` prefix allows privilege escalation (`SET ROLE`)
 - **MIME validation**: Reject empty `file.type` and `application/octet-stream` to prevent whitelist bypass
 - **Multi-step DB mutations**: Wrap in `prisma.$transaction()` for atomicity (e.g., bidirectional relations, reordering, import operations)
+- **Role re-validation**: Always re-fetch user role from DB in privilege-sensitive Server Actions — JWT claims can be stale after admin demotion. Use `getCurrentRole(session.user.id)` pattern, never trust `session.user.role` alone for mutations
+- **Self-approval prevention**: Must check `submittedById !== session.user.id` in ALL approval paths — Item approval, QC approval, and PM approval. ADMIN is exempt for Item approval only
+- **Error message sanitization**: Never return raw `e.message` to clients in Server Actions — use generic Chinese messages and `console.error` the original. DB constraint names and SQL fragments can leak through error messages
+- **Physical file cleanup**: When soft-deleting DataFiles, also `unlink()` the physical file. Always verify `path.resolve()` stays within `process.cwd()` before deletion
