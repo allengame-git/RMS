@@ -6,12 +6,13 @@
 
 LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提供階層式項目結構、自動編號、變更審核流程、以及多層級權限控管。本系統致力於提供現代化、直覺且全中文化的管理介面。
 
+- **版本**: v2.3.1
+- **更新日期**: 2026-07-03
+- **狀態**: 生產環境就緒 (Production Ready)
+
 ### 主要功能
 
 - 📁 **專案與項目管理** - 階層式項目結構 (樹狀結構)，支援無限層級子項目、選單摺疊與項目高亮
-- **版本**: v2.3.0
-- **更新日期**: 2026-06-09
-- **狀態**: 生產環境就緒 (Production Ready)
 - 📋 **專案複製功能** - 一鍵複製專案結構，支援選擇性複製項目內容與附件
 - ⚖️ **專案治理 (Project Governance)** - 專案編輯與刪除皆納入審核流程，確保異動可控（編輯: Editor+, 刪除: Admin）
 - 🔢 **自動編號** - 項目自動產生唯一編號 (如 `WQ-1`, `WQ-1-1`)
@@ -44,7 +45,8 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 
 | 類別 | 技術 | 版本 |
 |------|------|------|
-| 框架 | Next.js (App Router) | 14.2.35 |
+| 框架 | Next.js (App Router) | ^15.5.12 |
+| UI | React | ^19.2.4 |
 | 語言 | TypeScript | ^5 |
 | 資料庫 | Prisma + PostgreSQL | Prisma 5.22.0 |
 | 認證 | NextAuth.js | ^4.24.13 |
@@ -124,7 +126,22 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 |------|------|
 | `eslint` / `eslint-config-next` | 程式碼品質檢查 |
 | `vitest` | 單元測試框架 |
+| `ts-node` | 執行 TypeScript 腳本（`prisma db seed` 依賴，2026-07-03 起納入 devDependencies） |
 | `@types/*` | TypeScript 型別定義 |
+
+### v2.3.1 (2026-07-03) - 文件治理與依賴修正
+
+- 📚 **AI 治理文件框架**:
+  - 新增 `.claude/guides/` 六份文件：模型調度守則、判斷力 rubric、派工模板、維護協議、harness 診斷、session 交接信
+  - `CLAUDE.md` 重寫為「核心事實 + 路由表」形式，依觸發條件指向對應 guide
+- 🎯 **單一真相來源**:
+  - `AGENTS.md` 縮為指向 `CLAUDE.md` 的指標檔，消除兩份 AI 指引各自漂移的問題（曾出現 seed 帳密與安全清單不一致）
+- 🗂️ **文件歸檔**:
+  - 12 份已完成的計畫文件（`*_plan.md` / `*_task.md`、過時的 `NEXT_STEPS.md`）移至 `docs/archive/`
+- 🔧 **依賴修正**:
+  - `ts-node` 納入 devDependencies，`npx prisma db seed` 不再依賴 npx 臨時抓包（修復離線/CI 環境失敗）
+- ⚙️ **權限設定**:
+  - 新增 `.claude/settings.json` pattern 式工具許可清單（tsc / vitest / eslint）
 
 ### v2.3.0 (2026-06-09) - 全面程式碼審查與安全強化
 
@@ -252,10 +269,10 @@ npm install
 ```bash
 npx prisma generate
 npx prisma db push
-npx prisma db seed
+ADMIN_PASSWORD=<至少12字元含大小寫與數字> npx prisma db seed
 ```
 
-> 💡 **注意**: `db seed` 會建立預設管理員帳號 `admin` / `adminpassword`。新環境部署後務必執行此指令。
+> 💡 **注意**: `db seed` 會建立管理員帳號。帳號名稱由 `ADMIN_USERNAME` 環境變數決定（預設 `admin`），密碼由 `ADMIN_PASSWORD` 環境變數指定（必填，至少 12 字元且含大小寫字母與數字，見 `scripts/seed-admin.ts`）。新環境部署後務必執行此指令。
 
 ### 啟動開發伺服器
 
@@ -271,7 +288,7 @@ npm run dev
 
 | 角色 | 帳號 | 密碼 |
 |------|------|------|
-| Admin | admin | adminpassword|
+| Admin | `ADMIN_USERNAME`（預設 `admin`） | 由 seed 時的 `ADMIN_PASSWORD` 環境變數指定 |
 
 ---
 
@@ -313,12 +330,15 @@ src/
 
 | 文件 | 說明 |
 |------|------|
-| [docs/task.md](docs/task.md) | 開發進度追蹤 |
+| [CLAUDE.md](CLAUDE.md) | AI agent 工作指引（單一真相來源，含路由表指向 `.claude/guides/`） |
+| [NextSteps.md](NextSteps.md) | 後續工作交接說明 |
 | [docs/tech.md](docs/tech.md) | 技術文件 |
-| [docs/archive/implementation_plan.md](docs/archive/implementation_plan.md) | 功能實作計畫（已完成，歸檔） |
+| [docs/task.md](docs/task.md) | 開發進度追蹤 |
+| [docs/backup-restore-design-reference.md](docs/backup-restore-design-reference.md) | 備份還原設計參考 |
 | [docs/deployment_guide.md](docs/deployment_guide.md) | Windows 部署規劃 |
 | [docs/deployment_steps.md](docs/deployment_steps.md) | Step-by-Step 部署指南 |
 | [docs/deployment_checklist.md](docs/deployment_checklist.md) | 部署檢驗清單 |
+| [docs/archive/](docs/archive/) | 已完成的歷史計畫文件（僅供參考，非現行指引） |
 
 ---
 
