@@ -233,7 +233,7 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 
 ### v2.1.1 (2026-01-21) - PDF 與品質管理
 
-本專案已從 SQLite 遷移至 **PostgreSQL** 以提升效能與擴展性。詳細遷移流程請參考 [docs/postgresql_migration_plan.md](docs/postgresql_migration_plan.md)。
+本專案已從 SQLite 遷移至 **PostgreSQL** 以提升效能與擴展性。詳細遷移流程請參考 [docs/archive/postgresql_migration_plan.md](docs/archive/postgresql_migration_plan.md)。
 
 > 💡 **開發環境**: 若需切換回 SQLite（僅限本地測試），請參考 `prisma/schema.prisma` 中的註解並切換 provider。
 
@@ -315,7 +315,7 @@ src/
 |------|------|
 | [docs/task.md](docs/task.md) | 開發進度追蹤 |
 | [docs/tech.md](docs/tech.md) | 技術文件 |
-| [docs/implementation_plan.md](docs/implementation_plan.md) | 功能實作計畫 |
+| [docs/archive/implementation_plan.md](docs/archive/implementation_plan.md) | 功能實作計畫（已完成，歸檔） |
 | [docs/deployment_guide.md](docs/deployment_guide.md) | Windows 部署規劃 |
 | [docs/deployment_steps.md](docs/deployment_steps.md) | Step-by-Step 部署指南 |
 | [docs/deployment_checklist.md](docs/deployment_checklist.md) | 部署檢驗清單 |

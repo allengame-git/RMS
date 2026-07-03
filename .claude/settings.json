@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vitest run)",
+      "Bash(npx vitest run *)",
+      "Bash(npx eslint *)",
+      "Bash(npx next lint)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs"
+    ]
+  }
+}
