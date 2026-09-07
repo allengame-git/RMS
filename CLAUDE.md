@@ -74,6 +74,7 @@ Seeding: `npx prisma db seed` (requires `ADMIN_PASSWORD` env var; `ADMIN_USERNAM
 7. **Edge middleware** (`src/middleware.ts`) has a 10MB body limit — upload routes are excluded from it and must authenticate internally. Excluded: `/auth/login`, `/api/auth`, `/api/health`, `/api/admin/restore`, `/api/datafiles/upload` (100MB), `/api/upload` (20MB), static assets.
 8. **Tiptap fullId regex**: project `codePrefix` can contain hyphens (`RMS-DAREN`), so the pattern is `(?:[A-Z]+-)+\d+`, exported as `ITEM_ID_CORE_PATTERN` from `src/components/editor/plugins/itemLinkPlugin.ts`. Never duplicate this regex — import the constant. After changing Tiptap/ProseMirror plugins, restart the dev server and clear `.next` (hot reload misses plugin changes).
 9. **Backup/restore** lives in `src/lib/backup/` (project ZIP) and `src/lib/backup-utils.ts` (full DB); admin endpoints at `src/app/api/admin/restore/{database,iso-docs,uploads}/`. Before touching any of it, digest `docs/backup-restore-design-reference.md` (via subagent summary or targeted sections — see route table).
+10. **QC/PM completion and PDF publication**: Generate the PM PDF outside the final database transaction, then call `completePMApproval()` in a short transaction guarded by `status` and `revisionCount` CAS. Never treat the fixed `QC-{projectCode}-{history.id}.pdf` path as an atomic publication; it remains last-writer-wins until a publication protocol is implemented.
 
 ## Conventions
 

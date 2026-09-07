@@ -155,7 +155,7 @@
 
 ## 建議的後續工作
 
-### 本階段新增待辦（2026-09-06）
+### 本階段新增待辦（2026-09-07）
 
 1. **補 fullId 真實資料庫與 action 整合測試**
    - 以測試 PostgreSQL 驗證 UNIQUE 衝突、transaction rollback，以及四個 Server Action 的授權與結果；目前只有 fake/mock tx 單元測試。

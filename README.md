@@ -129,6 +129,14 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 | `ts-node` | 執行 TypeScript 腳本（`prisma db seed` 依賴，2026-07-03 起納入 devDependencies） |
 | `@types/*` | TypeScript 型別定義 |
 
+### 2026-09-07 — QC/PM 生命週期一致性與交接驗證
+
+- 🔄 **QC/PM 狀態與版本規則集中化**:
+  - 新增 `src/lib/qc-lifecycle.ts`，統一退回、重提、修訂次數、狀態轉移與 PM 完成規則。
+  - `approval.ts`、`history.ts`、`qc-approval.ts` 共用 caller-owned transaction 與 `status`／`revisionCount` CAS。
+- 🧪 **真實環境驗證**:
+  - 隔離 PostgreSQL rollback 與 PDF 並行覆寫測試完成；固定 PDF 路徑的 last-writer-wins 限制已記錄於 `NextSteps.md`。
+
 ### v2.3.1 (2026-07-03) - 文件治理與依賴修正
 
 - 📚 **AI 治理文件框架**:
@@ -368,7 +376,7 @@ npx prisma generate
 
 ## 工程驗證（2026-09-07）
 
-- `npx vitest run`：4 個測試檔、67 個測試全部通過。
+- fullId 階段基線：4 個測試檔、67 個測試全部通過。
 - fullId helper/cascade 測試使用 mock/fake transaction client；尚未涵蓋真實 PostgreSQL UNIQUE/rollback 或 Server Action integration。
 - `npx tsc --noEmit`：既有 140 項 diagnostics（含 Next.js 宣告缺失）前後相同，本階段未新增。
 - QC/PM 生命週期重構後：6 個測試檔、93 個測試全部通過，包含版本重提、狀態 CAS、PDF 交易順序與批次部分成功。

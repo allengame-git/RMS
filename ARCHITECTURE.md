@@ -109,7 +109,7 @@ Tiptap with custom extensions in `src/components/editor/`:
 | `project.ts` | Project CRUD, clone |
 | `data-files.ts` | DataFile CRUD |
 
-**Pattern:** `processSinglePMApproval()` is the shared helper for both single and batch PM approval — always modify this function, not the two callers.
+**Pattern:** `processSinglePMApproval()` is the action-layer orchestration shared by single and batch PM approval: it generates the PDF, then delegates the short database commit to `completePMApproval()`. Change lifecycle decisions in `src/lib/qc-lifecycle.ts`, not in either caller.
 
 ### fullId Cascade System
 
