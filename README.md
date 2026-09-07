@@ -7,7 +7,7 @@
 LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提供階層式項目結構、自動編號、變更審核流程、以及多層級權限控管。本系統致力於提供現代化、直覺且全中文化的管理介面。
 
 - **版本**: v2.3.1
-- **更新日期**: 2026-07-03
+- **更新日期**: 2026-09-07
 - **狀態**: 生產環境就緒 (Production Ready)
 
 ### 主要功能
@@ -322,6 +322,8 @@ src/
 │   ├── history/          # 歷史紀錄相關
 │   └── layout/           # 佈局元件
 └── lib/                   # 工具函式
+    ├── fullid-cascade.ts  # fullId 級聯更新底層
+    └── fullid-mutation.ts # 級聯與 REORDER 歷史共用流程
 ```
 
 ---
@@ -360,6 +362,14 @@ npx prisma studio
 # 更新 Prisma Client
 npx prisma generate
 ```
+
+---
+
+## 工程驗證（2026-09-06）
+
+- `npx vitest run`：4 個測試檔、67 個測試全部通過。
+- fullId helper/cascade 測試使用 mock/fake transaction client；尚未涵蓋真實 PostgreSQL UNIQUE/rollback 或 Server Action integration。
+- `npx tsc --noEmit`：既有 140 項 diagnostics（含 Next.js 宣告缺失）前後相同，本階段未新增。
 
 ---
 

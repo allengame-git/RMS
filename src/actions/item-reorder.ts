@@ -5,7 +5,11 @@ import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { computeNewFullId, batchCascadeFullIdChanges } from "@/lib/fullid-cascade";
+import { computeNewFullId } from "@/lib/fullid-cascade";
+import {
+  applyFullIdChangesWithHistory,
+  type FullIdChange,
+} from "@/lib/fullid-mutation";
 
 // ==================== Type Definitions ====================
 
@@ -15,7 +19,7 @@ export interface ReorderResult {
   success: boolean;
   error?: string;
   data?: {
-    changes: { itemId: number; oldFullId: string; newFullId: string }[];
+    changes: FullIdChange[];
   };
 }
 
@@ -73,75 +77,6 @@ async function isDescendant(
   }
 
   return false;
-}
-
-/**
- * Collects all descendant fullId changes that will result from a set of parent changes.
- * Must be called BEFORE batchCascadeFullIdChanges so we can read the current fullIds.
- */
-export async function collectDescendantChanges(
-  tx: Prisma.TransactionClient,
-  changes: { itemId: number; oldFullId: string; newFullId: string }[]
-): Promise<{ itemId: number; oldFullId: string; newFullId: string }[]> {
-  const descendantChanges: { itemId: number; oldFullId: string; newFullId: string }[] = [];
-
-  for (const change of changes) {
-    if (change.oldFullId === change.newFullId) continue;
-
-    const descendants = await tx.item.findMany({
-      where: { fullId: { startsWith: `${change.oldFullId}-` } },
-      select: { id: true, fullId: true },
-    });
-
-    for (const desc of descendants) {
-      const newDescFullId = change.newFullId + desc.fullId.substring(change.oldFullId.length);
-      descendantChanges.push({
-        itemId: desc.id,
-        oldFullId: desc.fullId,
-        newFullId: newDescFullId,
-      });
-    }
-  }
-
-  return descendantChanges;
-}
-
-/**
- * Writes REORDER history records for a batch of fullId changes.
- */
-export async function writeReorderHistory(
-  tx: Prisma.TransactionClient,
-  changes: { itemId: number; oldFullId: string; newFullId: string }[],
-  userId: string,
-  projectId: number,
-  notePrefix: string
-): Promise<void> {
-  for (const change of changes) {
-    const item = await tx.item.findUnique({
-      where: { id: change.itemId },
-      select: { title: true },
-    });
-
-    await tx.itemHistory.create({
-      data: {
-        itemId: change.itemId,
-        version: 0,
-        changeType: "REORDER",
-        snapshot: JSON.stringify({
-          oldFullId: change.oldFullId,
-          newFullId: change.newFullId,
-        }),
-        diff: null,
-        submittedById: userId,
-        reviewedById: userId,
-        reviewStatus: "APPROVED",
-        reviewNote: `${notePrefix}：${change.oldFullId} → ${change.newFullId}`,
-        itemFullId: change.newFullId,
-        itemTitle: item?.title ?? "",
-        projectId,
-      },
-    });
-  }
 }
 
 // ==================== Reorder (同層重新排序) ====================
@@ -202,7 +137,7 @@ export async function previewReorder(
   }
 
   const itemMap = new Map(items.map((item) => [item.id, item]));
-  const changes: { itemId: number; oldFullId: string; newFullId: string }[] = [];
+  const changes: FullIdChange[] = [];
 
   for (let i = 0; i < orderedItemIds.length; i++) {
     const itemId = orderedItemIds[i];
@@ -246,10 +181,11 @@ export async function reorderItems(
 
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const descendantChanges = await collectDescendantChanges(tx, actualChanges);
-      await batchCascadeFullIdChanges(tx, actualChanges, projectId);
-      const allChanges = [...actualChanges, ...descendantChanges];
-      await writeReorderHistory(tx, allChanges, session.user.id, projectId, "重新排序");
+      await applyFullIdChangesWithHistory(tx, actualChanges, {
+        userId: session.user.id,
+        projectId,
+        notePrefix: "重新排序",
+      });
     });
   } catch (error) {
     console.error("Reorder transaction failed:", error);
@@ -319,7 +255,7 @@ export async function previewMove(
   const orderedItems = [...siblings];
   orderedItems.splice(clampedPosition, 0, { id: item.id, fullId: item.fullId });
 
-  const changes: { itemId: number; oldFullId: string; newFullId: string }[] = [];
+  const changes: FullIdChange[] = [];
   for (let i = 0; i < orderedItems.length; i++) {
     const newFullId = computeNewFullId(codePrefix, targetParentFullId, i + 1);
     changes.push({ itemId: orderedItems[i].id, oldFullId: orderedItems[i].fullId, newFullId });
@@ -398,19 +334,16 @@ export async function moveItem(
 
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const descendantChanges = await collectDescendantChanges(tx, actualChanges);
-
       await tx.item.update({
         where: { id: itemId },
         data: { parentId: newParentId },
       });
 
-      if (actualChanges.length > 0) {
-        await batchCascadeFullIdChanges(tx, actualChanges, item.projectId);
-      }
-
-      const allChanges = [...actualChanges, ...descendantChanges];
-      await writeReorderHistory(tx, allChanges, session.user.id, item.projectId, "移動項目");
+      await applyFullIdChangesWithHistory(tx, actualChanges, {
+        userId: session.user.id,
+        projectId: item.projectId,
+        notePrefix: "移動項目",
+      });
     });
   } catch (error) {
     console.error("[moveItem] Transaction failed:", error);
@@ -439,7 +372,7 @@ export async function previewRenumber(
     return { success: false, error: "權限不足" };
   }
 
-  const allChanges: { itemId: number; oldFullId: string; newFullId: string }[] = [];
+  const allChanges: FullIdChange[] = [];
 
   async function collectChanges(pId: number | null, projId: number) {
     const items = await prisma.item.findMany({
@@ -540,10 +473,11 @@ export async function renumberItems(
 
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const descendantChanges = await collectDescendantChanges(tx, actualChanges);
-      await batchCascadeFullIdChanges(tx, actualChanges, projectId);
-      const allChanges = [...actualChanges, ...descendantChanges];
-      await writeReorderHistory(tx, allChanges, session.user.id, projectId, "重新編號");
+      await applyFullIdChangesWithHistory(tx, actualChanges, {
+        userId: session.user.id,
+        projectId,
+        notePrefix: "重新編號",
+      });
     });
   } catch (error) {
     console.error("[renumberItems] Error:", error);

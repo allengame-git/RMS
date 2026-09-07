@@ -5,8 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { computeNewFullId, batchCascadeFullIdChanges } from "@/lib/fullid-cascade";
-import { collectDescendantChanges, writeReorderHistory } from "@/actions/item-reorder";
+import { computeNewFullId } from "@/lib/fullid-cascade";
+import {
+  applyFullIdChangesWithHistory,
+  type FullIdChange,
+} from "@/lib/fullid-mutation";
 
 // ==================== Type Definitions ====================
 
@@ -30,7 +33,7 @@ export interface RestoreResult {
   success: boolean;
   error?: string;
   data?: {
-    changes: { itemId: number; oldFullId: string; newFullId: string }[];
+    changes: FullIdChange[];
   };
 }
 
@@ -160,8 +163,7 @@ export async function previewRestore(
     fullId: item.fullId,
   });
 
-  const changes: { itemId: number; oldFullId: string; newFullId: string }[] =
-    [];
+  const changes: FullIdChange[] = [];
   for (let i = 0; i < orderedItems.length; i++) {
     const newFullId = computeNewFullId(codePrefix, targetParentFullId, i + 1);
     changes.push({
@@ -229,21 +231,11 @@ export async function restoreItem(
         },
       });
 
-      // Collect descendant changes before cascade (must read current fullIds first)
-      const descendantChanges = actualChanges.length > 0
-        ? await collectDescendantChanges(tx, actualChanges)
-        : [];
-
-      // Apply fullId cascading changes if any
-      if (actualChanges.length > 0) {
-        await batchCascadeFullIdChanges(tx, actualChanges, projectId);
-      }
-
-      // Write history for all affected sibling/descendant items
-      const allCascadeChanges = [...actualChanges, ...descendantChanges];
-      if (allCascadeChanges.length > 0) {
-        await writeReorderHistory(tx, allCascadeChanges, session.user.id, projectId, "還原項目連動");
-      }
+      await applyFullIdChangesWithHistory(tx, actualChanges, {
+        userId: session.user.id,
+        projectId,
+        notePrefix: "還原項目連動",
+      });
 
       // Create RESTORE history record
       await tx.itemHistory.create({

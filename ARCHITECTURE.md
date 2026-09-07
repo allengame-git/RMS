@@ -1,7 +1,7 @@
 # ARCHITECTURE.md
 
 > Technical architecture reference for AI agents and developers.
-> Last updated: 2026-06-09
+> Last updated: 2026-09-07
 
 ---
 
@@ -104,7 +104,8 @@ Tiptap with custom extensions in `src/components/editor/`:
 |------|---------------|
 | `approval.ts` | Item/project change request CRUD, submit/review/cancel/edit |
 | `qc-approval.ts` | QC and PM document approval, batch PM approval |
-| `item-reorder.ts` | Item reorder, move, renumber, restore |
+| `item-reorder.ts` | Item reorder, move, renumber |
+| `item-restore.ts` | Soft-deleted item restore |
 | `project.ts` | Project CRUD, clone |
 | `data-files.ts` | DataFile CRUD |
 
@@ -112,16 +113,23 @@ Tiptap with custom extensions in `src/components/editor/`:
 
 ### fullId Cascade System
 
-When items are reordered, moved, or renumbered, their `fullId` (e.g., `WQ-1-1`) changes, and all descendants must be updated.
+When items are reordered, moved, renumbered, or restored, their `fullId` (e.g., `WQ-1-1`) can change, and all descendants must be updated.
 
 **Key files:**
 - `src/lib/fullid-cascade.ts` — `batchCascadeFullIdChanges()` with two-phase `__TEMP_` prefix mechanism
+- `src/lib/fullid-mutation.ts` — `applyFullIdChangesWithHistory()` shared orchestration for descendant collection, cascade, and `REORDER` history
 - `src/lib/item-utils.ts` — `generateNextItemId()` for fullId generation
 
-**Critical sequence:**
-1. Call `collectDescendantChanges()` BEFORE `batchCascadeFullIdChanges()` — descendants' old fullIds are needed for history records
-2. Soft-deleted items get `__DELETED_` prefix to avoid UNIQUE constraint conflicts
-3. Two-phase rename (`__TEMP_` then final) avoids swapping conflicts
+**Mutation protocol:**
+1. `reorderItems`, `moveItem`, `renumberItems`, and `restoreItem` run their related updates in one caller-owned `prisma.$transaction`; the same `tx` is passed to the helper.
+2. `moveItem` updates `parentId` before invoking the helper, so its descendant collection runs after the tree mutation and before any fullId cascade.
+3. `applyFullIdChangesWithHistory()` collects descendants while old fullIds are still queryable, then calls `batchCascadeFullIdChanges()`.
+4. The helper writes direct changes first, followed by descendant changes, as `REORDER` history. `restoreItem` writes its separate `RESTORE` record even when the helper receives no effective fullId changes.
+5. Soft-deleted items get `__DELETED_` prefixes, and the production cascade keeps its two-phase (`__TEMP_` then final) rename unchanged.
+
+**Decision:** Keep collection, cascade, and `REORDER` history in one shared helper while callers retain transaction ownership. This makes the ordering invariant explicit and keeps parent updates, fullId changes, and audit records atomic.
+
+**Test boundary:** The helper and cascade unit tests use mocked/fake transaction clients; they do not cover real PostgreSQL UNIQUE constraints, rollback, or Server Action integration. Concrete test and type-check results are recorded in `NextSteps.md`.
 
 ### Backup & Restore
 
@@ -158,7 +166,7 @@ Additional flags: `isQC` (can approve QC stage), `isPM` (can approve PM stage).
 
 **Decision:** Self-review prevention — submitters cannot approve their own change requests, except ADMIN role which can self-approve for Item approvals. QC/PM approvals enforce self-review prevention for ALL users including ADMIN.
 
-**Decision:** Role re-validation — all privilege-sensitive Server Actions re-fetch the user's current role from the database via `getCurrentRole()`, never trusting JWT session claims alone. This prevents stale JWT privilege escalation after admin demotion.
+**Rule:** Privilege-sensitive Server Actions must re-fetch the user's current role from the database via `getCurrentRole()` and must not trust JWT session claims alone. `src/actions/item-reorder.ts` and `src/actions/item-restore.ts` still need this re-validation; see the security findings in `NextSteps.md`.
 
 ---
 
@@ -209,6 +217,7 @@ Schema at `prisma/schema.prisma`. Key models:
 | State management | Zustand (minimal) | Only sidebar collapse state; most state is server-fetched | Redux, React Query |
 | Soft deletes | isDeleted flag | Preserve audit trail, enable restore | Hard deletes with archive table |
 | fullId cascade | Two-phase __TEMP_ rename | Avoid UNIQUE constraint violations during batch rename | Single-phase with deferred constraints |
+| fullId mutation orchestration | Shared `applyFullIdChangesWithHistory()` with caller-owned `tx` | Centralize descendant-before-cascade ordering and direct-first audit history across four entrypoints | Duplicate sequencing in each action |
 | Self-review | Blocked (except ADMIN for Items; always blocked for QC/PM) | Separation of duties for quality assurance | Allow all self-review |
 | Upload auth | Internal (not middleware) | Edge middleware 10MB body limit | Presigned URLs |
 | Role validation | Re-fetch from DB per mutation | JWT claims can be stale after demotion | Trust JWT only |

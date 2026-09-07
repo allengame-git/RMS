@@ -1,7 +1,24 @@
 # NextSteps - 後續工作說明
 
 > 此文件供後續接手的 AI Agent 或開發者了解當前狀態與待辦事項。
-> 最後更新：2026-06-09
+> 最後更新：2026-09-07
+
+---
+
+## 本階段完成（2026-09-06）
+
+### fullId mutation orchestration
+
+- 新增 `src/lib/fullid-mutation.ts` 的 `applyFullIdChangesWithHistory()`；由 helper 統一負責在同一個 caller-owned `tx` 中先收集 descendants，再執行 cascade，最後以 direct-first + descendants 順序寫入 `REORDER` 歷史。
+- `reorderItems`、`moveItem`、`renumberItems` 與 `restoreItem` 共用上述 helper；`moveItem` 先更新 `parentId` 再進行 fullId 查詢與收集，`restoreItem` 即使沒有 fullId 變更仍保留 `RESTORE` 歷史。
+- `src/lib/fullid-cascade.ts` production cascade 行為未變。
+
+### 驗證狀態
+
+- `npx vitest run`：4 個測試檔、67 個測試全部通過（helper 5、底層 cascade 3 項新增測試）。
+- 獨立 ASTRA 檢查通過。
+- `npx tsc --noEmit` 仍有既有 140 項 diagnostics（含 Next 宣告缺失），與變更前相同，未新增。
+- 測試使用 mock/fake transaction client；尚未驗證真實資料庫 UNIQUE/rollback 或 Server Action integration。
 
 ---
 
@@ -17,7 +34,6 @@
 - `src/actions/approval.ts` — UPDATE 重複 PENDING 檢查、fullId 生成改為 Serializable 交易
 - `src/actions/data-files.ts` — 實體檔案刪除、錯誤訊息泛用化
 - `src/actions/item-restore.ts` — 還原時記錄所有受影響子項目歷史
-- `src/actions/item-reorder.ts` — 匯出 `collectDescendantChanges`/`writeReorderHistory`
 - `src/actions/history.ts` — `getItemHistory` 新增 take 上限
 - `src/actions/audit.ts` — 新增 `cleanupOldLoginLogs`
 - `src/contexts/ThemeContext.tsx` — 修復 hydration mismatch
@@ -89,7 +105,7 @@
 - `src/components/item/ReorderDialog.tsx`, `MoveItemDialog.tsx`, `RenumberDialog.tsx` — UI 對話框
 
 **注意事項**：
-- `collectDescendantChanges()` 必須在 `batchCascadeFullIdChanges()` **之前**呼叫，否則子項目 fullId 已被改變，無法正確記錄 before/after
+- `applyFullIdChangesWithHistory()` 會在同一個 `tx` 中先收集 descendants 再 cascade，確保歷史能記錄正確的 before/after
 - 操作前會檢查 PENDING ChangeRequest，有待審核項目時阻擋操作
 
 ### 2. 待審核申請編輯功能
@@ -115,7 +131,33 @@
 
 ---
 
+## 安全發現
+
+| ID | 嚴重度 | 問題 | 影響範圍 | 建議修復 |
+|---|---|---|---|---|
+| SEC-2026-09-06-01 | 高 | fullId 操作入口只檢查 JWT `session.user.role`，未重新向 DB 驗證角色 | `src/actions/item-reorder.ts`、`src/actions/item-restore.ts` 的預覽與 mutation actions | 各 privilege-sensitive action（或共用授權 helper）先以 `session.user.id` 讀取目前 DB role，再用 DB 結果授權；不要單獨信任 JWT claim。 |
+| SEC-2026-09-06-02 | 中 | catch 路徑把 raw `error.message` 回傳 client | 同上兩個 action 檔案 | `console.error` 保留原始錯誤，對 client 僅回傳泛用繁中訊息。 |
+
+---
+
 ## 建議的後續工作
+
+### 本階段新增待辦（2026-09-06）
+
+1. **補 fullId 真實資料庫與 action 整合測試**
+   - 以測試 PostgreSQL 驗證 UNIQUE 衝突、transaction rollback，以及四個 Server Action 的授權與結果；目前只有 fake/mock tx 單元測試。
+
+2. **修復 TypeScript 環境型 diagnostics**
+   - 先補齊/校正 Next、React、Node 宣告與 TypeScript 環境設定，再重跑 baseline；目前 140 項既有 diagnostics 已確認未因本階段增加，但尚未修復。
+
+3. **修正 recursive renumber 的 parent/child 重疊歷史**
+   - `src/actions/item-reorder.ts` 的 recursive preview 可能同時產生父項目與子項目重疊變更，導致重複 history；需定義單一 canonical change 集合並補回歸測試。
+
+4. **整理 QC/PM 生命週期（架構候選）**
+   - QC/PM 狀態更新分散於多個 action，退回流程另行更新；調查共用狀態轉移與交易邊界，避免修訂歷程分叉。此階段未修改。
+
+5. **釐清 DataFile URL → 磁碟路徑清理語意（架構候選）**
+   - 盤點 `src/actions/data-files.ts` 與檔案路由的 canonical path 轉換、soft-delete/restore 清理責任及 path safety；此階段未修改。
 
 ### 高優先級
 
@@ -170,7 +212,8 @@
 |------|----------|
 | Item 排序/移動/重新編號 | `src/actions/item-reorder.ts` |
 | fullId 級聯更新 | `src/lib/fullid-cascade.ts` |
-| 已刪除項目管理 | `src/app/admin/deleted-items/page.tsx`, `src/actions/item-reorder.ts` (restoreItem) |
+| fullId 級聯與歷史 | `src/lib/fullid-cascade.ts`, `src/lib/fullid-mutation.ts` |
+| 已刪除項目管理 | `src/app/admin/deleted-items/page.tsx`, `src/actions/item-restore.ts` (restoreItem) |
 | 待審核申請編輯 | `src/components/approval/EditPendingRequestModal.tsx`, `src/actions/approval.ts` |
 | Item 建立審核流程 | `src/actions/approval.ts` |
 | Item 編號生成 | `src/lib/item-utils.ts` |

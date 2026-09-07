@@ -22,6 +22,20 @@ Load a file ONLY when its trigger matches. Do not read them all upfront.
 
 Staleness warnings: `AGENTS.md` is a short pointer for Codex — this file is the single source of truth. Historical planning docs (`*_plan.md` / `*_task.md`) live in `docs/archive/`; treat as archive, not current instructions.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues (`allengame-git/RMS`). Before tracker operations, read `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default canonical triage labels. Before triaging issues, read `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout: root `CONTEXT.md` and `docs/adr/`, created lazily. Before domain exploration, read `docs/agents/domain.md`.
+
 ## Common Commands
 
 ```bash
@@ -55,7 +69,7 @@ Seeding: `npx prisma db seed` (requires `ADMIN_PASSWORD` env var; `ADMIN_USERNAM
 2. **QC 2-stage approval**: after item approval, quality docs go QC approval → PM approval, with revision iteration tracking.
 3. **fullId**: items form a tree; `fullId` (e.g. `WQ-1-1`) is auto-generated from project `codePrefix` + hierarchy position (`src/lib/item-utils.ts`).
 4. **Soft-deleted items still occupy their fullId**. `batchCascadeFullIdChanges` prefixes conflicting deleted items with `__DELETED_` before cascade. Always account for deleted items when computing fullId assignments.
-5. **Reorder/Move/Renumber cascade to ALL descendants**: call `collectDescendantChanges()` before `batchCascadeFullIdChanges()`, then write `ItemHistory` records for every affected item, not just direct targets.
+5. **Reorder/Move/Renumber/Restore fullId cascade**: call `applyFullIdChangesWithHistory()` from `src/lib/fullid-mutation.ts`; it owns descendant collection before `batchCascadeFullIdChanges()` and direct-first `REORDER` history for every affected item. Callers must pass and retain the same transaction client (`tx`) for parent update, cascade, and history.
 6. **Audit trail**: every change writes `ItemHistory` (JSON snapshot + diff); logins write `LoginLog`.
 7. **Edge middleware** (`src/middleware.ts`) has a 10MB body limit — upload routes are excluded from it and must authenticate internally. Excluded: `/auth/login`, `/api/auth`, `/api/health`, `/api/admin/restore`, `/api/datafiles/upload` (100MB), `/api/upload` (20MB), static assets.
 8. **Tiptap fullId regex**: project `codePrefix` can contain hyphens (`RMS-DAREN`), so the pattern is `(?:[A-Z]+-)+\d+`, exported as `ITEM_ID_CORE_PATTERN` from `src/components/editor/plugins/itemLinkPlugin.ts`. Never duplicate this regex — import the constant. After changing Tiptap/ProseMirror plugins, restart the dev server and clear `.next` (hot reload misses plugin changes).
