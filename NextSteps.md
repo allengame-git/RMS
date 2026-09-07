@@ -20,6 +20,18 @@
 - 真實 PDF：在隔離 `process.cwd()` 與 Arial Unicode 字體下並行生成同一歷史檔案 12 輪；每輪均可由 `pdf-lib` 解析且 `pdftotext` 只找到一個完整 writer marker，觀察到固定路徑的 last-writer-wins 覆寫。
 - `npx tsc --noEmit`：維持既有 140 項 diagnostics，未新增；尚未涵蓋真實 PostgreSQL UNIQUE/併發鎖與 Server Action integration。
 
+### DataFile lifecycle orchestration
+
+- 新增 `src/lib/datafile-storage.ts`，統一 `/uploads/datafiles/...` URL 與 `public/uploads/datafiles` 磁碟路徑，並在上傳、下載、建立目錄與清理時拒絕 traversal、NUL、反斜線與符號連結越界。
+- 新增 `src/lib/datafile-lifecycle.ts`；`approveDataFileRequest()` 先以 pending CAS 完成資料庫變更，提交後才呼叫 `cleanupApprovedDataFile()`，並在仍有 active DataFile 或 pending CREATE 引用時保留檔案。
+- `FILE_UPDATE` 僅保存 metadata；取消、拒絕與核准使用 pending CAS，維持既有拒絕／撤回後保留實體檔案的政策。
+
+### DataFile 驗證狀態
+
+- `npx vitest run`：9 個測試檔、122 個測試全部通過；DataFile 新增 26 項測試涵蓋交易 rollback、交易後清理、ENOENT／錯誤 fail-closed、共用引用、路徑越界、符號連結與首次上傳目錄。
+- DataFile 變更檔案 ESLint 通過；`git diff --check` 通過。
+- `npx tsc --noEmit`：140 項 diagnostics 與基線相同，未新增；測試使用 mock Prisma transaction，尚未涵蓋真實資料庫併發鎖。
+
 ### fullId mutation orchestration
 
 - 新增 `src/lib/fullid-mutation.ts` 的 `applyFullIdChangesWithHistory()`；由 helper 統一負責在同一個 caller-owned `tx` 中先收集 descendants，再執行 cascade，最後以 direct-first + descendants 順序寫入 `REORDER` 歷史。
@@ -169,8 +181,12 @@
 4. **處理 PDF 並行覆寫的一致性**
    - `src/lib/pdf-generator.ts:576` 以 `QC-${projectCode}-${history.id}.pdf` 固定路徑直接 `writeFileSync`。實測並行生成時檔案保持可解析，但 last-writer-wins；舊 PDF 可能覆蓋新修訂。需設計暫存檔／原子 rename、revision 對應檢查或唯一輸出路徑，並補真實競態回歸測試。
 
-5. **釐清 DataFile URL → 磁碟路徑清理語意（架構候選）**
-   - 盤點 `src/actions/data-files.ts` 與檔案路由的 canonical path 轉換、soft-delete/restore 清理責任及 path safety；此階段未修改。
+5. **修正 DataFile 備份匯入的巢狀路徑相容性**
+   - `src/lib/backup/export-service.ts:175` 目前將 DataFile asset 攤平成 basename；`src/lib/backup/import-service.ts:409`、`:638` 也寫入扁平路徑，與新的 `/uploads/datafiles/{year}/{userId}/{subdir}/...` URL 不一致。
+   - 新格式保留相對巢狀路徑；舊 archive 只有在 basename 對應唯一時才轉換，遇歧義要拒絕，且 reuse 既有 `dataCode` 時不可覆寫既有檔案。
+
+6. **處理 DataFile 並行引用的競態**
+   - `cleanupApprovedDataFile()` 在查詢引用後才 unlink；另一個 CREATE 可能在查詢後、刪除前建立同一路徑引用。需要 ownership／claim schema 或資料庫鎖定，並補真實併發測試。
 
 ### 高優先級
 

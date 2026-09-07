@@ -137,6 +137,12 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 - 🧪 **真實環境驗證**:
   - 隔離 PostgreSQL rollback 與 PDF 並行覆寫測試完成；固定 PDF 路徑的 last-writer-wins 限制已記錄於 `NextSteps.md`。
 
+### 2026-09-07 — DataFile 檔案生命週期與路徑一致性
+
+- 📁 **統一路徑語意**：`DataFile.filePath` 統一使用 `/uploads/datafiles/...` URL，並由 `datafile-storage.ts` 處理 URL 與磁碟路徑轉換、越界及符號連結防護。
+- 🧹 **交易後清理**：DataFile DELETE 只在資料庫交易提交後清理實體檔案；共用引用、待核准 CREATE、ENOENT 與清理失敗均有明確處理。
+- 🔒 **審批一致性**：CREATE／UPDATE／DELETE 審批使用 pending CAS，UPDATE 僅允許 metadata 欄位。
+
 ### v2.3.1 (2026-07-03) - 文件治理與依賴修正
 
 - 📚 **AI 治理文件框架**:
@@ -330,6 +336,8 @@ src/
 │   ├── history/          # 歷史紀錄相關
 │   └── layout/           # 佈局元件
 └── lib/                   # 工具函式
+    ├── datafile-lifecycle.ts # DataFile 交易後清理
+    ├── datafile-storage.ts   # DataFile URL/磁碟路徑與安全檢查
     ├── fullid-cascade.ts  # fullId 級聯更新底層
     ├── fullid-mutation.ts # 級聯與 REORDER 歷史共用流程
     └── qc-lifecycle.ts    # QC/PM 狀態、版本與修訂共用流程
@@ -380,6 +388,8 @@ npx prisma generate
 - fullId helper/cascade 測試使用 mock/fake transaction client；尚未涵蓋真實 PostgreSQL UNIQUE/rollback 或 Server Action integration。
 - `npx tsc --noEmit`：既有 140 項 diagnostics（含 Next.js 宣告缺失）前後相同，本階段未新增。
 - QC/PM 生命週期重構後：6 個測試檔、93 個測試全部通過，包含版本重提、狀態 CAS、PDF 交易順序與批次部分成功。
+- DataFile 生命週期重構後：9 個測試檔、122 個測試全部通過；新增路徑越界、符號連結、首次上傳目錄、交易 rollback、交易後清理、引用保護與 pending CAS 覆蓋。
+- DataFile 變更檔案 ESLint 通過；TypeScript 維持既有 140 項 diagnostics，未新增。
 - 真實 PostgreSQL 隔離容器驗證兩種 rollback：強制交易失敗及 QC 初始化失敗後，Item、ItemHistory、QCDocumentApproval、ChangeRequest 均回復交易前快照。
 - 真實 pdf-lib 並行生成 12 輪均產生可解析 PDF；同一 `QC-{projectCode}-{history.id}.pdf` 路徑採最後寫入者覆蓋，舊生成結果可能覆蓋新結果（詳見 `NextSteps.md`）。
 

@@ -75,6 +75,7 @@ Seeding: `npx prisma db seed` (requires `ADMIN_PASSWORD` env var; `ADMIN_USERNAM
 8. **Tiptap fullId regex**: project `codePrefix` can contain hyphens (`RMS-DAREN`), so the pattern is `(?:[A-Z]+-)+\d+`, exported as `ITEM_ID_CORE_PATTERN` from `src/components/editor/plugins/itemLinkPlugin.ts`. Never duplicate this regex — import the constant. After changing Tiptap/ProseMirror plugins, restart the dev server and clear `.next` (hot reload misses plugin changes).
 9. **Backup/restore** lives in `src/lib/backup/` (project ZIP) and `src/lib/backup-utils.ts` (full DB); admin endpoints at `src/app/api/admin/restore/{database,iso-docs,uploads}/`. Before touching any of it, digest `docs/backup-restore-design-reference.md` (via subagent summary or targeted sections — see route table).
 10. **QC/PM completion and PDF publication**: Generate the PM PDF outside the final database transaction, then call `completePMApproval()` in a short transaction guarded by `status` and `revisionCount` CAS. Never treat the fixed `QC-{projectCode}-{history.id}.pdf` path as an atomic publication; it remains last-writer-wins until a publication protocol is implemented.
+11. **DataFile paths and cleanup**: Store `DataFile.filePath` as a canonical `/uploads/datafiles/...` URL; use `src/lib/datafile-storage.ts` for URL/disk resolution and reject traversal or symlink escapes. Run `cleanupApprovedDataFile()` only after a committed DELETE and retain files referenced by another active DataFile or pending CREATE.
 
 ## Conventions
 
@@ -94,4 +95,4 @@ Seeding: `npx prisma db seed` (requires `ADMIN_PASSWORD` env var; `ADMIN_USERNAM
 - **MIME validation**: whitelist + reject empty `file.type` and `application/octet-stream`. Sanitize displayed user HTML with `isomorphic-dompurify`.
 - **Transactions**: wrap multi-step DB mutations in `prisma.$transaction()` (bidirectional relations, reordering, imports).
 - **Error sanitization**: never return raw `e.message` to clients — generic Chinese message + `console.error` the original.
-- **File cleanup**: when soft-deleting DataFiles, also `unlink()` the physical file; verify `path.resolve()` stays within `process.cwd()` first.
+- **File cleanup**: when soft-deleting DataFiles, use `resolveDataFilePathSafely()` and `cleanupApprovedDataFile()`; unlink only after the database transaction commits, and fail closed when references or path checks cannot be verified.

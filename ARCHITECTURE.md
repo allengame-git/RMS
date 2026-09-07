@@ -131,6 +131,16 @@ When items are reordered, moved, renumbered, or restored, their `fullId` (e.g., 
 
 **Test boundary:** The helper and cascade unit tests use mocked/fake transaction clients; they do not cover real PostgreSQL UNIQUE constraints, rollback, or Server Action integration. Concrete test and type-check results are recorded in `NextSteps.md`.
 
+### DataFile Lifecycle Module
+
+`src/lib/datafile-storage.ts` is the single path vocabulary for DataFile assets. It stores canonical `/uploads/datafiles/...` URL paths while resolving them under `<cwd>/public/uploads/datafiles`; traversal, NUL, separator, sibling-prefix, and symlink escapes are rejected. `prepareDataFileUploadTarget()` validates the existing tree before `mkdir` and rechecks it before writing, including the first upload on a fresh deployment.
+
+`src/lib/datafile-lifecycle.ts` owns post-commit physical cleanup. `approveDataFileRequest()` claims a pending request with a status CAS, applies DataFile and history changes in the transaction, and only then calls `cleanupApprovedDataFile()` for DELETE. Cleanup checks active DataFile and pending CREATE references, treats ENOENT as idempotent, and fails closed on lookup, path, or unlink errors. CREATE and download routes use the same canonical path helpers; UPDATE requests allow metadata fields only.
+
+**Decision:** Keep filesystem deletion outside the database transaction. A failed transaction must leave the physical file untouched, while an already committed DELETE must remain successful when cleanup needs retry. Reference checks protect known shared files; a concurrent new reference between the check and unlink remains a follow-up requiring ownership or locking.
+
+**Test boundary:** DataFile tests cover local filesystem semantics and mocked Prisma transactions, including rollback and cleanup ordering. They do not prove PostgreSQL locking or concurrent reference creation.
+
 ### QC/PM Lifecycle Module
 
 `src/lib/qc-lifecycle.ts` is the shared module for the quality-document lifecycle. It keeps NextAuth, PDF generation, notifications, and cache revalidation in the action layer; the module receives a caller-owned `Prisma.TransactionClient`.
@@ -231,6 +241,7 @@ Schema at `prisma/schema.prisma`. Key models:
 | fullId cascade | Two-phase __TEMP_ rename | Avoid UNIQUE constraint violations during batch rename | Single-phase with deferred constraints |
 | fullId mutation orchestration | Shared `applyFullIdChangesWithHistory()` with caller-owned `tx` | Centralize descendant-before-cascade ordering and direct-first audit history across four entrypoints | Duplicate sequencing in each action |
 | QC/PM lifecycle orchestration | Shared `src/lib/qc-lifecycle.ts` with caller-owned `tx` and status/revision CAS | Keep resubmission, rejection, and completion rules consistent across actions | Duplicate lifecycle branches |
+| DataFile path and cleanup | Canonical URL resolver plus post-commit cleanup with reference checks | Keep upload, download, approval, and deletion semantics aligned without deleting files during a transaction | Per-route path joins and in-transaction unlink |
 | Self-review | Blocked (except ADMIN for Items; always blocked for QC/PM) | Separation of duties for quality assurance | Allow all self-review |
 | Upload auth | Internal (not middleware) | Edge middleware 10MB body limit | Presigned URLs |
 | Role validation | Re-fetch from DB per mutation | JWT claims can be stale after demotion | Trust JWT only |

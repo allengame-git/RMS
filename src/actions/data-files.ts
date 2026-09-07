@@ -39,8 +39,90 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { unlink } from 'fs/promises';
-import path from 'path';
+import { cleanupApprovedDataFile } from '@/lib/datafile-lifecycle';
+import { resolveDataFilePath, UnsafeUploadPathError } from '@/lib/datafile-storage';
+
+type DataFileMetadataUpdate = {
+    dataYear?: number;
+    dataName?: string;
+    dataCode?: string;
+    author?: string;
+    description?: string;
+};
+
+function parseRequestData(rawData: string): Record<string, unknown> {
+    const parsed: unknown = JSON.parse(rawData);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Invalid DataFile request data');
+    }
+    return parsed as Record<string, unknown>;
+}
+
+function requireCreateData(data: Record<string, unknown>): {
+    dataYear: number;
+    dataName: string;
+    dataCode: string;
+    author: string;
+    description: string;
+    fileName: string;
+    filePath: string;
+    fileSize: number;
+    mimeType: string;
+} {
+    if (
+        typeof data.dataYear !== 'number' ||
+        !Number.isInteger(data.dataYear) ||
+        typeof data.dataName !== 'string' ||
+        typeof data.dataCode !== 'string' ||
+        typeof data.author !== 'string' ||
+        typeof data.description !== 'string' ||
+        typeof data.fileName !== 'string' ||
+        typeof data.filePath !== 'string' ||
+        typeof data.fileSize !== 'number' ||
+        !Number.isInteger(data.fileSize) ||
+        data.fileSize < 0 ||
+        typeof data.mimeType !== 'string'
+    ) {
+        throw new Error('Invalid DataFile create data');
+    }
+
+    // CREATE requests may only persist canonical DataFile URLs.  The upload
+    // route has already written the file, but this also protects the action
+    // when called directly or with a forged request payload.
+    resolveDataFilePath(data.filePath);
+
+    return {
+        dataYear: data.dataYear,
+        dataName: data.dataName,
+        dataCode: data.dataCode,
+        author: data.author,
+        description: data.description,
+        fileName: data.fileName,
+        filePath: data.filePath,
+        fileSize: data.fileSize,
+        mimeType: data.mimeType,
+    };
+}
+
+/** Only metadata may be changed after a DataFile is created. */
+function pickDataFileMetadata(data: Record<string, unknown>): DataFileMetadataUpdate {
+    const metadata: DataFileMetadataUpdate = {};
+    if ('dataYear' in data && typeof data.dataYear === 'number' && Number.isInteger(data.dataYear)) {
+        metadata.dataYear = data.dataYear;
+    }
+    if ('dataName' in data && typeof data.dataName === 'string') metadata.dataName = data.dataName;
+    if ('dataCode' in data && typeof data.dataCode === 'string') metadata.dataCode = data.dataCode;
+    if ('author' in data && typeof data.author === 'string') metadata.author = data.author;
+    if ('description' in data && typeof data.description === 'string') metadata.description = data.description;
+
+    // Unknown fields (especially filePath/fileName/fileSize/mimeType) are
+    // deliberately ignored rather than spread into Prisma's update input.
+    return metadata;
+}
+
+class DataFileRequestAlreadyProcessedError extends Error {
+    readonly code = 'DATAFILE_REQUEST_ALREADY_PROCESSED';
+}
 
 /** 從 DB 取得使用者當前角色（避免 JWT 過期不同步） */
 const getCurrentRole = async (userId: string) => {
@@ -178,6 +260,18 @@ export async function submitCreateDataFileRequest(data: {
     if (!session) return { success: false as const, error: 'Unauthorized' };
     if (session.user.role === 'VIEWER') return { success: false as const, error: 'Permission denied' };
 
+    try {
+        // Keep the request and the upload route on the same canonical URL
+        // contract.  No filesystem access is needed at submission time.
+        resolveDataFilePath(data.filePath);
+    } catch (error: unknown) {
+        if (error instanceof UnsafeUploadPathError) {
+            return { success: false as const, error: '無效的檔案路徑' };
+        }
+        console.error('Failed to validate create data file path', error);
+        return { success: false as const, error: '無效的檔案路徑' };
+    }
+
     // Auto-generate dataCode if not provided
     let finalDataCode = data.dataCode?.trim();
     if (!finalDataCode) {
@@ -240,10 +334,12 @@ export async function submitUpdateDataFileRequest(
     if (!file) return { success: false as const, error: 'File not found' };
     if (file.isDeleted) return { success: false as const, error: 'File is deleted' };
 
+    const metadata = pickDataFileMetadata(data as Record<string, unknown>);
+
     // Check if new dataCode conflicts
-    if (data.dataCode && data.dataCode !== file.dataCode) {
+    if (metadata.dataCode && metadata.dataCode !== file.dataCode) {
         const existing = await prisma.dataFile.findUnique({
-            where: { dataCode: data.dataCode }
+            where: { dataCode: metadata.dataCode }
         });
         if (existing) return { success: false as const, error: '資料編碼已存在' };
     }
@@ -254,7 +350,7 @@ export async function submitUpdateDataFileRequest(
                 type: 'FILE_UPDATE',
                 status: 'PENDING',
                 fileId,
-                data: JSON.stringify(data),
+                data: JSON.stringify(metadata),
                 submittedById: session.user.id
             }
         });
@@ -362,9 +458,12 @@ export async function cancelDataFileChangeRequest(requestId: number) {
     }
 
     try {
-        await prisma.dataFileChangeRequest.delete({
-            where: { id: requestId }
+        const deleted = await prisma.dataFileChangeRequest.deleteMany({
+            where: { id: requestId, status: "PENDING" }
         });
+        if (deleted.count !== 1) {
+            return { success: false as const, error: "Request already processed" };
+        }
 
         revalidatePath("/admin/approval");
         if (request.fileId) revalidatePath(`/datafiles/${request.fileId}`);
@@ -402,24 +501,27 @@ export async function approveDataFileRequest(requestId: number) {
         return { success: false as const, error: '您不能審核自己提交的申請' };
     }
 
-    const data = JSON.parse(request.data);
-
     try {
-        await prisma.$transaction(async (tx) => {
+        const data = parseRequestData(request.data);
+        const outcome = await prisma.$transaction(async (tx) => {
+            // Claim the request as part of the same transaction as the
+            // DataFile mutation.  A concurrent approver therefore cannot
+            // apply the same request twice; rollback releases the claim.
+            const claimed = await tx.dataFileChangeRequest.updateMany({
+                where: { id: requestId, status: 'PENDING' },
+                data: {
+                    status: 'APPROVED',
+                    reviewedById: session.user.id,
+                },
+            });
+            if (claimed.count !== 1) {
+                throw new DataFileRequestAlreadyProcessedError('DataFile request is no longer pending');
+            }
+
             if (request.type === 'FILE_CREATE') {
-                // Create new file
+                const createData = requireCreateData(data);
                 const file = await tx.dataFile.create({
-                    data: {
-                        dataYear: data.dataYear,
-                        dataName: data.dataName,
-                        dataCode: data.dataCode,
-                        author: data.author,
-                        description: data.description,
-                        fileName: data.fileName,
-                        filePath: data.filePath,
-                        fileSize: data.fileSize,
-                        mimeType: data.mimeType
-                    }
+                    data: createData
                 });
 
                 // Create history
@@ -438,14 +540,16 @@ export async function approveDataFileRequest(requestId: number) {
                     }
                 });
             } else if (request.type === 'FILE_UPDATE') {
-                const file = request.file!;
+                const file = request.file;
+                if (!file) throw new Error('DataFile update request has no target file');
                 const newVersion = file.currentVersion + 1;
+                const metadata = pickDataFileMetadata(data);
 
                 // Update file
                 const updatedFile = await tx.dataFile.update({
                     where: { id: file.id },
                     data: {
-                        ...data,
+                        ...metadata,
                         currentVersion: newVersion
                     }
                 });
@@ -457,7 +561,7 @@ export async function approveDataFileRequest(requestId: number) {
                         version: newVersion,
                         changeType: 'UPDATE',
                         snapshot: JSON.stringify(updatedFile),
-                        diff: JSON.stringify(data),
+                        diff: JSON.stringify(metadata),
                         submittedById: request.submittedById,
                         reviewedById: session.user.id,
                         reviewStatus: 'APPROVED',
@@ -467,7 +571,8 @@ export async function approveDataFileRequest(requestId: number) {
                     }
                 });
             } else if (request.type === 'FILE_DELETE') {
-                const file = request.file!;
+                const file = request.file;
+                if (!file) throw new Error('DataFile delete request has no target file');
                 const newVersion = file.currentVersion + 1;
 
                 // Soft delete
@@ -495,36 +600,45 @@ export async function approveDataFileRequest(requestId: number) {
                     }
                 });
 
-                // Remove physical file from disk
-                if (file.filePath) {
-                    try {
-                        const absolutePath = path.resolve(process.cwd(), file.filePath);
-                        if (absolutePath.startsWith(process.cwd())) {
-                            await unlink(absolutePath);
-                        }
-                    } catch {
-                        // File may already be missing — not a transaction-breaking error
-                    }
-                }
+                // Physical cleanup is intentionally performed after commit.
+                // Returning the target from this transaction keeps the DB
+                // mutation independent from filesystem availability.
+                return file.filePath ? { cleanup: { fileId: file.id, filePath: file.filePath } } : {};
+            } else {
+                throw new Error('Unsupported DataFile request type');
             }
 
-            // Update request status
-            await tx.dataFileChangeRequest.update({
-                where: { id: requestId },
-                data: {
-                    status: 'APPROVED',
-                    reviewedById: session.user.id
-                }
-            });
+            return {};
         });
 
-        revalidatePath('/admin/approval');
-        revalidatePath('/datafiles');
+        if ('cleanup' in outcome && outcome.cleanup) {
+            try {
+                await cleanupApprovedDataFile(
+                    prisma,
+                    outcome.cleanup.fileId,
+                    outcome.cleanup.filePath,
+                );
+            } catch (error: unknown) {
+                // cleanupApprovedDataFile is fail-closed itself; this guard
+                // also prevents an unexpected helper failure from changing a
+                // successful DB approval into a false rollback response.
+                console.error('[DataFile cleanup] Unexpected post-commit failure', error);
+            }
+        }
+
+        try {
+            revalidatePath('/admin/approval');
+            revalidatePath('/datafiles');
+        } catch (error: unknown) {
+            console.error('Failed to revalidate DataFile paths after approval', error);
+        }
         return { success: true };
     } catch (e: unknown) {
         console.error("Failed to approve data file request", e);
-        const message = e instanceof Error ? e.message : "Unknown error";
-        return { success: false as const, error: `Failed to apply change: ${message}` };
+        if (e instanceof DataFileRequestAlreadyProcessedError) {
+            return { success: false as const, error: 'Request already processed' };
+        }
+        return { success: false as const, error: '套用變更失敗，請稍後再試' };
     }
 }
 
@@ -554,20 +668,22 @@ export async function rejectDataFileRequest(requestId: number, reviewNote?: stri
     }
 
     try {
-        await prisma.dataFileChangeRequest.update({
-            where: { id: requestId },
+        const updated = await prisma.dataFileChangeRequest.updateMany({
+            where: { id: requestId, status: 'PENDING' },
             data: {
                 status: 'REJECTED',
                 reviewedById: session.user.id,
                 reviewNote
             }
         });
+        if (updated.count !== 1) {
+            return { success: false as const, error: 'Request already processed' };
+        }
 
         revalidatePath('/admin/approval');
         return { success: true as const };
     } catch (e: unknown) {
         console.error("Failed to reject data file request", e);
-        const message = e instanceof Error ? e.message : "Unknown error";
-        return { success: false as const, error: message };
+        return { success: false as const, error: '拒絕申請失敗，請稍後再試' };
     }
 }

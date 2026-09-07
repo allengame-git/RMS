@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import path from 'path';
 import { createReadStream, existsSync, statSync } from 'fs';
 import { Readable } from 'stream';
+import { UnsafeUploadPathError, resolveUploadsPathSafely } from '@/lib/datafile-storage';
 
 /**
  * @file route.ts (uploads/[...path])
@@ -52,24 +53,22 @@ export async function GET(
         const resolvedParams = await params;
         const subPaths = resolvedParams.path;
 
-        // Path Traversal Protection: Ensure we stay within public/uploads
-        // 1. Sanitize each segment (remove .. and separators)
-        const sanitizedPaths = subPaths.map(p => path.basename(p));
-
-        // 2. Resolve absolute path
-        const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-        const filePath = path.join(uploadsDir, ...sanitizedPaths);
-
-        // 3. Strict directory traversal check
-        const resolvedUploadsDir = path.resolve(uploadsDir);
-        const resolvedFilePath = path.resolve(filePath);
-
-        if (!resolvedFilePath.startsWith(resolvedUploadsDir)) {
-            console.error('[Uploads Proxy API] Path traversal attempt blocked:', filePath);
-            return new NextResponse('Forbidden', { status: 403 });
+        let filePath: string;
+        try {
+            // Params are already URL-decoded by Next.js.  The shared resolver
+            // intentionally validates them as-is and never basename-sanitizes
+            // or decodes a second time (which would change `%` literals).
+            filePath = await resolveUploadsPathSafely(subPaths);
+        } catch (error: unknown) {
+            if (error instanceof UnsafeUploadPathError) {
+                console.error('[Uploads Proxy API] Unsafe path blocked', { subPaths });
+                return new NextResponse('Forbidden', { status: 403 });
+            }
+            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+                return new NextResponse('File Not Found', { status: 404 });
+            }
+            throw error;
         }
-
-        console.log('[Uploads Proxy API] Attempting to read file:', filePath);
 
         if (!existsSync(filePath)) {
             console.error('[Uploads Proxy API] File not found on disk:', filePath);
@@ -77,6 +76,11 @@ export async function GET(
         }
 
         const stat = statSync(filePath);
+        if (!stat.isFile()) {
+            console.error('[Uploads Proxy API] Requested path is not a file:', filePath);
+            return new NextResponse('Forbidden', { status: 403 });
+        }
+        console.log('[Uploads Proxy API] Attempting to read file:', filePath);
         const ext = path.extname(filePath).toLowerCase();
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 

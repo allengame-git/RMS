@@ -21,8 +21,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile } from 'fs/promises';
 import path from 'path';
+import { buildDataFileUploadTarget, prepareDataFileUploadTarget, UnsafeUploadPathError } from '@/lib/datafile-storage';
 
 // 100MB limit
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
@@ -155,32 +156,44 @@ export async function POST(request: NextRequest) {
         const subDir = timestamp.toString(36);
         const userId = session.user.id;
 
-        // Create year/userId/subdir directory if not exists
-        const yearDir = path.join(process.cwd(), 'public', 'uploads', 'datafiles', dataYear, userId, subDir);
-
-        // 路徑邊界檢查：確保解析後的路徑仍在允許的目錄內
-        const baseDir = path.resolve(process.cwd(), 'public', 'uploads', 'datafiles');
-        const resolvedYearDir = path.resolve(yearDir);
-        if (!resolvedYearDir.startsWith(baseDir + path.sep)) {
-            return NextResponse.json({ error: '無效的檔案路徑' }, { status: 400 });
+        let uploadTarget: ReturnType<typeof buildDataFileUploadTarget>;
+        try {
+            uploadTarget = buildDataFileUploadTarget({
+                dataYear,
+                userId,
+                subDir,
+                fileName: uuidName,
+            });
+        } catch (error: unknown) {
+            if (error instanceof UnsafeUploadPathError) {
+                return NextResponse.json({ error: '無效的檔案路徑' }, { status: 400 });
+            }
+            throw error;
         }
 
-        await mkdir(yearDir, { recursive: true });
-
-        // Save file with UUID name
-        const filePath = path.join(yearDir, uuidName);
+        // Check the existing ancestors before mkdir.  Otherwise a pre-existing
+        // symlink such as datafiles/{year} could make recursive mkdir create
+        // directories outside the configured storage root.  Re-check the real
+        // path after mkdir as well so a concurrent symlink cannot redirect the
+        // subsequent write.
+        let filePath: string;
+        try {
+            filePath = await prepareDataFileUploadTarget(uploadTarget);
+        } catch (error: unknown) {
+            if (error instanceof UnsafeUploadPathError) {
+                return NextResponse.json({ error: '無效的檔案路徑' }, { status: 400 });
+            }
+            throw error;
+        }
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
         await writeFile(filePath, buffer);
 
         // Return relative path for storage in DB
-        const relativePath = `/uploads/datafiles/${dataYear}/${userId}/${subDir}/${uuidName}`;
-
-
         return NextResponse.json({
             success: true,
             fileName: originalName,
-            filePath: relativePath,
+            filePath: uploadTarget.urlPath,
             fileSize: file.size,
             mimeType: file.type
         });
