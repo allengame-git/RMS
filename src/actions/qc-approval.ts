@@ -47,6 +47,11 @@ import { revalidatePath } from "next/cache";
 import { generateQCDocument } from "@/lib/pdf-generator";
 import { createNotification } from "./notifications";
 import { getRequestChain } from "./history";
+import {
+    completePMApproval,
+    QCLifecycleError,
+    reviewQCDocument,
+} from "@/lib/qc-lifecycle";
 
 // ============================================
 // QC Document Approval Actions
@@ -181,32 +186,18 @@ export async function approveAsQC(
     const user = await getUserQualifications(session.user.id);
     if (!user?.isQC) return { error: "Unauthorized - QC qualification required" };
 
-    // Get the approval record
-    const approval = await prisma.qCDocumentApproval.findUnique({
-        where: { id: approvalId },
-        include: {
-            itemHistory: true
-        }
-    });
-
-    if (!approval) return { error: "Approval record not found" };
-    if (approval.status !== "PENDING_QC") return { error: "Document is not pending QC approval" };
-
-    // Self-approval prevention: QC cannot approve their own submission
-    if (approval.itemHistory.submittedById === session.user.id) {
-        return { error: "您不能審核自己提交的文件" };
+    try {
+        await prisma.$transaction((tx) => reviewQCDocument(tx, {
+            approvalId,
+            actorId: session.user.id,
+            decision: "APPROVE",
+            note,
+        }));
+    } catch (error) {
+        if (error instanceof QCLifecycleError) return { error: error.userMessage };
+        console.error("Failed QC approval:", error);
+        return { error: "QC 審核失敗，請稍後再試" };
     }
-
-    // Update approval status (PDF will be generated only after PM approval)
-    await prisma.qCDocumentApproval.update({
-        where: { id: approvalId },
-        data: {
-            status: "PENDING_PM",
-            qcApprovedById: session.user.id,
-            qcApprovedAt: new Date(),
-            qcNote: note || "同意",
-        }
-    });
 
     revalidatePath("/admin/approval");
     revalidatePath("/iso-docs");
@@ -267,33 +258,26 @@ async function processSinglePMApproval(
         reviewChain
     }, null);
 
-    // DB updates in a single transaction
-    await prisma.$transaction([
-        prisma.itemHistory.update({
-            where: { id: approval.itemHistoryId },
-            data: { isoDocPath: pdfPath }
-        }),
-        prisma.qCDocumentApproval.update({
-            where: { id: approvalId },
-            data: {
-                status: "COMPLETED",
-                pmApprovedById: sessionUserId,
-                pmApprovedAt: new Date(),
-                pmNote: note,
-            }
-        })
-    ]);
+    // PDF generation is deliberately outside the short transaction. The lifecycle
+    // module rechecks PM qualification, self-approval, status, and this revision.
+    const completion = await prisma.$transaction((tx) => completePMApproval(tx, {
+        approvalId,
+        actorId: sessionUserId,
+        note,
+        pdfPath,
+        expectedRevisionCount: approval.revisionCount,
+    }));
 
     // Send completion notification (non-critical)
-    if (approval.itemHistory.submittedById) {
+    if (completion.notification) {
         await createNotification({
-            userId: approval.itemHistory.submittedById,
+            userId: completion.notification.userId,
             type: "COMPLETED",
             title: `品質文件審核完成`,
-            message: `${approval.itemHistory.itemFullId} ${approval.itemHistory.itemTitle} - 已完成 PM 核定`,
-            link: `/admin/history/detail/${approval.itemHistory.id}`,
-            qcApprovalId: approvalId,
-            itemHistoryId: approval.itemHistory.id,
+            message: `${completion.itemFullId} ${completion.itemTitle} - 已完成 PM 核定`,
+            link: `/admin/history/detail/${completion.itemHistoryId}`,
+            qcApprovalId: completion.approvalId,
+            itemHistoryId: completion.itemHistoryId,
         });
     }
 
@@ -314,6 +298,7 @@ export async function approveAsPM(
         const result = await processSinglePMApproval(approvalId, session.user.id, user.username, note || "同意");
         if (result.error) return { error: result.error };
     } catch (err) {
+        if (err instanceof QCLifecycleError) return { error: err.userMessage };
         console.error("Failed PM approval:", err);
         return { error: "PM 核定失敗，請稍後再試" };
     }
@@ -356,7 +341,10 @@ export async function batchApproveAsPM(
             }
         } catch (err) {
             console.error(`Batch PM approval failed for id=${approvalId}:`, err);
-            failed.push({ id: approvalId, error: "處理失敗" });
+            failed.push({
+                id: approvalId,
+                error: err instanceof QCLifecycleError ? err.userMessage : "處理失敗",
+            });
         }
     }
 
@@ -380,82 +368,31 @@ export async function rejectQCDocument(
         return { error: "Unauthorized - QC or PM qualification required" };
     }
 
-    // Get the approval record with itemHistory and the associated change request
-    const approval = await prisma.qCDocumentApproval.findUnique({
-        where: { id: approvalId },
-        include: {
-            itemHistory: {
-                select: {
-                    id: true,
-                    itemFullId: true,
-                    itemTitle: true,
-                    submittedById: true,
-                    changeRequestId: true,
-                }
-            }
-        }
-    });
-
-    if (!approval) return { error: "Approval record not found" };
-
-    // Verify proper stage for rejection
-    if (approval.status === "PENDING_QC" && !user.isQC) {
-        return { error: "Only QC users can reject at QC stage" };
-    }
-    if (approval.status === "PENDING_PM" && !user.isPM) {
-        return { error: "Only PM users can reject at PM stage" };
+    let review;
+    try {
+        review = await prisma.$transaction((tx) => reviewQCDocument(tx, {
+            approvalId,
+            actorId: session.user.id,
+            decision: "REJECT",
+            note,
+        }));
+    } catch (error) {
+        if (error instanceof QCLifecycleError) return { error: error.userMessage };
+        console.error("Failed QC/PM rejection:", error);
+        return { error: "品質文件退回失敗，請稍後再試" };
     }
 
-    // Update approval status to REJECTED
-    const updateData: {
-        status: string;
-        qcApprovedById?: string;
-        qcApprovedAt?: Date;
-        qcNote?: string;
-        pmApprovedById?: string;
-        pmApprovedAt?: Date;
-        pmNote?: string;
-    } = {
-        status: "REJECTED",
-    };
-
-    if (approval.status === "PENDING_QC") {
-        updateData.qcApprovedById = session.user.id;
-        updateData.qcApprovedAt = new Date();
-        updateData.qcNote = note;
-    } else {
-        updateData.pmApprovedById = session.user.id;
-        updateData.pmApprovedAt = new Date();
-        updateData.pmNote = note;
-    }
-
-    await prisma.qCDocumentApproval.update({
-        where: { id: approvalId },
-        data: updateData
-    });
-
-    // CRITICAL: Also mark the original ChangeRequest as REJECTED so it appears in /admin/rejected-requests
-    if (approval.itemHistory.changeRequestId) {
-        await prisma.changeRequest.update({
-            where: { id: approval.itemHistory.changeRequestId },
-            data: {
-                status: "REJECTED",
-                reviewedById: session.user.id,
-                reviewNote: note,
-            }
-        });
-    }
-
-    // Send notification to editor - Now linking back to standard rejected-requests
-    if (approval.itemHistory.submittedById && approval.itemHistory.changeRequestId) {
+    // Send notification after the transaction. The lifecycle result identifies the
+    // actual source stage, so a dual-qualified actor never gets mislabeled as PM.
+    if (review.notification && review.changeRequestId != null) {
         await createNotification({
-            userId: approval.itemHistory.submittedById,
+            userId: review.notification.userId,
             type: "REJECTION",
-            title: `品質文件已被退回 (${user.isPM ? 'PM' : 'QC'})`,
-            message: `${approval.itemHistory.itemFullId} ${approval.itemHistory.itemTitle} - ${note}`,
-            link: `/admin/rejected-requests/${approval.itemHistory.changeRequestId}`,
-            qcApprovalId: approvalId,
-            itemHistoryId: approval.itemHistory.id,
+            title: `品質文件已被退回 (${review.sourceStage})`,
+            message: `${review.itemFullId} ${review.itemTitle} - ${note}`,
+            link: `/admin/rejected-requests/${review.changeRequestId}`,
+            qcApprovalId: review.approvalId,
+            itemHistoryId: review.itemHistoryId,
         });
     }
 

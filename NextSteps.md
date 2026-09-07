@@ -5,7 +5,20 @@
 
 ---
 
-## 本階段完成（2026-09-06）
+## 本階段完成（2026-09-07）
+
+### QC/PM lifecycle orchestration
+
+- 新增 `src/lib/qc-lifecycle.ts`，集中歷史建立、QC/PM 狀態轉移、退回、重提版本保留與修訂次數規則；`history.ts`、`approval.ts`、`qc-approval.ts` 由 caller-owned transaction 呼叫同一 module。
+- 退回只接受 `PENDING_QC`／`PENDING_PM`，核准保留 QC/PM 自我審核防護；狀態更新同時檢查 `revisionCount`，避免舊修訂覆寫新一輪。
+- PM 先生成 PDF，再以短 transaction 重新驗證資格、狀態與修訂，批次核准仍維持逐筆部分成功。
+
+### QC/PM 驗證狀態
+
+- `npx vitest run`：6 個測試檔、93 個測試全部通過；`git diff --check` 通過。
+- 真實 PostgreSQL：以 `postgres:16-alpine` 隔離 tmpfs 容器（`127.0.0.1:55439/qcproof`）驗證強制 transaction rollback 與 QC 初始化 trigger 失敗 rollback；四個相關模型的交易前後快照一致。容器已停止並移除。
+- 真實 PDF：在隔離 `process.cwd()` 與 Arial Unicode 字體下並行生成同一歷史檔案 12 輪；每輪均可由 `pdf-lib` 解析且 `pdftotext` 只找到一個完整 writer marker，觀察到固定路徑的 last-writer-wins 覆寫。
+- `npx tsc --noEmit`：維持既有 140 項 diagnostics，未新增；尚未涵蓋真實 PostgreSQL UNIQUE/併發鎖與 Server Action integration。
 
 ### fullId mutation orchestration
 
@@ -18,7 +31,7 @@
 - `npx vitest run`：4 個測試檔、67 個測試全部通過（helper 5、底層 cascade 3 項新增測試）。
 - 獨立 ASTRA 檢查通過。
 - `npx tsc --noEmit` 仍有既有 140 項 diagnostics（含 Next 宣告缺失），與變更前相同，未新增。
-- 測試使用 mock/fake transaction client；尚未驗證真實資料庫 UNIQUE/rollback 或 Server Action integration。
+- helper/cascade 單元測試使用 mock/fake transaction client；真實 rollback 驗證與 PDF 並行覆寫結果記錄於上方 QC/PM 驗證狀態。
 
 ---
 
@@ -153,8 +166,8 @@
 3. **修正 recursive renumber 的 parent/child 重疊歷史**
    - `src/actions/item-reorder.ts` 的 recursive preview 可能同時產生父項目與子項目重疊變更，導致重複 history；需定義單一 canonical change 集合並補回歸測試。
 
-4. **整理 QC/PM 生命週期（架構候選）**
-   - QC/PM 狀態更新分散於多個 action，退回流程另行更新；調查共用狀態轉移與交易邊界，避免修訂歷程分叉。此階段未修改。
+4. **處理 PDF 並行覆寫的一致性**
+   - `src/lib/pdf-generator.ts:576` 以 `QC-${projectCode}-${history.id}.pdf` 固定路徑直接 `writeFileSync`。實測並行生成時檔案保持可解析，但 last-writer-wins；舊 PDF 可能覆蓋新修訂。需設計暫存檔／原子 rename、revision 對應檢查或唯一輸出路徑，並補真實競態回歸測試。
 
 5. **釐清 DataFile URL → 磁碟路徑清理語意（架構候選）**
    - 盤點 `src/actions/data-files.ts` 與檔案路由的 canonical path 轉換、soft-delete/restore 清理責任及 path safety；此階段未修改。

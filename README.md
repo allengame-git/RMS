@@ -323,7 +323,8 @@ src/
 │   └── layout/           # 佈局元件
 └── lib/                   # 工具函式
     ├── fullid-cascade.ts  # fullId 級聯更新底層
-    └── fullid-mutation.ts # 級聯與 REORDER 歷史共用流程
+    ├── fullid-mutation.ts # 級聯與 REORDER 歷史共用流程
+    └── qc-lifecycle.ts    # QC/PM 狀態、版本與修訂共用流程
 ```
 
 ---
@@ -365,11 +366,14 @@ npx prisma generate
 
 ---
 
-## 工程驗證（2026-09-06）
+## 工程驗證（2026-09-07）
 
 - `npx vitest run`：4 個測試檔、67 個測試全部通過。
 - fullId helper/cascade 測試使用 mock/fake transaction client；尚未涵蓋真實 PostgreSQL UNIQUE/rollback 或 Server Action integration。
 - `npx tsc --noEmit`：既有 140 項 diagnostics（含 Next.js 宣告缺失）前後相同，本階段未新增。
+- QC/PM 生命週期重構後：6 個測試檔、93 個測試全部通過，包含版本重提、狀態 CAS、PDF 交易順序與批次部分成功。
+- 真實 PostgreSQL 隔離容器驗證兩種 rollback：強制交易失敗及 QC 初始化失敗後，Item、ItemHistory、QCDocumentApproval、ChangeRequest 均回復交易前快照。
+- 真實 pdf-lib 並行生成 12 輪均產生可解析 PDF；同一 `QC-{projectCode}-{history.id}.pdf` 路徑採最後寫入者覆蓋，舊生成結果可能覆蓋新結果（詳見 `NextSteps.md`）。
 
 ---
 

@@ -42,7 +42,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { generateNextItemId } from "@/lib/item-utils";
-import { createHistoryRecord, ItemSnapshot } from "./history";
+import {
+    QCLifecycleError,
+    recordApprovedHistory,
+    type ItemSnapshot,
+} from "@/lib/qc-lifecycle";
 import { createNotification } from "./notifications";
 
 export type ApprovalState = {
@@ -668,21 +672,20 @@ async function handleItemCreateApproval(
         references: mapReferencesToSnapshot(referencesForSnapshot)
     };
 
-    await createHistoryRecord(
-        newItem,
+    await recordApprovedHistory(tx, {
+        item: newItem,
         snapshot,
-        {
+        changeRequest: {
             id: request.id,
             submittedById: request.submittedById,
             submitReason: request.submitReason,
-            reviewNote: reviewNote,
-            createdAt: request.createdAt
+            reviewNote,
+            createdAt: request.createdAt,
+            previousRequestId: request.previousRequestId,
         },
-        "CREATE",
-        session.user.id,
-        undefined,
-        tx
-    );
+        changeType: "CREATE",
+        reviewerId: session.user.id,
+    });
 
     // 關鍵：回寫 itemId 到 ChangeRequest
     // 這樣如果後續被 QC/PM 退回，重新提交時可以找到已建立的 Item
@@ -777,67 +780,21 @@ async function handleItemUpdateApproval(
         references: mapReferencesToSnapshot(updatedReferences)
     };
 
-    // 關鍵邏輯：檢查是否為 QC/PM 退回後的重提
-    // 如果是，則更新現有的 ItemHistory 而非建立新版本
-    if (request.previousRequestId) {
-        // 找出前一個申請案關聯的 ItemHistory
-        const previousHistory = await tx.itemHistory.findFirst({
-            where: { changeRequestId: request.previousRequestId },
-            include: { qcApproval: true }
-        });
-
-        // 如果前一個 History 存在且其 QC 審查被 REJECTED，代表這是 QC/PM 退回後的重提
-        if (previousHistory && previousHistory.qcApproval?.status === "REJECTED") {
-            console.log('[handleItemUpdateApproval] Detected QC/PM rejection resubmission - updating existing history');
-
-            // 更新現有的 ItemHistory（保持相同版本號）
-            await tx.itemHistory.update({
-                where: { id: previousHistory.id },
-                data: {
-                    snapshot: JSON.stringify(newSnapshot),
-                    changeRequestId: request.id, // 更新關聯到新的 ChangeRequest
-                    submittedById: request.submittedById,
-                    reviewedById: session.user.id,
-                    reviewNote: reviewNote || null,
-                    submitReason: request.submitReason || null,
-                }
-            });
-
-            // 重置 QCDocumentApproval 狀態，重新開始 QC/PM 審查流程
-            await tx.qCDocumentApproval.update({
-                where: { id: previousHistory.qcApproval.id },
-                data: {
-                    status: "PENDING_QC",
-                    qcApprovedById: null,
-                    qcApprovedAt: null,
-                    qcNote: null,
-                    pmApprovedById: null,
-                    pmApprovedAt: null,
-                    pmNote: null,
-                    revisionCount: { increment: 1 }
-                }
-            });
-
-            return; // 不建立新的 History
-        }
-    }
-
-    // 正常流程：建立新的 HistoryRecord
-    await createHistoryRecord(
-        updatedItem,
-        newSnapshot,
-        {
+    await recordApprovedHistory(tx, {
+        item: updatedItem,
+        snapshot: newSnapshot,
+        changeRequest: {
             id: request.id,
             submittedById: request.submittedById,
             submitReason: request.submitReason,
-            reviewNote: reviewNote,
-            createdAt: request.createdAt
+            reviewNote,
+            createdAt: request.createdAt,
+            previousRequestId: request.previousRequestId,
         },
-        "UPDATE",
-        session.user.id,
+        changeType: "UPDATE",
+        reviewerId: session.user.id,
         oldSnapshot,
-        tx
-    );
+    });
 }
 
 async function handleItemDeleteApproval(
@@ -880,21 +837,20 @@ async function handleItemDeleteApproval(
         data: { isDeleted: true }
     });
 
-    await createHistoryRecord(
+    await recordApprovedHistory(tx, {
         item,
-        lastSnapshot,
-        {
+        snapshot: lastSnapshot,
+        changeRequest: {
             id: request.id,
             submittedById: request.submittedById,
             submitReason: request.submitReason,
-            reviewNote: reviewNote,
-            createdAt: request.createdAt
+            reviewNote,
+            createdAt: request.createdAt,
+            previousRequestId: request.previousRequestId,
         },
-        "DELETE",
-        session.user.id,
-        undefined,
-        tx
-    );
+        changeType: "DELETE",
+        reviewerId: session.user.id,
+    });
 }
 
 // ==================== Public Actions ====================
@@ -982,9 +938,11 @@ export async function approveRequest(requestId: number, reviewNote?: string): Pr
 
         return { message: "Request approved successfully" };
     } catch (e: unknown) {
+        if (e instanceof QCLifecycleError) {
+            return { error: e.userMessage };
+        }
         console.error("Failed to approve request", e);
-        const message = e instanceof Error ? e.message : "Unknown error";
-        return { error: `Failed to apply change: ${message}` };
+        return { error: "套用變更失敗，請稍後再試" };
     }
 }
 
@@ -1037,8 +995,7 @@ export async function rejectRequest(requestId: number, reviewNote?: string): Pro
         return { message: "Request rejected successfully" };
     } catch (e: unknown) {
         console.error("Failed to reject request:", e);
-        const message = e instanceof Error ? e.message : "Unknown error";
-        return { error: `Failed to reject request: ${message}` };
+        return { error: "退回變更申請失敗，請稍後再試" };
     }
 }
 

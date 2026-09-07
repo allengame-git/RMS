@@ -131,6 +131,18 @@ When items are reordered, moved, renumbered, or restored, their `fullId` (e.g., 
 
 **Test boundary:** The helper and cascade unit tests use mocked/fake transaction clients; they do not cover real PostgreSQL UNIQUE constraints, rollback, or Server Action integration. Concrete test and type-check results are recorded in `NextSteps.md`.
 
+### QC/PM Lifecycle Module
+
+`src/lib/qc-lifecycle.ts` is the shared module for the quality-document lifecycle. It keeps NextAuth, PDF generation, notifications, and cache revalidation in the action layer; the module receives a caller-owned `Prisma.TransactionClient`.
+
+- `recordApprovedHistory()` creates an approved `ItemHistory`, initializes `QCDocumentApproval`, and applies the existing version rules. An UPDATE resubmission reuses only the directly referenced rejected QC history, preserves its version and unrelated fields, resets QC/PM approval fields, and increments `revisionCount` once.
+- `reviewQCDocument()` permits only `PENDING_QC` → `PENDING_PM` or a stage-owned pending state → `REJECTED`. It re-reads `User.isQC`/`isPM`, blocks self-approval, and conditionally updates both `status` and `revisionCount` before marking the related `ChangeRequest` rejected.
+- `completePMApproval()` runs after PDF generation and conditionally changes `PENDING_PM` to `COMPLETED` with the expected revision count before writing `isoDocPath`. `batchApproveAsPM()` keeps one short transaction per item, so one failure does not roll back other items.
+
+**Decision:** Keep PDF generation outside the final database transaction because it is filesystem I/O, then guard the short transaction with status and revision CAS. This prevents stale database approval, while the fixed PDF filename still has a last-writer-wins overwrite risk that requires a separate publication protocol.
+
+**Verification (2026-09-07):** A disposable PostgreSQL 16 container with a tmpfs data directory proved that both an explicit transaction failure and a database trigger failure during QC initialization restore Item, ItemHistory, QCDocumentApproval, and ChangeRequest snapshots. A real pdf-lib run generated the same history path concurrently for 12 rounds; every output was parseable and contained exactly one complete writer marker, demonstrating complete-file last-writer-wins behavior rather than a partial file. These checks did not verify PostgreSQL UNIQUE contention, production concurrency, or an atomic PDF publication fix.
+
 ### Backup & Restore
 
 - `src/lib/backup/` — Single project export/import (ZIP with manifest.json, ID mapping)
@@ -218,6 +230,7 @@ Schema at `prisma/schema.prisma`. Key models:
 | Soft deletes | isDeleted flag | Preserve audit trail, enable restore | Hard deletes with archive table |
 | fullId cascade | Two-phase __TEMP_ rename | Avoid UNIQUE constraint violations during batch rename | Single-phase with deferred constraints |
 | fullId mutation orchestration | Shared `applyFullIdChangesWithHistory()` with caller-owned `tx` | Centralize descendant-before-cascade ordering and direct-first audit history across four entrypoints | Duplicate sequencing in each action |
+| QC/PM lifecycle orchestration | Shared `src/lib/qc-lifecycle.ts` with caller-owned `tx` and status/revision CAS | Keep resubmission, rejection, and completion rules consistent across actions | Duplicate lifecycle branches |
 | Self-review | Blocked (except ADMIN for Items; always blocked for QC/PM) | Separation of duties for quality assurance | Allow all self-review |
 | Upload auth | Internal (not middleware) | Edge middleware 10MB body limit | Presigned URLs |
 | Role validation | Re-fetch from DB per mutation | JWT claims can be stale after demotion | Trust JWT only |

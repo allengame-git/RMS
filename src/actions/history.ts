@@ -40,52 +40,18 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Item, Prisma } from "@prisma/client";
+import type { Item, Prisma } from "@prisma/client";
+import {
+    recordApprovedHistory,
+    type ItemSnapshot as ItemSnapshotType,
+} from "@/lib/qc-lifecycle";
 
-// Define Snapshot structure
-export interface ItemSnapshot {
-    title: string;
-    content: string | null;
-    attachments: string | null;
-    relatedItems: { id: number; fullId: string; title?: string; description?: string | null }[];
-    references?: { fileId: number; dataCode: string; dataName: string; dataYear: number | null; author: string | null; citation?: string | null }[];
-}
-
-/**
- * Computes difference between two snapshots.
- */
-function computeDiff(oldData: ItemSnapshot, newData: ItemSnapshot) {
-    const diff: Record<string, { old: unknown; new: unknown }> = {};
-
-    // Compare basic fields
-    for (const key of ['title', 'content', 'attachments'] as const) {
-        const oldVal = oldData[key];
-        const newVal = newData[key];
-
-        if (oldVal !== newVal) {
-            diff[key] = { old: oldVal, new: newVal };
-        }
-    }
-
-    // Compare relatedItems (arrays)
-    // We sort by id to ensure consistent comparison
-    const oldRelations = [...oldData.relatedItems].sort((a, b) => a.id - b.id);
-    const newRelations = [...newData.relatedItems].sort((a, b) => a.id - b.id);
-
-    if (JSON.stringify(oldRelations) !== JSON.stringify(newRelations)) {
-        diff['relatedItems'] = { old: oldRelations, new: newRelations };
-    }
-
-    // Compare references (arrays)
-    const oldRefs = [...(oldData.references || [])].sort((a, b) => a.fileId - b.fileId);
-    const newRefs = [...(newData.references || [])].sort((a, b) => a.fileId - b.fileId);
-
-    if (JSON.stringify(oldRefs) !== JSON.stringify(newRefs)) {
-        diff['references'] = { old: oldRefs, new: newRefs };
-    }
-
-    return Object.keys(diff).length > 0 ? diff : null;
-}
+export type {
+    ApprovedHistoryChangeRequest,
+    ItemSnapshot,
+    RecordApprovedHistoryInput,
+    RecordApprovedHistoryResult,
+} from "@/lib/qc-lifecycle";
 
 /**
  * Creates a history record for an item.
@@ -93,82 +59,41 @@ function computeDiff(oldData: ItemSnapshot, newData: ItemSnapshot) {
  */
 export async function createHistoryRecord(
     item: Item,
-    snapshotData: ItemSnapshot,
-    changeRequest: { id: number; submittedById: string | null; submitReason?: string | null; reviewNote?: string | null; createdAt: Date },
+    snapshotData: ItemSnapshotType,
+    changeRequest: {
+        id: number;
+        submittedById: string | null;
+        submitReason?: string | null;
+        reviewNote?: string | null;
+        createdAt: Date;
+        previousRequestId?: number | null;
+    },
     changeType: "CREATE" | "UPDATE" | "DELETE" | "RESTORE",
     reviewerId: string,
-    oldSnapshot?: ItemSnapshot,
+    oldSnapshot?: ItemSnapshotType,
     tx?: Prisma.TransactionClient
 ) {
-    const client = tx || prisma;
-    console.log('=== createHistoryRecord CALLED ===', { itemId: item.id, changeType, changeRequestId: changeRequest.id });
-    const diff = (changeType === "UPDATE" && oldSnapshot)
-        ? computeDiff(oldSnapshot, snapshotData)
-        : null;
-
-    // Logic: UPDATE/DELETE increments version counter
-    let newVersion = item.currentVersion;
-
-    if (changeType === "UPDATE" || changeType === "DELETE") {
-        newVersion = item.currentVersion + 1;
-    }
-
-    // Create History Record
-    const historyRecord = await client.itemHistory.create({
-        data: {
-            itemId: item.id, // Support soft delete linking
-            version: newVersion,
-            changeType,
-            snapshot: JSON.stringify(snapshotData),
-            diff: diff ? JSON.stringify(diff) : null,
-
+    const input = {
+        item,
+        snapshot: snapshotData,
+        changeRequest: {
+            id: changeRequest.id,
             submittedById: changeRequest.submittedById,
-            reviewedById: reviewerId,
-            reviewStatus: "APPROVED",
-            reviewNote: changeRequest.reviewNote || null,
-            submitReason: changeRequest.submitReason || null,
-            changeRequestId: changeRequest.id,
+            submitReason: changeRequest.submitReason,
+            reviewNote: changeRequest.reviewNote,
+            createdAt: changeRequest.createdAt,
+            previousRequestId: changeRequest.previousRequestId,
+        },
+        changeType,
+        reviewerId,
+        oldSnapshot,
+    } as const;
 
-            // Redundant fields
-            itemFullId: item.fullId,
-            itemTitle: item.title,
-            projectId: item.projectId,
-        }
-    });
-
-    // Create QC Document Approval record to start the signature workflow
-    // PDF will be generated only after PM approval
-    try {
-        await client.qCDocumentApproval.create({
-            data: {
-                itemHistoryId: historyRecord.id,
-                status: "PENDING_QC"
-            }
-        });
-        console.log('[createHistoryRecord] QCDocumentApproval record created (PDF deferred to PM approval)');
-    } catch (e) {
-        console.error("[createHistoryRecord] Failed to create QCDocumentApproval:", e);
+    if (tx) {
+        return recordApprovedHistory(tx, input);
     }
 
-    // Increment Item Version (Only if not DELETE - conceptually. Practically, if soft delete, we might want to update version too? 
-    // If we update version on soft delete, next time we recreate/restore, we know where we left off?
-    // Our system doesn't restore easily yet.
-    // But updating version on the item row is fine for soft delete.)
-    // Actually, let's update it so currentVersion reflects the 'Deleted' state version.
-
-    if (changeType !== "DELETE") {
-        await client.item.update({
-            where: { id: item.id },
-            data: { currentVersion: newVersion }
-        });
-    } else {
-        // For DELETE (Soft), we also update version to match history?
-        // Yes, let's do it to keep consistency.
-        await client.item.update({
-            where: { id: item.id },
-            data: { currentVersion: newVersion }
-        });
-    }
+    return prisma.$transaction((transaction) => recordApprovedHistory(transaction, input));
 }
 
 /**
