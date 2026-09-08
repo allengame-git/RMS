@@ -133,7 +133,7 @@ Notification → LoginLog
 3. Collect physical files via `collectProjectFiles()`:
    - Item attachments → `assets/uploads/<basename>`
    - QC ISO PDFs → `assets/iso_doc/<basename>`
-   - DataFile files → `assets/uploads/datafiles/<basename>`
+   - DataFile files → `assets/uploads/datafiles/<full canonical relative path>` (for example `2026/user-1/subdir/report.pdf`)
 4. Compute MD5 checksums for each file
 5. Serialize all data (handles BigInt→string, Date→ISO)
 6. Build ZIP: `manifest.json` + `data.json` + all asset files
@@ -283,7 +283,7 @@ The import uses `IdMapping` — separate `Map<number, number>` per entity type �
 
 **Two-pass pattern for self-referential FKs**: Entities with self-referential foreign keys (`ChangeRequest.previousRequestId`, `QCDocumentRevision.resolvedItemHistoryId`) must be inserted in two passes — first without the FK to get new IDs, then update the FK using the ID mapping.
 
-**File atomicity**: Files staged in memory as `pendingFiles[]` during ZIP parsing. Written to disk only after DB transaction succeeds. On error: best-effort cleanup via `unlinkSync` on already-written files.
+**File atomicity**: Files staged in memory as `pendingFiles[]` during ZIP parsing. Written to disk only after DB transaction succeeds. DataFile entries preserve their canonical nested path; legacy flattened entries are resolved by basename only when unambiguous. Reused or pre-existing DataFile targets are never overwritten. On error: best-effort cleanup via `unlinkSync` on files written by this import; the DB commit and filesystem writes are not one all-or-nothing transaction.
 
 **Auto pre-backup**: Before import, exports current DB to `backups/pre_import_<timestamp>.sql` on server filesystem. Failure logged but does not abort import.
 
@@ -322,7 +322,7 @@ project_<codePrefix>_backup_<date>.zip
     ├── uploads/
     │   ├── <attachment files>
     │   └── datafiles/
-    │       └── <datafile physical files>
+    │       └── <year>/<user>/<subdir>/<datafile physical files>
     └── iso_doc/
         └── <QC PDF files>
 ```

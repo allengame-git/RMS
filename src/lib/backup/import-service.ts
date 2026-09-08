@@ -40,6 +40,11 @@ import { prisma } from '@/lib/prisma';
 import { mkdirSync, writeFileSync, unlinkSync, existsSync } from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
+import {
+    DATAFILES_URL_PREFIX,
+    resolveDataFilePath,
+    resolveDataFilePathSafely,
+} from '@/lib/datafile-storage';
 
 // 系統版本
 const SYSTEM_VERSION = '1.0.0';
@@ -224,6 +229,115 @@ interface ConflictCheckResult {
     };
 }
 
+interface PendingFile {
+    targetPath: string;
+    fileData: Buffer;
+    /** The DataFile that owns this asset, when the archive entry is one. */
+    dataCodes?: string[];
+}
+
+interface InternalImportResult {
+    result: ImportResult;
+    /** DataFiles found by dataCode during the import transaction. */
+    reusedDataCodes: Set<string>;
+}
+
+const DATAFILE_ASSET_PREFIX = 'assets/uploads/datafiles/';
+
+/**
+ * Return the path below `/uploads/datafiles/` after validating the stored URL.
+ * DataFile URLs are deliberately kept as URL paths here; decoding them could
+ * turn a literal `%2F` in a legacy filename into a path separator.
+ */
+function getDataFileRelativePath(filePath: string, cwd = process.cwd()): string {
+    const prefix = `${DATAFILES_URL_PREFIX}/`;
+    // resolveDataFilePath performs the canonical-prefix, separator, traversal,
+    // and NUL checks shared by DataFile upload/download code.
+    resolveDataFilePath(filePath, cwd);
+    return filePath.slice(prefix.length);
+}
+
+/**
+ * Resolve a DataFile archive entry to the DataFile metadata it belongs to.
+ *
+ * Archives created by the current exporter carry the full relative path. Old
+ * archives only carry a basename, so they are accepted only when exactly one
+ * DataFile has that basename. This avoids silently putting one file into an
+ * arbitrary record when names collide.
+ */
+async function resolveDataFileAsset(
+    entryName: string,
+    data: ImportData,
+    basePath: string,
+): Promise<{ targetPath: string; dataCodes: string[] }> {
+    const relativePath = entryName.slice(DATAFILE_ASSET_PREFIX.length);
+    if (!relativePath) {
+        throw new Error('備份檔案缺少 DataFile 檔案路徑');
+    }
+
+    try {
+        // Validate the archive entry independently of data.json. This catches
+        // traversal/backslash/NUL payloads even when no DataFile can match it.
+        resolveDataFilePath(`${DATAFILES_URL_PREFIX}/${relativePath}`, basePath);
+    } catch {
+        throw new Error(`路徑穿越偵測: ${entryName}`);
+    }
+
+    const dataFilesWithPaths = data.dataFiles.flatMap((dataFile) => {
+        try {
+            return [{ dataFile, relativePath: getDataFileRelativePath(dataFile.filePath, basePath) }];
+        } catch {
+            // A malformed DataFile record is handled by the normal import
+            // validation below; it must not become a basename match.
+            return [];
+        }
+    });
+
+    let matchingDataFiles: Array<(typeof dataFilesWithPaths)[number]>;
+    if (relativePath.includes('/')) {
+        // New archives preserve the complete relative path. Validate the
+        // archive path itself before looking it up so `..` and separators can
+        // never reach a filesystem operation, even when data.json is forged.
+        matchingDataFiles = dataFilesWithPaths.filter((entry) => entry.relativePath === relativePath);
+    } else {
+        // A one-segment entry is the legacy flattened representation. It must
+        // map by basename, never by a guessed directory.
+        matchingDataFiles = dataFilesWithPaths.filter((entry) => {
+            return path.posix.basename(entry.relativePath) === relativePath;
+        });
+    }
+
+    // Multiple DataFile records may intentionally reference one physical
+    // asset. They are not ambiguous as long as their canonical paths are the
+    // same; ambiguity means that the basename could resolve to different
+    // physical paths.
+    const matchingPaths = new Map<string, (typeof dataFilesWithPaths)[number]>();
+    for (const matchingDataFile of matchingDataFiles) {
+        matchingPaths.set(matchingDataFile.relativePath, matchingDataFile);
+    }
+
+    if (matchingPaths.size === 0) {
+        throw new Error(`找不到 DataFile 檔案路徑對應：${relativePath}`);
+    }
+    if (matchingPaths.size > 1) {
+        throw new Error(`DataFile 檔案名稱對應不明確：${relativePath}`);
+    }
+
+    const canonicalPath = [...matchingPaths.values()][0].relativePath;
+    const canonicalMatches = matchingDataFiles.filter((entry) => entry.relativePath === canonicalPath);
+    const dataFile = canonicalMatches[0].dataFile;
+    let targetPath: string;
+    try {
+        targetPath = await resolveDataFilePathSafely(dataFile.filePath, basePath, { allowMissing: true });
+    } catch {
+        throw new Error(`無效的 DataFile 檔案路徑：${dataFile.filePath}`);
+    }
+    return {
+        targetPath,
+        dataCodes: canonicalMatches.map((entry) => entry.dataFile.dataCode),
+    };
+}
+
 /**
  * 生成唯一的 codePrefix
  */
@@ -282,10 +396,10 @@ export async function checkImportConflicts(data: ImportData): Promise<ConflictCh
 /**
  * 匯入專案資料
  */
-export async function importProjectData(
+async function importProjectDataInternal(
     data: ImportData,
     options: ImportOptions
-): Promise<ImportResult> {
+): Promise<InternalImportResult> {
     const idMapping: IdMapping = {
         projectCategory: new Map(),
         project: new Map(),
@@ -300,9 +414,10 @@ export async function importProjectData(
     const filesRestored = 0;
     const oldCodePrefix = data.project.codePrefix;
     let newCodePrefix = oldCodePrefix;
+    const reusedDataCodes = new Set<string>();
 
     try {
-        return await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx) => {
             // Step 1: ProjectCategory (upsert by name)
             if (data.projectCategory) {
                 const existing = await tx.projectCategory.findUnique({
@@ -397,6 +512,7 @@ export async function importProjectData(
                 });
                 if (existing) {
                     idMapping.dataFile.set(dataFile.id, existing.id);
+                    reusedDataCodes.add(dataFile.dataCode);
                 } else {
                     const created = await tx.dataFile.create({
                         data: {
@@ -596,13 +712,30 @@ export async function importProjectData(
             maxWait: 30000,  // 等待取得連線的最大時間 (30s)
             timeout: 120000, // 交易執行的最大時間 (120s)
         });
+        return { result, reusedDataCodes };
     } catch (error) {
         return {
-            success: false,
-            error: error instanceof Error ? error.message : '匯入失敗',
-            stats: { itemsImported: 0, filesRestored: 0 },
+            result: {
+                success: false,
+                error: error instanceof Error ? error.message : '匯入失敗',
+                stats: { itemsImported: 0, filesRestored: 0 },
+            },
+            reusedDataCodes,
         };
     }
+}
+
+/**
+ * Import only the database portion of a project archive. The public result
+ * shape intentionally remains unchanged for existing callers and Server
+ * Actions; file-reuse metadata is kept internal to the ZIP importer.
+ */
+export async function importProjectData(
+    data: ImportData,
+    options: ImportOptions
+): Promise<ImportResult> {
+    const { result } = await importProjectDataInternal(data, options);
+    return result;
 }
 
 /**
@@ -618,10 +751,12 @@ export async function importProjectFromZip(
     const extractedFiles: Array<{ zipPath: string; targetPath: string }> = [];
 
     // 暫存解壓的檔案資料（先讀入記憶體，DB 成功後才寫入磁碟）
-    const pendingFiles: Array<{ targetPath: string; fileData: Buffer }> = [];
+    const pendingFiles: PendingFile[] = [];
 
     try {
-        // Step 1: 解壓 ZIP 至記憶體，不寫入磁碟
+        // Step 1: 先讀取 manifest/data，再依 data.json 對應檔案。ZIP
+        // entry 順序不可假設，且舊扁平 archive 的 basename 需要資料
+        // 內容才能安全解析。
         const zip = new AdmZip(zipBuffer);
         const entries = zip.getEntries();
 
@@ -632,27 +767,6 @@ export async function importProjectFromZip(
             } else if (entry.entryName === 'data.json') {
                 const content = entry.getData().toString('utf-8');
                 data = JSON.parse(content);
-            } else if (entry.entryName.startsWith('assets/') && !entry.isDirectory) {
-                let targetPath: string;
-                if (entry.entryName.startsWith('assets/uploads/datafiles/')) {
-                    targetPath = path.join(basePath, 'public', 'uploads', 'datafiles', path.basename(entry.entryName));
-                } else if (entry.entryName.startsWith('assets/uploads/')) {
-                    targetPath = path.join(basePath, 'public', 'uploads', path.basename(entry.entryName));
-                } else if (entry.entryName.startsWith('assets/iso_doc/')) {
-                    targetPath = path.join(basePath, 'public', 'iso_doc', path.basename(entry.entryName));
-                } else {
-                    continue;
-                }
-
-                // Zip Slip 防護：確認解析後的路徑在 public/ 目錄內
-                const resolvedTarget = path.resolve(targetPath);
-                const resolvedPublic = path.resolve(path.join(basePath, 'public'));
-                if (!resolvedTarget.startsWith(resolvedPublic + path.sep)) {
-                    throw new Error(`路徑穿越偵測: ${entry.entryName}`);
-                }
-
-                // 先暫存至記憶體，稍後寫入
-                pendingFiles.push({ targetPath, fileData: entry.getData() });
             }
         }
 
@@ -664,13 +778,53 @@ export async function importProjectFromZip(
             };
         }
 
+        // Stage all files only after the metadata is known. No filesystem
+        // writes occur until the database transaction has committed.
+        const stagedTargets = new Set<string>();
+        for (const entry of entries) {
+            if (!entry.entryName.startsWith('assets/') || entry.isDirectory) continue;
+
+            let targetPath: string;
+            let dataCodes: string[] | undefined;
+            if (entry.entryName.startsWith(DATAFILE_ASSET_PREFIX)) {
+                const dataFileAsset = await resolveDataFileAsset(entry.entryName, data, basePath);
+                targetPath = dataFileAsset.targetPath;
+                dataCodes = dataFileAsset.dataCodes;
+            } else if (entry.entryName.startsWith('assets/uploads/')) {
+                targetPath = path.join(basePath, 'public', 'uploads', path.basename(entry.entryName));
+            } else if (entry.entryName.startsWith('assets/iso_doc/')) {
+                targetPath = path.join(basePath, 'public', 'iso_doc', path.basename(entry.entryName));
+            } else {
+                continue;
+            }
+
+            // Zip Slip 防護：確認解析後的路徑在 public/ 目錄內。 DataFile
+            // targets additionally go through resolveDataFilePathSafely above,
+            // which checks symlink components before any later mkdir/write.
+            const resolvedTarget = path.resolve(targetPath);
+            const resolvedPublic = path.resolve(path.join(basePath, 'public'));
+            if (resolvedTarget !== resolvedPublic && !resolvedTarget.startsWith(resolvedPublic + path.sep)) {
+                throw new Error(`路徑穿越偵測: ${entry.entryName}`);
+            }
+            // DataFile assets have a one-to-one canonical target. Reject a
+            // repeated entry rather than allowing archive order to decide
+            // which bytes win. Keep the historical attachment/ISO basename
+            // behavior unchanged.
+            if (dataCodes && stagedTargets.has(resolvedTarget)) {
+                throw new Error(`備份檔案包含重複的檔案路徑：${entry.entryName}`);
+            }
+            if (dataCodes) stagedTargets.add(resolvedTarget);
+
+            pendingFiles.push({ targetPath, fileData: entry.getData(), dataCodes });
+        }
+
         // 檢查版本相容性
         if (manifest.version !== SYSTEM_VERSION) {
             console.warn(`備份版本 ${manifest.version} 與系統版本 ${SYSTEM_VERSION} 不同，將嘗試匯入`);
         }
 
         // Step 2: 先執行資料庫匯入（交易內，失敗自動回滾）
-        const result = await importProjectData(data, options);
+        const { result, reusedDataCodes } = await importProjectDataInternal(data, options);
 
         if (!result.success) {
             // DB 匯入失敗，不寫入任何檔案
@@ -678,7 +832,23 @@ export async function importProjectFromZip(
         }
 
         // Step 3: DB 成功後才寫入檔案至磁碟
-        for (const { targetPath, fileData } of pendingFiles) {
+        for (const { targetPath, fileData, dataCodes } of pendingFiles) {
+            // A dataCode collision reuses the existing DataFile record and its
+            // physical asset. Never replace that asset with bytes from the
+            // imported archive (the existing record may use a different path).
+            // Only omit an archive asset when every DataFile record that
+            // resolves to this physical path was reused.  A shared path can
+            // contain a mix of reused and newly-created records: the new
+            // record still needs the archive bytes, while the reused record's
+            // original path/bytes must remain untouched.
+            if (dataCodes?.every((dataCode) => reusedDataCodes.has(dataCode))) continue;
+
+            // DataFile paths are generated from unique upload directories. If
+            // a non-reused record nevertheless points to an existing target,
+            // preserve that file too; overwriting it could destroy an
+            // unrelated active DataFile or an orphan needed for recovery.
+            if (dataCodes && existsSync(targetPath)) continue;
+
             mkdirSync(path.dirname(targetPath), { recursive: true });
             writeFileSync(targetPath, fileData);
             extractedFiles.push({ zipPath: '', targetPath });

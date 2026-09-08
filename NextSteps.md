@@ -1,7 +1,7 @@
 # NextSteps - 後續工作說明
 
 > 此文件供後續接手的 AI Agent 或開發者了解當前狀態與待辦事項。
-> 最後更新：2026-09-07
+> 最後更新：2026-09-08
 
 ---
 
@@ -30,7 +30,20 @@
 
 - `npx vitest run`：9 個測試檔、122 個測試全部通過；DataFile 新增 26 項測試涵蓋交易 rollback、交易後清理、ENOENT／錯誤 fail-closed、共用引用、路徑越界、符號連結與首次上傳目錄。
 - DataFile 變更檔案 ESLint 通過；`git diff --check` 通過。
-- `npx tsc --noEmit`：140 項 diagnostics 與基線相同，未新增；測試使用 mock Prisma transaction，尚未涵蓋真實資料庫併發鎖。
+- `npx tsc --noEmit`：140 項 diagnostics 與基線相同，未新增；單元測試使用 mock Prisma transaction，真實資料庫併發鎖另有隔離 PostgreSQL 證據。
+
+### DataFile 真實併發與備份驗證（2026-09-08）
+
+- 以一次性 `postgres:16-alpine` tmpfs 容器（`127.0.0.1:55440/dfproof`）執行真實 Prisma 交易；CREATE／UPDATE／DELETE 各以兩個重疊交易競爭 pending CAS，均得到一個勝者與一個失敗者，且只產生一筆對應 history／mutation。
+- 同一隔離資料庫強制 history 外鍵失敗，確認 CAS、DataFile 變更與 history 全部 rollback，request 回到 `PENDING`；這證明 PostgreSQL row lock/CAS 與交易原子性，不涵蓋尚待處理的「新引用在查詢後、unlink 前建立」競態。
+- 以另一個一次性 `postgres:16-alpine` tmpfs 容器（`127.0.0.1:55441/backupproof`）與暫存工作區完成 project ZIP nested export/import、舊版 flat basename mapping、`dataCode` reuse 不覆寫；兩個容器均已停止移除。
+- 新增 `src/lib/backup/backup-path-compatibility.test.ts`；完整 suite 為 10 個測試檔、133 個測試全部通過，備份變更檔案 ESLint 與 `git diff --check` 通過。
+
+### Project backup path lifecycle
+
+- `src/lib/backup/export-service.ts` 現在使用 `resolveDataFilePathSafely()`，保留 `assets/uploads/datafiles/<year>/<user>/<subdir>/...` 巢狀路徑，並對共用 canonical path 只輸出一份 asset。
+- `src/lib/backup/import-service.ts` 先解析 manifest/data，再解析 asset；新格式以完整相對路徑對應，舊格式只接受唯一 basename 對應。歧義、traversal、重複目標在 DB transaction 前拒絕。
+- 匯入會保留已 reuse DataFile 的原始實體 bytes；既有目標檔案不覆寫。若同一 canonical path 混合 reused／新建 DataFile，只有新建記錄仍會寫入 archive bytes。
 
 ### fullId mutation orchestration
 
@@ -181,9 +194,9 @@
 4. **處理 PDF 並行覆寫的一致性**
    - `src/lib/pdf-generator.ts:576` 以 `QC-${projectCode}-${history.id}.pdf` 固定路徑直接 `writeFileSync`。實測並行生成時檔案保持可解析，但 last-writer-wins；舊 PDF 可能覆蓋新修訂。需設計暫存檔／原子 rename、revision 對應檢查或唯一輸出路徑，並補真實競態回歸測試。
 
-5. **修正 DataFile 備份匯入的巢狀路徑相容性**
-   - `src/lib/backup/export-service.ts:175` 目前將 DataFile asset 攤平成 basename；`src/lib/backup/import-service.ts:409`、`:638` 也寫入扁平路徑，與新的 `/uploads/datafiles/{year}/{userId}/{subdir}/...` URL 不一致。
-   - 新格式保留相對巢狀路徑；舊 archive 只有在 basename 對應唯一時才轉換，遇歧義要拒絕，且 reuse 既有 `dataCode` 時不可覆寫既有檔案。
+5. **補強 project ZIP 的跨資料庫／檔案系統原子性（中）**
+   - `src/lib/backup/import-service.ts` 仍在 DB transaction commit 後才寫入 `pendingFiles[]`；若後續檔案寫入失敗，已提交的資料列不會自動回滾，現行清理只對本次已建立且可 unlink 的檔案做 best-effort。
+   - nested/legacy path mapping、traversal 防護與既有檔案不覆寫已完成；若需要真正 all-or-nothing，應設計 durable staging、補償交易或 import journal，並同步處理大檔記憶體上限。
 
 6. **處理 DataFile 並行引用的競態**
    - `cleanupApprovedDataFile()` 在查詢引用後才 unlink；另一個 CREATE 可能在查詢後、刪除前建立同一路徑引用。需要 ownership／claim schema 或資料庫鎖定，並補真實併發測試。

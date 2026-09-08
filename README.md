@@ -137,6 +137,13 @@ LLRWD-RMS 是一個基於 Next.js 開發的專案項目資訊管理系統，提�
 - 🧪 **真實環境驗證**:
   - 隔離 PostgreSQL rollback 與 PDF 並行覆寫測試完成；固定 PDF 路徑的 last-writer-wins 限制已記錄於 `NextSteps.md`。
 
+### 2026-09-08 — DataFile 備份路徑相容性與真實併發驗證
+
+- 🗂️ **專案 ZIP 路徑修正**：匯出保留 `/uploads/datafiles/...` 的完整巢狀相對路徑；匯入支援新格式與舊版扁平 basename，只有唯一對應才還原，歧義、重複或越界路徑會在資料庫交易前拒絕。
+- 🛡️ **非破壞匯入**：共用 canonical path 只加入一份 archive asset；`dataCode` reuse 與既有目標檔案不會被備份內容覆寫，混合 reuse／新建記錄仍會還原新記錄所需 bytes。
+- 🧪 **真實 PostgreSQL 驗證**：隔離 PostgreSQL 16 實測 DataFile CREATE／UPDATE／DELETE pending-CAS 競態各只有一個勝者，並以歷史寫入失敗確認交易 rollback；容器已停止移除。
+- 🔁 **真實 ZIP round-trip**：隔離 PostgreSQL 與暫存工作區完成 nested export/import、legacy flat mapping 與 dataCode reuse 不覆寫驗證；容器已停止移除。
+
 ### 2026-09-07 — DataFile 檔案生命週期與路徑一致性
 
 - 📁 **統一路徑語意**：`DataFile.filePath` 統一使用 `/uploads/datafiles/...` URL，並由 `datafile-storage.ts` 處理 URL 與磁碟路徑轉換、越界及符號連結防護。
@@ -382,7 +389,7 @@ npx prisma generate
 
 ---
 
-## 工程驗證（2026-09-07）
+## 工程驗證（2026-09-08）
 
 - fullId 階段基線：4 個測試檔、67 個測試全部通過。
 - fullId helper/cascade 測試使用 mock/fake transaction client；尚未涵蓋真實 PostgreSQL UNIQUE/rollback 或 Server Action integration。
@@ -390,6 +397,10 @@ npx prisma generate
 - QC/PM 生命週期重構後：6 個測試檔、93 個測試全部通過，包含版本重提、狀態 CAS、PDF 交易順序與批次部分成功。
 - DataFile 生命週期重構後：9 個測試檔、122 個測試全部通過；新增路徑越界、符號連結、首次上傳目錄、交易 rollback、交易後清理、引用保護與 pending CAS 覆蓋。
 - DataFile 變更檔案 ESLint 通過；TypeScript 維持既有 140 項 diagnostics，未新增。
+- 專案備份路徑相容性：`src/lib/backup/backup-path-compatibility.test.ts` 11 項測試通過，涵蓋 nested/legacy mapping、共用 canonical path、mixed reuse、既有檔案保護、附件相容性、ZIP Slip 與 DB rollback staging。
+- 完整 `npx vitest run`：10 個測試檔、133 個測試全部通過；備份變更檔案 ESLint 與 `git diff --check` 通過。
+- 真實 PostgreSQL DataFile CAS：隔離 `postgres:16-alpine`（`127.0.0.1:55440/dfproof`）CREATE／UPDATE／DELETE 競態各驗證一勝一敗，並驗證歷史寫入失敗 rollback；容器已停止移除。
+- 真實 PostgreSQL project ZIP：隔離 `postgres:16-alpine`（`127.0.0.1:55441/backupproof`）完成 nested export/import、legacy flat mapping、dataCode reuse 不覆寫；容器已停止移除。
 - 真實 PostgreSQL 隔離容器驗證兩種 rollback：強制交易失敗及 QC 初始化失敗後，Item、ItemHistory、QCDocumentApproval、ChangeRequest 均回復交易前快照。
 - 真實 pdf-lib 並行生成 12 輪均產生可解析 PDF；同一 `QC-{projectCode}-{history.id}.pdf` 路徑採最後寫入者覆蓋，舊生成結果可能覆蓋新結果（詳見 `NextSteps.md`）。
 

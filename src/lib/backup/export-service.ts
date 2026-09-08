@@ -46,6 +46,7 @@ import { createHash } from 'crypto';
 import { createReadStream, existsSync, statSync } from 'fs';
 import path from 'path';
 import { Writable } from 'stream';
+import { DATAFILES_URL_PREFIX, resolveDataFilePathSafely } from '@/lib/datafile-storage';
 
 // 系統版本，用於相容性檢查
 const SYSTEM_VERSION = '1.0.0';
@@ -166,14 +167,28 @@ async function collectProjectFiles(
     }
 
     // 3. DataFile 檔案
+    const dataFileZipPaths = new Set<string>();
     for (const dataFile of dataFiles) {
         if (dataFile.filePath) {
-            const sourcePath = path.join(basePath, 'public', dataFile.filePath);
-            if (existsSync(sourcePath)) {
-                files.push({
-                    sourcePath,
-                    zipPath: `assets/uploads/datafiles/${path.basename(dataFile.filePath)}`,
-                });
+            try {
+                // DataFile.filePath is a canonical URL.  Keep the complete
+                // path below the DataFile root in the archive so importing a
+                // project does not lose the year/user/sub-directory layout.
+                // Export must not follow a symlinked DataFile path outside the
+                // configured storage root while reading the asset.
+                const sourcePath = await resolveDataFilePathSafely(dataFile.filePath, basePath);
+                const relativePath = dataFile.filePath.slice(`${DATAFILES_URL_PREFIX}/`.length);
+                const zipPath = `assets/uploads/datafiles/${relativePath}`;
+                if (existsSync(sourcePath) && relativePath && !dataFileZipPaths.has(zipPath)) {
+                    dataFileZipPaths.add(zipPath);
+                    files.push({
+                        sourcePath,
+                        zipPath,
+                    });
+                }
+            } catch {
+                // Ignore malformed or unavailable paths just as other
+                // project assets are ignored when they cannot be read.
             }
         }
     }

@@ -139,7 +139,7 @@ When items are reordered, moved, renumbered, or restored, their `fullId` (e.g., 
 
 **Decision:** Keep filesystem deletion outside the database transaction. A failed transaction must leave the physical file untouched, while an already committed DELETE must remain successful when cleanup needs retry. Reference checks protect known shared files; a concurrent new reference between the check and unlink remains a follow-up requiring ownership or locking.
 
-**Test boundary:** DataFile tests cover local filesystem semantics and mocked Prisma transactions, including rollback and cleanup ordering. They do not prove PostgreSQL locking or concurrent reference creation.
+**Test boundary:** DataFile tests cover local filesystem semantics and mocked Prisma transactions, including rollback and cleanup ordering. An isolated PostgreSQL 16 proof now covers real pending-CAS row locking for concurrent CREATE/UPDATE/DELETE approvals and transaction rollback; the separate concurrent-reference-before-unlink race remains unsolved.
 
 ### QC/PM Lifecycle Module
 
@@ -159,6 +159,12 @@ When items are reordered, moved, renumbered, or restored, their `fullId` (e.g., 
 - `src/lib/backup-utils.ts` — Full database export (SQL dump)
 - `src/app/api/admin/restore/database/route.ts` — SQL restore within `prisma.$transaction`, drops/recreates FK constraints, resets auto-increment sequences
 - `src/app/api/admin/restore/{iso-docs,uploads}/route.ts` — File restore with Zip Slip protection
+
+**Project DataFile archive flow:** `exportProjectToZip()` resolves every canonical `DataFile.filePath` through `resolveDataFilePathSafely()` and emits the complete relative path below `assets/uploads/datafiles/`; duplicate records sharing one canonical path produce one archive asset. `importProjectFromZip()` parses `manifest.json` and `data.json` before staging assets, maps current nested entries by exact relative path, and maps legacy one-segment entries by basename only when all matches share one canonical path. Unsafe paths, ambiguous basenames, and duplicate resolved targets are rejected before the database transaction.
+
+**Reuse and write policy:** The database phase still upserts `DataFile` by `dataCode`. Archive bytes for fully reused records are skipped, mixed reused/new records still restore bytes needed by the new record, and any existing DataFile target is never overwritten. Files remain memory-staged until the database transaction commits; cross-database/filesystem atomicity is intentionally not claimed (see `NextSteps.md`).
+
+**Verification:** `src/lib/backup/backup-path-compatibility.test.ts` covers nested/legacy mapping, shared paths, mixed reuse, traversal, no-overwrite, and DB rollback staging. A disposable PostgreSQL 16 round-trip additionally verified nested export/import, legacy flat mapping, and reuse preservation against a real schema.
 
 ---
 
@@ -242,6 +248,7 @@ Schema at `prisma/schema.prisma`. Key models:
 | fullId mutation orchestration | Shared `applyFullIdChangesWithHistory()` with caller-owned `tx` | Centralize descendant-before-cascade ordering and direct-first audit history across four entrypoints | Duplicate sequencing in each action |
 | QC/PM lifecycle orchestration | Shared `src/lib/qc-lifecycle.ts` with caller-owned `tx` and status/revision CAS | Keep resubmission, rejection, and completion rules consistent across actions | Duplicate lifecycle branches |
 | DataFile path and cleanup | Canonical URL resolver plus post-commit cleanup with reference checks | Keep upload, download, approval, and deletion semantics aligned without deleting files during a transaction | Per-route path joins and in-transaction unlink |
+| Project ZIP DataFile paths | Preserve nested relative paths; legacy basename mapping only when unambiguous; never overwrite existing targets | Keep archive assets aligned with canonical URLs while remaining compatible with flattened historical archives | Flatten every asset to basename and overwrite on import |
 | Self-review | Blocked (except ADMIN for Items; always blocked for QC/PM) | Separation of duties for quality assurance | Allow all self-review |
 | Upload auth | Internal (not middleware) | Edge middleware 10MB body limit | Presigned URLs |
 | Role validation | Re-fetch from DB per mutation | JWT claims can be stale after demotion | Trust JWT only |
